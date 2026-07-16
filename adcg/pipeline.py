@@ -1,9 +1,10 @@
+import json
 from dataclasses import dataclass
 from pathlib import Path
 
 from .generation import run_generation
 from .preprocessing import run_preprocess
-from .prompting import run_prompt_generation
+from .prompting import generate_ad_copy, run_prompt_generation
 from .refinement import run_core_refinement, run_identity_restoration
 
 
@@ -11,6 +12,7 @@ from .refinement import run_core_refinement, run_identity_restoration
 class PipelineResult:
     output_dir: Path
     prompt_json: Path
+    copy_json: Path
     generated_image: Path
     core_refined_image: Path
     final_image: Path
@@ -50,6 +52,27 @@ def run_pipeline(
         direction=direction,
     )
 
+    # 상품·매장 정보와 생성 배경 프롬프트 로드
+    product_info = json.loads(
+        Path(info_path).read_text(encoding="utf-8")
+    )
+    prompt_data = json.loads(
+        Path(prompt_json).read_text(encoding="utf-8")
+    )
+
+    # 광고 문구 생성
+    ad_copy = generate_ad_copy(
+        product_info=product_info,
+        background_prompt=prompt_data["generation_prompt"]["background_prompt"],
+    )
+
+    # 생성 결과 저장
+    copy_json = output_dir / "02_prompt" / "ad_copy.json"
+    copy_json.write_text(
+        json.dumps(ad_copy, ensure_ascii=False, indent=2),
+        encoding="utf-8",
+    )
+
     generated = run_generation(
         product_image=preprocessed["cutout"],
         prompt_json=prompt_json,
@@ -87,6 +110,7 @@ def run_pipeline(
     return PipelineResult(
         output_dir=output_dir,
         prompt_json=Path(prompt_json),
+        copy_json=copy_json,
         generated_image=Path(generated["image"]),
         core_refined_image=Path(core_refined),
         final_image=Path(final_image),
