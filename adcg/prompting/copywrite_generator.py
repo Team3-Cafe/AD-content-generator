@@ -71,22 +71,3 @@ def generate_ad_copy(
     copy["model"] = model
     copy["latency_sec"] = round(perf_counter() - started_at, 2)
     return copy
-
-
-# TODO: 파이프라인에 연결할 때 아래 경로를 실제 경로로 교체한다.
-# INFO_JSON_PATH = "상품/매장 정보 JSON 경로"
-# PROMPT_JSON_PATH = "ad_prompt.json 경로"
-# with open(INFO_JSON_PATH, "r", encoding="utf-8") as file:
-#     product_info = json.load(file)
-# with open(PROMPT_JSON_PATH, "r", encoding="utf-8") as file:
-#     prompt_data = json.load(file)
-#
-# 문구 생성에 필요한 입력:
-# - product_info: product_name, store_name, store_type, product_category,
-#   product_description, features, target_customer, promotion, price, tone
-# - background_prompt: 생성 이미지의 배경 프롬프트
-#
-# result = generate_ad_copy(
-#     product_info=product_info,
-#     background_prompt=prompt_data["generation_prompt"]["background_prompt"],
-# )
