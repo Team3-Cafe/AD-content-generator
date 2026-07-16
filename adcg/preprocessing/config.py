@@ -24,9 +24,7 @@ class AppConfig:
     gpt_model: str
     direction: str
     layout_mode: str
-    caption_model: str
-    copy_models: tuple[str, ...]
-    copy_count: int
+    copy_model: str
     seed: int
     cpu_offload: bool
 
@@ -60,13 +58,10 @@ def build_parser() -> argparse.ArgumentParser:
     )
 
     copywriting = parser.add_argument_group("copywriting")
-    copywriting.add_argument("--caption-model", default="gpt-4o")
     copywriting.add_argument(
-        "--copy-models",
-        nargs="+",
-        default=["gpt-5.4-nano"],
+        "--copy-model",
+        default="gpt-5.4-mini",
     )
-    copywriting.add_argument("--copy-count", type=int, default=9)
 
     info = parser.add_argument_group("product and store information")
     info.add_argument("--product-name")
@@ -186,9 +181,6 @@ def parse_config(argv: list[str] | None = None) -> AppConfig:
     output_dir = Path(args.output_dir).expanduser().resolve()
     _validate_image(parser, image_path)
 
-    if args.copy_count < 1:
-        parser.error("--copy-count는 1 이상이어야 합니다.")
-
     output_dir.mkdir(parents=True, exist_ok=True)
     info_path = _resolve_info_path(parser, args, output_dir)
 
@@ -199,9 +191,7 @@ def parse_config(argv: list[str] | None = None) -> AppConfig:
         gpt_model=args.gpt_model,
         direction=args.direction,
         layout_mode=args.layout_mode,
-        caption_model=args.caption_model,
-        copy_models=tuple(args.copy_models),
-        copy_count=args.copy_count,
+        copy_model=args.copy_model,
         seed=args.seed,
         cpu_offload=args.cpu_offload,
     )
@@ -216,9 +206,7 @@ if __name__ == "__main__":
         "gpt_model": config.gpt_model,
         "direction": config.direction,
         "layout_mode": config.layout_mode,
-        "caption_model": config.caption_model,
-        "copy_models": list(config.copy_models),
-        "copy_count": config.copy_count,
+        "copy_model": config.copy_model,
         "seed": config.seed,
         "cpu_offload": config.cpu_offload,
     }, ensure_ascii=False, indent=2))

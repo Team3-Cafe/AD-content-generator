@@ -23,6 +23,7 @@ def run_pipeline(
     info_path,
     output_dir="outputs/pipeline",
     gpt_model="gpt-5.4-nano",
+    copy_model="gpt-5.4-mini",
     direction="product_focus",
     layout_mode="layout",
     seed=42,
@@ -64,6 +65,7 @@ def run_pipeline(
     ad_copy = generate_ad_copy(
         product_info=product_info,
         background_prompt=prompt_data["generation_prompt"]["background_prompt"],
+        model=copy_model,
     )
 
     # 생성 결과 저장

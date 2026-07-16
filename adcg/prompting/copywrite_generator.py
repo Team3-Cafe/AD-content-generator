@@ -1,20 +1,9 @@
 from __future__ import annotations
 
 import json
-import os
 from time import perf_counter
 
-from dotenv import load_dotenv
-load_dotenv()  # 프로젝트 루트의 .env에서 OPENAI_API_KEY를 읽어옴
-
-if not os.environ.get("OPENAI_API_KEY"):
-    raise RuntimeError(
-        "OPENAI_API_KEY가 설정되지 않았습니다. .env 파일에 OPENAI_API_KEY=sk-... 를 추가하거나 "
-        "os.environ['OPENAI_API_KEY']를 직접 설정한 뒤 다시 실행하세요."
-    )
-
 from openai import OpenAI
-client = OpenAI()
 
 COPY_MODEL = "gpt-5.4-mini"
 COPY_INPUT_FIELDS = (
@@ -34,6 +23,7 @@ COPY_INPUT_FIELDS = (
 def generate_ad_copy(
     product_info: dict,
     background_prompt: str,
+    model: str = COPY_MODEL,
 ) -> dict:
     """단일 OpenAI 모델로 한국어 광고 문구 한 세트를 생성한다."""
     request_data = {
@@ -60,8 +50,9 @@ def generate_ad_copy(
     )
 
     started_at = perf_counter()
+    client = OpenAI()
     response = client.responses.create(
-        model=COPY_MODEL,
+        model=model,
         instructions=(
             "당신은 상품 광고 카피라이터입니다. title, subtitle, price, cta를 "
             "각각 짧고 명확하게 작성하세요."
@@ -77,7 +68,7 @@ def generate_ad_copy(
         },
     )
     copy = json.loads(response.output_text)
-    copy["model"] = COPY_MODEL
+    copy["model"] = model
     copy["latency_sec"] = round(perf_counter() - started_at, 2)
     return copy
 

@@ -1,0 +1,16 @@
+# OpenAI prompting and environment configuration
+openai
+python-dotenv
+
+# Image loading, masking, and compositing
+numpy
+Pillow
+opencv-python
+rembg[cpu]
+
+# Stable Diffusion and ControlNet pipelines
+torch
+diffusers
+transformers
+accelerate
+safetensors
