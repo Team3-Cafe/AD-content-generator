@@ -4,6 +4,12 @@ from copy import deepcopy
 
 
 COPY_ROLES = ("title", "subtitle", "price", "cta")
+LAYOUT_STRATEGIES = (
+    "left_hierarchy",
+    "split_corners",
+    "top_bottom_balance",
+    "asymmetric_editorial",
+)
 
 
 def _bbox_properties() -> dict:
@@ -227,5 +233,32 @@ LAYOUT_SCHEMA = {
         },
     },
     "required": ["canvas", "elements", "underlays", "rationale", "warnings"],
+    "additionalProperties": False,
+}
+
+LAYOUT_VARIANT_SCHEMA = {
+    "type": "object",
+    "properties": {
+        "strategy": {
+            "type": "string",
+            "enum": list(LAYOUT_STRATEGIES),
+        },
+        "layout": deepcopy(LAYOUT_SCHEMA),
+    },
+    "required": ["strategy", "layout"],
+    "additionalProperties": False,
+}
+
+LAYOUT_VARIANTS_SCHEMA = {
+    "type": "object",
+    "properties": {
+        "variants": {
+            "type": "array",
+            "items": deepcopy(LAYOUT_VARIANT_SCHEMA),
+            "minItems": 4,
+            "maxItems": 4,
+        },
+    },
+    "required": ["variants"],
     "additionalProperties": False,
 }

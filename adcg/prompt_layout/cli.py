@@ -8,6 +8,12 @@ from .generator import generate_prompt_layout
 from .io import load_ad_copy
 
 
+def _jsonable(value):
+    if isinstance(value, (list, tuple)):
+        return [_jsonable(item) for item in value]
+    return str(value)
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         description=(
@@ -68,7 +74,7 @@ def main(argv: list[str] | None = None) -> None:
     print(
         json.dumps(
             {
-                key: str(value)
+                key: _jsonable(value)
                 for key, value in asdict(result).items()
             },
             ensure_ascii=False,

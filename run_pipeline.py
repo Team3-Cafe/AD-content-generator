@@ -30,6 +30,11 @@ def main():
     print(f"Layout plan : {result.layout_plan_json}")
     print(f"Layout JSON : {result.layout_json}")
     print(f"Layout HTML : {result.layout_preview_html}")
+    print(f"Variants    : {result.layout_variants_json}")
+    print(f"Style JSON  : {result.style_selection_json}")
+    print(f"Strategy    : {result.selected_strategy}")
+    print(f"Style       : {result.selected_style}")
+    print(f"Candidates  : {len(result.candidate_images)} images")
     print(f"Final image : {result.final_image}")
 
     if result.eval_json is not None:

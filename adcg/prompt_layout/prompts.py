@@ -142,6 +142,28 @@ Output coordinates in pixels, not normalized values or percentages.
 """.strip()
 
 
+LAYOUT_VARIANTS_SYSTEM_PROMPT = (
+    LAYOUT_SYSTEM_PROMPT
+    + """
+
+Return exactly four layouts with genuinely different geometry:
+- left_hierarchy: title and subtitle use left-side negative space with the
+  commercial actions separated elsewhere.
+- split_corners: information and actions occupy different safe corners.
+- top_bottom_balance: headline information and commercial actions are
+  balanced between top and bottom safe regions.
+- asymmetric_editorial: use an intentional asymmetric composition while
+  retaining shared alignment lines.
+
+Changing only colors, font sizes, or panel styles does not count as a
+different layout. Every strategy must use meaningfully different grid cells.
+Keep at least 3% of the shorter canvas side between text boxes and at least 3%
+outer margin. Price and CTA must never touch or overlap. CTA must fit on one
+line. Do not emit a variant that intersects a protected region.
+"""
+).strip()
+
+
 def build_plan_request(copy: dict, width: int, height: int) -> str:
     copy_elements = [
         {

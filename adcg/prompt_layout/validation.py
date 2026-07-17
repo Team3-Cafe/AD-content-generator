@@ -160,7 +160,7 @@ def normalize_layout(
         )
         element["max_lines"] = (
             1
-            if role == "title"
+            if role in {"title", "cta"}
             else max(
                 1,
                 min(_integer(element.get("max_lines"), 2), 4),

@@ -3,10 +3,11 @@ from __future__ import annotations
 from copy import deepcopy
 import os
 from pathlib import Path
+import re
 import shutil
 import subprocess
 
-from PIL import Image, ImageColor, ImageDraw, ImageFont
+from PIL import Image, ImageColor, ImageDraw, ImageFilter, ImageFont
 
 
 REGULAR_FONT_CANDIDATES = (
@@ -146,11 +147,16 @@ def _load_font(
         return ImageFont.load_default()
 
 
-def _text_width(draw: ImageDraw.ImageDraw, text: str, font) -> int:
+def _text_width(
+    draw: ImageDraw.ImageDraw,
+    text: str,
+    font,
+    tracking: int = 0,
+) -> int:
     if not text:
         return 0
     box = draw.textbbox((0, 0), text, font=font)
-    return box[2] - box[0]
+    return box[2] - box[0] + max(0, len(text) - 1) * tracking
 
 
 def _wrap_text(
@@ -158,6 +164,7 @@ def _wrap_text(
     text: str,
     font,
     max_width: int,
+    tracking: int = 0,
 ) -> list[str]:
     lines = []
     for paragraph in text.splitlines() or [""]:
@@ -167,7 +174,11 @@ def _wrap_text(
         line = ""
         for character in paragraph:
             candidate = line + character
-            if line and _text_width(draw, candidate, font) > max_width:
+            if (
+                line
+                and _text_width(draw, candidate, font, tracking)
+                > max_width
+            ):
                 lines.append(line.rstrip())
                 line = character.lstrip()
             else:
@@ -189,6 +200,7 @@ def _fit_text(
     start_size = int(item.get("font_size", 24))
     weight = int(item.get("font_weight", 600))
     line_height = float(item.get("line_height", 1.2))
+    tracking = max(0, int(item.get("tracking", 0)))
     resolved_font = _resolve_font_path(
         font_path,
         bold=weight >= 600,
@@ -207,13 +219,22 @@ def _fit_text(
         lines = (
             [text]
             if str(item.get("role")) == "title"
-            else _wrap_text(draw, text, font, max_width)
+            else _wrap_text(
+                draw,
+                text,
+                font,
+                max_width,
+                tracking,
+            )
         )
         step = max(1, int(round(size * line_height)))
         total_height = step * len(lines)
         selected = (font, lines, step, total_height)
         widest_line = max(
-            (_text_width(draw, line, font) for line in lines),
+            (
+                _text_width(draw, line, font, tracking)
+                for line in lines
+            ),
             default=0,
         )
         if (
@@ -328,32 +349,77 @@ def _draw_underlays(
     image: Image.Image,
     underlays: list[dict],
 ) -> Image.Image:
-    overlay = Image.new("RGBA", image.size, (0, 0, 0, 0))
-    draw = ImageDraw.Draw(overlay)
+    result = image.convert("RGBA")
     for item in sorted(
         underlays,
         key=lambda value: int(value.get("z_index", 0)),
     ):
-        rgb = ImageColor.getrgb(
-            str(item.get("background_color", "#000000"))
-        )
-        alpha = int(
-            round(255 * float(item.get("opacity", 0.65)))
-        )
         x = int(item["x"])
         y = int(item["y"])
-        box = (
-            x,
-            y,
-            x + int(item["width"]),
-            y + int(item["height"]),
+        width = int(item["width"])
+        height = int(item["height"])
+        radius = int(item.get("border_radius", 0))
+        if width < 1 or height < 1:
+            continue
+
+        local_mask = Image.new("L", (width, height), 0)
+        ImageDraw.Draw(local_mask).rounded_rectangle(
+            (0, 0, width - 1, height - 1),
+            radius=radius,
+            fill=255,
         )
-        draw.rounded_rectangle(
-            box,
-            radius=int(item.get("border_radius", 0)),
-            fill=(*rgb[:3], alpha),
+        blur_radius = max(0, int(item.get("blur_radius", 0)))
+        if blur_radius:
+            blurred = result.filter(
+                ImageFilter.GaussianBlur(radius=blur_radius)
+            )
+            full_mask = Image.new("L", result.size, 0)
+            full_mask.paste(local_mask, (x, y))
+            result = Image.composite(blurred, result, full_mask)
+
+        start_rgb = ImageColor.getrgb(
+            str(item.get("background_color", "#000000"))
+        )[:3]
+        end_rgb = ImageColor.getrgb(
+            str(item.get("gradient_color", item.get(
+                "background_color",
+                "#000000",
+            )))
+        )[:3]
+        panel = Image.new("RGBA", (width, height))
+        panel_draw = ImageDraw.Draw(panel)
+        denominator = max(1, width - 1)
+        alpha = round(255 * float(item.get("opacity", 0.65)))
+        for offset in range(width):
+            ratio = offset / denominator
+            rgb = tuple(
+                round(start + (end - start) * ratio)
+                for start, end in zip(start_rgb, end_rgb)
+            )
+            panel_draw.line(
+                (offset, 0, offset, height),
+                fill=(*rgb, alpha),
+            )
+        panel.putalpha(
+            local_mask.point(lambda value: value * alpha // 255)
         )
-    return Image.alpha_composite(image, overlay)
+        result.alpha_composite(panel, (x, y))
+
+        border_width = max(0, int(item.get("border_width", 0)))
+        if border_width:
+            border = Image.new("RGBA", result.size, (0, 0, 0, 0))
+            border_draw = ImageDraw.Draw(border)
+            border_color = ImageColor.getrgb(
+                str(item.get("border_color", "#FFFFFF"))
+            )[:3]
+            border_draw.rounded_rectangle(
+                (x, y, x + width - 1, y + height - 1),
+                radius=radius,
+                outline=(*border_color, 210),
+                width=border_width,
+            )
+            result = Image.alpha_composite(result, border)
+    return result
 
 
 def ensure_layout_contrast(
@@ -432,6 +498,131 @@ def ensure_layout_contrast(
     return adjusted
 
 
+def _draw_text_run(
+    draw: ImageDraw.ImageDraw,
+    position: tuple[int, int],
+    text: str,
+    font,
+    color: tuple[int, int, int],
+    item: dict,
+) -> None:
+    tracking = max(0, int(item.get("tracking", 0)))
+    shadow_offset = max(0, int(item.get("shadow_offset", 0)))
+    shadow_color = ImageColor.getrgb(
+        str(item.get("shadow_color", "#000000"))
+    )[:3]
+    stroke_width = max(0, int(item.get("stroke_width", 0)))
+    stroke_color = ImageColor.getrgb(
+        str(item.get("stroke_color", "#000000"))
+    )[:3]
+
+    def draw_at(x: int, y: int, fill, use_stroke: bool) -> None:
+        if tracking == 0:
+            draw.text(
+                (x, y),
+                text,
+                font=font,
+                fill=fill,
+                stroke_width=stroke_width if use_stroke else 0,
+                stroke_fill=(
+                    (*stroke_color, 255)
+                    if use_stroke and stroke_width
+                    else None
+                ),
+            )
+            return
+        cursor = x
+        for character in text:
+            draw.text(
+                (cursor, y),
+                character,
+                font=font,
+                fill=fill,
+                stroke_width=stroke_width if use_stroke else 0,
+                stroke_fill=(
+                    (*stroke_color, 255)
+                    if use_stroke and stroke_width
+                    else None
+                ),
+            )
+            cursor += _text_width(draw, character, font) + tracking
+
+    x, y = position
+    if shadow_offset:
+        draw_at(
+            x + shadow_offset,
+            y + shadow_offset,
+            (*shadow_color, 150),
+            False,
+        )
+    draw_at(x, y, (*color, 255), True)
+
+
+def _draw_price_line(
+    draw: ImageDraw.ImageDraw,
+    line: str,
+    cursor_y: int,
+    step: int,
+    item: dict,
+    font_path: str | Path | None,
+    color: tuple[int, int, int],
+) -> bool:
+    parts = [
+        part
+        for part in re.split(r"(\d[\d,.]*)", line)
+        if part
+    ]
+    if not any(re.fullmatch(r"\d[\d,.]*", part) for part in parts):
+        return False
+
+    base_size = int(item.get("font_size", 24))
+    number_scale = float(item.get("number_scale", 1.20))
+    unit_scale = float(item.get("unit_scale", 0.84))
+    resolved_font = _resolve_font_path(
+        font_path,
+        bold=True,
+        text=line,
+    )
+    segments = []
+    for part in parts:
+        is_number = re.fullmatch(r"\d[\d,.]*", part) is not None
+        size = round(
+            base_size * (number_scale if is_number else unit_scale)
+        )
+        font = _load_font(
+            max(8, size),
+            resolved_font,
+            max(700, int(item.get("font_weight", 700))),
+        )
+        segments.append((part, font, _text_width(draw, part, font)))
+
+    total_width = sum(width for _part, _font, width in segments)
+    box_width = int(item["width"])
+    if total_width > box_width:
+        return False
+    align = str(item.get("text_align", "left"))
+    if align == "right":
+        cursor_x = int(item["x"]) + box_width - total_width
+    elif align == "center":
+        cursor_x = int(item["x"]) + (box_width - total_width) // 2
+    else:
+        cursor_x = int(item["x"])
+
+    for part, font, width in segments:
+        font_size = int(getattr(font, "size", base_size))
+        segment_y = cursor_y + max(0, (step - font_size) // 2)
+        _draw_text_run(
+            draw,
+            (cursor_x, segment_y),
+            part,
+            font,
+            color,
+            item,
+        )
+        cursor_x += width
+    return True
+
+
 def render_layout_image(
     image_path: str | Path,
     layout: dict,
@@ -483,19 +674,36 @@ def render_layout_image(
 
         color = ImageColor.getrgb(str(item.get("color", "#FFFFFF")))
         align = str(item.get("text_align", "left"))
+        tracking = max(0, int(item.get("tracking", 0)))
         for line in lines:
-            line_width = _text_width(draw, line, font)
+            if (
+                item.get("role") == "price"
+                and _draw_price_line(
+                    draw,
+                    line,
+                    cursor_y,
+                    step,
+                    item,
+                    font_path,
+                    color[:3],
+                )
+            ):
+                cursor_y += step
+                continue
+            line_width = _text_width(draw, line, font, tracking)
             if align == "right":
                 cursor_x = x + width - line_width
             elif align == "center":
                 cursor_x = x + (width - line_width) // 2
             else:
                 cursor_x = x
-            draw.text(
+            _draw_text_run(
+                draw,
                 (cursor_x, cursor_y),
                 line,
-                font=font,
-                fill=(*color[:3], 255),
+                font,
+                color[:3],
+                item,
             )
             cursor_y += step
 

@@ -24,6 +24,11 @@ class PipelineResult:
     layout_plan_json: Path
     layout_json: Path
     layout_preview_html: Path
+    style_selection_json: Path
+    layout_variants_json: Path
+    candidate_images: tuple[Path, ...]
+    selected_style: str
+    selected_strategy: str
     final_image: Path
     eval_json: Path | None
 
@@ -222,6 +227,11 @@ def run_pipeline(
         layout_plan_json=layout_result.plan_json,
         layout_json=layout_result.layout_json,
         layout_preview_html=layout_result.preview_html,
+        style_selection_json=layout_result.style_selection_json,
+        layout_variants_json=layout_result.layout_variants_json,
+        candidate_images=layout_result.candidate_images,
+        selected_style=layout_result.selected_style,
+        selected_strategy=layout_result.selected_strategy,
         final_image=layout_result.rendered_image,
         eval_json=eval_json,
     )
