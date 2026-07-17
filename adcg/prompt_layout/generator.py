@@ -54,8 +54,8 @@ ROOT_DIR = Path(__file__).resolve().parents[2]
 
 
 STYLE_SELECTION_PROMPT = """
-You are a senior advertising creative director. Independently score all five
-finished advertisement candidates with varied content-aware geometry and
+You are a senior advertising creative director. Independently score every
+finished advertisement candidate with varied content-aware geometry and
 visual styling. Use an integer from 0 to 100 for every dimension.
 
 Judge the rendered pixels, not the preset name. Prioritize:
@@ -218,7 +218,7 @@ def _review_candidates(
         {
             "type": "input_text",
             "text": (
-                "Score all five finished candidates. Copy:\n"
+                f"Score all {len(candidates)} finished candidates. Copy:\n"
                 + json.dumps(ad_copy, ensure_ascii=False, indent=2)
             ),
         }
@@ -364,18 +364,18 @@ def _top_candidate_specs(options: list[dict]) -> list[dict]:
                 key=lambda item: item["preselection_score"],
             )
         )
-    if len(chosen) < 3:
+    if not chosen:
         diagnostics = {
             item["id"]: item["violations"]
             for item in options
             if item["violations"]
         }
         raise RuntimeError(
-            "Fewer than three distinct layout strategies survived hard "
-            "validation: "
+            "No layout candidate survived hard validation: "
             + json.dumps(diagnostics, ensure_ascii=False)
         )
 
+    target_count = min(5, len(valid))
     chosen_ids = {item["id"] for item in chosen}
     remaining = sorted(
         (
@@ -387,14 +387,10 @@ def _top_candidate_specs(options: list[dict]) -> list[dict]:
         reverse=True,
     )
     for item in remaining:
-        if len(chosen) >= 5:
+        if len(chosen) >= target_count:
             break
         chosen.append(item)
-    if len(chosen) != 5:
-        raise RuntimeError(
-            "Fewer than five valid geometry/style candidates survived."
-        )
-    return chosen
+    return chosen[:target_count]
 
 
 def generate_prompt_layout(
@@ -408,7 +404,7 @@ def generate_prompt_layout(
     font_path: str | Path | None = None,
     client=None,
 ) -> LayoutGenerationResult:
-    """Generate four layouts, five finalists, and one selected ad."""
+    """Generate four layouts, up to five finalists, and one selected ad."""
     image_path = Path(image_path).expanduser().resolve()
     output_dir = Path(output_dir).expanduser().resolve()
     if detail not in {"low", "high", "auto"}:
@@ -590,9 +586,20 @@ def generate_prompt_layout(
     candidate_dir.mkdir(parents=True, exist_ok=True)
     candidates = []
     valid_options = [item for item in options if not item["violations"]]
-    if len(valid_options) < 5:
+    if not valid_options:
+        diagnostics = {
+            item["id"]: item["violations"]
+            for item in options
+        }
         raise RuntimeError(
-            "Fewer than five candidates survived hard layout validation."
+            "No candidate survived hard layout validation: "
+            + json.dumps(diagnostics, ensure_ascii=False)
+        )
+    if len(valid_options) < 5:
+        print(
+            "[WARN] Only "
+            f"{len(valid_options)} candidate(s) survived hard validation; "
+            "continuing with the valid candidates."
         )
     for item in valid_options:
         candidate_path = render_layout_image(

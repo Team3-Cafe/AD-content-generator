@@ -13,8 +13,9 @@ self-contained multimodal design demonstrations:
 4. Code combines those geometries with minimal, glass, bold, premium, and
    industrial styles, rejects spacing/protection/panel violations, renders
    every valid combination, and scores it with LAION aesthetic.
-5. A structure/aesthetic preselection keeps five diverse finalists. GPT-4o
-   rates their hierarchy, readability, balance, and commercial finish.
+5. A structure/aesthetic preselection keeps up to five diverse valid
+   finalists. GPT-4o rates their hierarchy, readability, balance, and
+   commercial finish.
 6. An HPS-free optimizer selects the highest combined GPT-4o, LAION
    aesthetic, and structural score.
 
