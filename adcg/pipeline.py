@@ -2,6 +2,7 @@ import json
 from dataclasses import dataclass
 from pathlib import Path
 
+from .eval import run_evaluation
 from .generation import run_generation
 from .preprocessing import run_preprocess
 from .prompting import generate_ad_copy, run_prompt_generation
@@ -16,6 +17,7 @@ class PipelineResult:
     generated_image: Path
     core_refined_image: Path
     final_image: Path
+    eval_json: Path | None
 
 
 def run_pipeline(
@@ -31,6 +33,9 @@ def run_pipeline(
     generation_options=None,
     core_refinement_options=None,
     identity_options=None,
+    evaluate=False,
+    eval_metrics=None,
+    eval_options=None,
 ):
     """Run preprocessing, prompting, generation, and refinement in sequence."""
     output_dir = Path(output_dir)
@@ -39,6 +44,7 @@ def run_pipeline(
     generation_options = dict(generation_options or {})
     core_refinement_options = dict(core_refinement_options or {})
     identity_options = dict(identity_options or {})
+    eval_options = dict(eval_options or {})
 
     preprocessed = run_preprocess(
         image_path=image_path,
@@ -120,6 +126,21 @@ def run_pipeline(
         **identity_options,
     )
 
+    eval_json = None
+    if evaluate:
+        eval_json = output_dir / "06_eval" / "eval_results.json"
+        eval_kwargs = {"metric_options": eval_options}
+        if eval_metrics is not None:
+            eval_kwargs["metrics"] = tuple(eval_metrics)
+        run_evaluation(
+            final_image=final_image,
+            prompt_json=prompt_json,
+            product_image=product_image,
+            product_mask=generated["product_mask"],
+            output_json=eval_json,
+            **eval_kwargs,
+        )
+
     return PipelineResult(
         output_dir=output_dir,
         prompt_json=Path(prompt_json),
@@ -127,4 +148,5 @@ def run_pipeline(
         generated_image=Path(generated["image"]),
         core_refined_image=Path(core_refined),
         final_image=Path(final_image),
+        eval_json=eval_json,
     )

@@ -14,6 +14,12 @@ except ImportError:
 
 DIRECTIONS = ("product_focus", "brand_focus")
 LAYOUT_MODES = ("layout", "preserve")
+EVAL_METRICS = (
+    "clip_score",
+    "aesthetic_score",
+    "dino_similarity",
+    "hps_v2_score",
+)
 
 
 @dataclass(frozen=True)
@@ -25,6 +31,8 @@ class AppConfig:
     direction: str
     layout_mode: str
     copy_count: int
+    evaluate: bool
+    eval_metrics: tuple[str, ...] | None
     seed: int
     cpu_offload: bool
 
@@ -59,6 +67,20 @@ def build_parser() -> argparse.ArgumentParser:
 
     copywriting = parser.add_argument_group("copywriting")
     copywriting.add_argument("--copy-count", type=int, default=9)
+
+    evaluation = parser.add_argument_group("evaluation")
+    evaluation.add_argument(
+        "--evaluate",
+        action="store_true",
+        help="Evaluate final_identity_restored.png after generation.",
+    )
+    evaluation.add_argument(
+        "--eval-metric",
+        dest="eval_metrics",
+        action="append",
+        choices=EVAL_METRICS,
+        help="Evaluation metric to run. Repeat to select multiple metrics.",
+    )
 
     info = parser.add_argument_group("product and store information")
     info.add_argument("--product-name")
@@ -192,6 +214,12 @@ def parse_config(argv: list[str] | None = None) -> AppConfig:
         direction=args.direction,
         layout_mode=args.layout_mode,
         copy_count=args.copy_count,
+        evaluate=args.evaluate or bool(args.eval_metrics),
+        eval_metrics=(
+            tuple(args.eval_metrics)
+            if args.eval_metrics
+            else None
+        ),
         seed=args.seed,
         cpu_offload=args.cpu_offload,
     )
@@ -207,6 +235,8 @@ if __name__ == "__main__":
         "direction": config.direction,
         "layout_mode": config.layout_mode,
         "copy_count": config.copy_count,
+        "evaluate": config.evaluate,
+        "eval_metrics": config.eval_metrics,
         "seed": config.seed,
         "cpu_offload": config.cpu_offload,
     }, ensure_ascii=False, indent=2))

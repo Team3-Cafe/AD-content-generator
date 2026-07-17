@@ -11,6 +11,8 @@ def main():
         output_dir=config.output_dir,
         gpt_model=config.gpt_model,
         copy_count=config.copy_count,
+        evaluate=config.evaluate,
+        eval_metrics=config.eval_metrics,
         direction=config.direction,
         layout_mode=config.layout_mode,
         seed=config.seed,
@@ -20,6 +22,8 @@ def main():
     print("\n[PIPELINE DONE]")
     print(f"Ad copy: {result.copy_json}")
     print(f"Final image: {result.final_image}")
+    if result.eval_json is not None:
+        print(f"Evaluation: {result.eval_json}")
 
 
 if __name__ == "__main__":
