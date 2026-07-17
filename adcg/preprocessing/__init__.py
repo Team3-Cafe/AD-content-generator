@@ -1,7 +1,13 @@
-def run_preprocess(*args, **kwargs):
-    """Load optional preprocessing dependencies only when preprocessing starts."""
-    from .product import run_preprocess as _run_preprocess
+from .product import run_preprocess
+from .validation import (
+    TRUNCATION_POLICIES,
+    detect_truncation,
+    handle_truncation,
+)
 
-    return _run_preprocess(*args, **kwargs)
-
-__all__ = ["run_preprocess"]
+__all__ = [
+    "run_preprocess",
+    "TRUNCATION_POLICIES",
+    "detect_truncation",
+    "handle_truncation",
+]

@@ -31,8 +31,6 @@ class AppConfig:
     direction: str
     layout_mode: str
     copy_count: int
-    evaluate: bool
-    eval_metrics: tuple[str, ...] | None
     seed: int
     cpu_offload: bool
 
@@ -67,20 +65,6 @@ def build_parser() -> argparse.ArgumentParser:
 
     copywriting = parser.add_argument_group("copywriting")
     copywriting.add_argument("--copy-count", type=int, default=9)
-
-    evaluation = parser.add_argument_group("evaluation")
-    evaluation.add_argument(
-        "--evaluate",
-        action="store_true",
-        help="Evaluate final_identity_restored.png after generation.",
-    )
-    evaluation.add_argument(
-        "--eval-metric",
-        dest="eval_metrics",
-        action="append",
-        choices=EVAL_METRICS,
-        help="Evaluation metric to run. Repeat to select multiple metrics.",
-    )
 
     info = parser.add_argument_group("product and store information")
     info.add_argument("--product-name")
@@ -164,12 +148,15 @@ def _resolve_info_path(
 ) -> Path:
     if args.info:
         info_path = Path(args.info).expanduser()
+
         if not info_path.exists():
             parser.error(f"info JSON을 찾을 수 없습니다: {info_path}")
+
         try:
             json.loads(info_path.read_text(encoding="utf-8"))
         except (OSError, json.JSONDecodeError) as error:
             parser.error(f"info JSON을 읽을 수 없습니다: {error}")
+
         return info_path.resolve()
 
     if not args.product_name or not args.store_name:
@@ -199,7 +186,7 @@ def parse_config(argv: list[str] | None = None) -> AppConfig:
     image_path = Path(args.image).expanduser().resolve()
     output_dir = Path(args.output_dir).expanduser().resolve()
     _validate_image(parser, image_path)
-
+    
     if args.copy_count < 1:
         parser.error("--copy-count는 1 이상이어야 합니다.")
 
@@ -214,12 +201,6 @@ def parse_config(argv: list[str] | None = None) -> AppConfig:
         direction=args.direction,
         layout_mode=args.layout_mode,
         copy_count=args.copy_count,
-        evaluate=args.evaluate or bool(args.eval_metrics),
-        eval_metrics=(
-            tuple(args.eval_metrics)
-            if args.eval_metrics
-            else None
-        ),
         seed=args.seed,
         cpu_offload=args.cpu_offload,
     )
@@ -235,8 +216,6 @@ if __name__ == "__main__":
         "direction": config.direction,
         "layout_mode": config.layout_mode,
         "copy_count": config.copy_count,
-        "evaluate": config.evaluate,
-        "eval_metrics": config.eval_metrics,
         "seed": config.seed,
         "cpu_offload": config.cpu_offload,
     }, ensure_ascii=False, indent=2))
