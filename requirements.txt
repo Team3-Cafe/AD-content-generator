@@ -6,7 +6,7 @@ python-dotenv
 numpy
 Pillow
 opencv-python
-rembg[cpu]
+rembg[gpu]
 
 # Stable Diffusion and ControlNet pipelines
 torch
