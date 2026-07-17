@@ -288,6 +288,61 @@ def _validated_ratings(review: dict, candidates: list[dict]) -> dict:
     return by_id
 
 
+def _prepare_layout_variants(
+    raw_variants: dict,
+    *,
+    ad_copy: dict[str, str],
+    plan: dict,
+    width: int,
+    height: int,
+    font_path: str | Path | None,
+) -> tuple[list[dict], list[str]]:
+    """Normalize variants and omit geometries duplicated across strategies."""
+    variants = []
+    duplicate_geometry = []
+    seen_strategies = set()
+    signatures = set()
+    for raw_variant in raw_variants["variants"]:
+        strategy = raw_variant["strategy"]
+        if strategy in seen_strategies:
+            raise ValueError(
+                f"Duplicate layout strategy returned: {strategy}"
+            )
+        seen_strategies.add(strategy)
+        layout = normalize_layout(
+            raw_variant["layout"],
+            copy=ad_copy,
+            width=width,
+            height=height,
+            plan=plan,
+        )
+        layout = fit_layout_typography(
+            layout,
+            font_path=font_path,
+        )
+        signature = layout_geometry_signature(layout)
+        if signature in signatures:
+            duplicate_geometry.append(strategy)
+            continue
+        signatures.add(signature)
+        variants.append(
+            {
+                "strategy": strategy,
+                "layout": layout,
+            }
+        )
+
+    if seen_strategies != set(LAYOUT_STRATEGIES):
+        raise ValueError(
+            "GPT-4o did not return every required layout strategy."
+        )
+    if len(variants) < 3:
+        raise ValueError(
+            "GPT-4o returned fewer than three distinct layout geometries."
+        )
+    return variants, duplicate_geometry
+
+
 def _top_candidate_specs(options: list[dict]) -> list[dict]:
     valid = [
         item
@@ -397,62 +452,85 @@ def generate_prompt_layout(
         encoding="utf-8",
     )
 
-    raw_variants = _request_json(
-        client,
-        model=model,
-        instructions=LAYOUT_VARIANTS_SYSTEM_PROMPT,
-        request_text=build_layout_request(
-            ad_copy,
-            plan,
-            width,
-            height,
-        ),
-        image_url=image_url,
-        detail=detail,
-        schema_name="ad_copy_pixel_layout_variants",
-        schema=LAYOUT_VARIANTS_SCHEMA,
-        temperature=temperature,
-        few_shot_stage="layout",
-        canvas_width=width,
-        canvas_height=height,
+    base_layout_request = build_layout_request(
+        ad_copy,
+        plan,
+        width,
+        height,
     )
+    fallback_variants = None
+    retry_feedback = ""
     variants = []
-    seen_strategies = set()
-    signatures = set()
-    for raw_variant in raw_variants["variants"]:
-        strategy = raw_variant["strategy"]
-        if strategy in seen_strategies:
-            raise ValueError(
-                f"Duplicate layout strategy returned: {strategy}"
+    duplicate_geometry = []
+    for attempt in range(2):
+        request_text = base_layout_request
+        if retry_feedback:
+            request_text += (
+                "\n\nRetry requirement: "
+                + retry_feedback
+                + " Return four genuinely different element coordinates."
             )
-        seen_strategies.add(strategy)
-        layout = normalize_layout(
-            raw_variant["layout"],
-            copy=ad_copy,
-            width=width,
-            height=height,
-            plan=plan,
+        raw_variants = _request_json(
+            client,
+            model=model,
+            instructions=LAYOUT_VARIANTS_SYSTEM_PROMPT,
+            request_text=request_text,
+            image_url=image_url,
+            detail=detail,
+            schema_name="ad_copy_pixel_layout_variants",
+            schema=LAYOUT_VARIANTS_SCHEMA,
+            temperature=temperature,
+            few_shot_stage="layout",
+            canvas_width=width,
+            canvas_height=height,
         )
-        layout = fit_layout_typography(
-            layout,
-            font_path=font_path,
-        )
-        signature = layout_geometry_signature(layout)
-        if signature in signatures:
-            raise ValueError(
-                "GPT-4o returned duplicate layout geometry for "
-                f"{strategy}."
+        try:
+            prepared, duplicates = _prepare_layout_variants(
+                raw_variants,
+                ad_copy=ad_copy,
+                plan=plan,
+                width=width,
+                height=height,
+                font_path=font_path,
             )
-        signatures.add(signature)
-        variants.append(
-            {
-                "strategy": strategy,
-                "layout": layout,
-            }
-        )
-    if seen_strategies != set(LAYOUT_STRATEGIES):
-        raise ValueError(
-            "GPT-4o did not return every required layout strategy."
+        except ValueError as error:
+            retry_feedback = str(error)
+            if attempt == 0:
+                print(
+                    "[WARN] Invalid GPT-4o layout variants; retrying once: "
+                    f"{error}"
+                )
+                continue
+            if fallback_variants is None:
+                raise
+            variants, duplicate_geometry = fallback_variants
+            print(
+                "[WARN] Layout retry was invalid; using the first "
+                "response after excluding duplicate geometry."
+            )
+            break
+
+        if duplicates and attempt == 0:
+            fallback_variants = (prepared, duplicates)
+            retry_feedback = (
+                "The previous response duplicated geometry for: "
+                + ", ".join(duplicates)
+                + "."
+            )
+            print(
+                "[WARN] Duplicate GPT-4o layout geometry; retrying once: "
+                + ", ".join(duplicates)
+            )
+            continue
+
+        variants = prepared
+        duplicate_geometry = duplicates
+        break
+
+    if duplicate_geometry:
+        print(
+            "[WARN] Continuing without duplicate layout geometries: "
+            + ", ".join(duplicate_geometry)
         )
 
     variants_document = {
@@ -460,6 +538,7 @@ def generate_prompt_layout(
         "few_shot_count": len(EXAMPLE_SPECS),
         "source_image": str(image_path),
         "copy": ad_copy,
+        "excluded_duplicate_geometry": duplicate_geometry,
         "variants": variants,
     }
     variants_path = output_dir / "layout_variants.json"
