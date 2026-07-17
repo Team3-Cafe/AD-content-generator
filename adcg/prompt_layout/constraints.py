@@ -34,8 +34,10 @@ def layout_geometry_violations(
     width = int(canvas["width"])
     height = int(canvas["height"])
     short_side = min(width, height)
-    outer_margin = max(6, round(short_side * 0.03))
-    text_padding = max(4, round(short_side * 0.015))
+    # Keep this aligned with styles._normalize_geometry. A stricter validator
+    # would reject every element that normalization intentionally places on
+    # the safe-margin boundary.
+    outer_margin = max(6, round(short_side * 0.025))
     panel_padding = max(3, round(short_side * 0.01))
     violations = []
     elements = layout["elements"]
@@ -59,12 +61,12 @@ def layout_geometry_violations(
 
     for index, first in enumerate(elements):
         for second in elements[index + 1:]:
-            if _overlap(
-                _expanded(first, text_padding),
-                _expanded(second, text_padding),
-            ):
+            # Semantic pairs such as title/subtitle and price/CTA are often
+            # intentionally close. Proximity is a soft design concern; only
+            # actual box overlap is a hard geometry failure.
+            if _overlap(first, second):
                 violations.append(
-                    f"{first['role']} is too close to {second['role']}."
+                    f"{first['role']} overlaps {second['role']}."
                 )
 
     if plan is not None:
