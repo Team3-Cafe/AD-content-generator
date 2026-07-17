@@ -28,7 +28,7 @@ def run_pipeline(
     info_path,
     output_dir="outputs/pipeline",
     gpt_model="gpt-5.4-nano",
-    copy_count=9,
+    copy_count=1,
     direction="product_focus",
     layout_mode="layout",
     seed=42,

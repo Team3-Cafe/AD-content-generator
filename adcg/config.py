@@ -64,7 +64,7 @@ def build_parser() -> argparse.ArgumentParser:
     )
 
     copywriting = parser.add_argument_group("copywriting")
-    copywriting.add_argument("--copy-count", type=int, default=9)
+    copywriting.add_argument("--copy-count", type=int, default=1)
 
     info = parser.add_argument_group("product and store information")
     info.add_argument("--product-name")
