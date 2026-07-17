@@ -6,7 +6,7 @@ import torch
 from PIL import Image
 
 from adcg.generation.model_loader import (
-    load_controlnet_inpaint_pipeline,
+    load_generation_pipeline,
 )
 from adcg.image_utils.blending import (
     align_product_to_mask,
@@ -93,7 +93,7 @@ def run_identity_restoration(
         prompt_json
     )
 
-    pipe = load_controlnet_inpaint_pipeline(
+    pipe = load_generation_pipeline(
         base_model=base_model,
         controlnet_model=controlnet_model,
         cpu_offload=cpu_offload,
