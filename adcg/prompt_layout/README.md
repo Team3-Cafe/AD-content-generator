@@ -1,7 +1,7 @@
 # Prompt layout
 
-This package independently finds content-aware positions for the text in
-ad_copy.json. It is intentionally not connected to adcg.pipeline.
+This package finds content-aware positions for the text in ad_copy.json and
+is used by adcg.pipeline after background generation and evaluation.
 
 The implementation follows the paper's two-stage VLM workflow with five
 self-contained multimodal design demonstrations:
@@ -11,9 +11,12 @@ self-contained multimodal design demonstrations:
 3. GPT-4o returns four meaningfully different pixel-layout strategies in one
    structured response.
 4. Code combines those geometries with minimal, glass, bold, premium, and
-   industrial styles, rejects spacing/protection/panel violations, and
-   renders the best five diverse combinations.
-5. GPT-4o compares the finished pixels and selects the strongest combination.
+   industrial styles, rejects spacing/protection/panel violations, renders
+   every valid combination, and scores it with LAION aesthetic.
+5. A structure/aesthetic preselection keeps five diverse finalists. GPT-4o
+   rates their hierarchy, readability, balance, and commercial finish.
+6. An HPS-free optimizer selects the highest combined GPT-4o, LAION
+   aesthetic, and structural score.
 
 The five demonstrations are scaled at runtime to the completed image's actual
 width, height, and aspect ratio. Their boxes and font sizes are not fixed to a
@@ -30,8 +33,9 @@ The command writes:
 - layout_variants.json: four normalized and geometrically distinct layouts
 - layout.json: validated pixel boxes, typography, and optional underlays
 - layout_preview.html: a browser preview using the real copy strings
-- design_candidates/: five validated geometry/style alternatives
-- style_selection.json: palette, balance scores, and GPT-4o selection rationale
+- design_candidates/: every valid rendered geometry/style alternative
+- candidate_scores.json: normalized aesthetic, structural, and VLM scores
+- style_selection.json: optimizer weights, finalists, and selection rationale
 - final_ad.png: the copy rendered onto the completed background
 
 The renderer keeps titles on one line by fitting their font size to the
@@ -50,12 +54,12 @@ Run after the image pipeline has created the final background:
 
 The default model is gpt-4o, image detail is high, and temperature is 0.7,
 matching the paper's reported sampling temperature. The command makes three
-OpenAI API calls: plan, pixel layout, and finished-candidate selection.
+OpenAI API calls: plan, pixel layout, and finished-candidate review.
 OPENAI_API_KEY is loaded from the project-root .env when present.
 
 Hard validation requires proportional outer margins, separation between copy
 boxes and panels, one-line title and CTA, and no protected-region collision.
-Invalid geometry/style combinations never reach final GPT-4o selection.
+Invalid geometry/style combinations never reach aesthetic or GPT-4o review.
 
 If ad_copy.json contains multiple entries, select one with:
 

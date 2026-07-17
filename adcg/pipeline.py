@@ -25,6 +25,7 @@ class PipelineResult:
     layout_json: Path
     layout_preview_html: Path
     style_selection_json: Path
+    candidate_scores_json: Path
     layout_variants_json: Path
     candidate_images: tuple[Path, ...]
     selected_style: str
@@ -228,6 +229,7 @@ def run_pipeline(
         layout_json=layout_result.layout_json,
         layout_preview_html=layout_result.preview_html,
         style_selection_json=layout_result.style_selection_json,
+        candidate_scores_json=layout_result.candidate_scores_json,
         layout_variants_json=layout_result.layout_variants_json,
         candidate_images=layout_result.candidate_images,
         selected_style=layout_result.selected_style,

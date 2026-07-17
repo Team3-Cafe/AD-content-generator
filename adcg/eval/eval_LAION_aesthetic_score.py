@@ -46,7 +46,10 @@ def aesthetic_scores(model, processor, head, image_paths, device, batch_size):
     rows = []
     for start in range(0, len(image_paths), batch_size):
         batch_paths = image_paths[start:start + batch_size]
-        images = [Image.open(path).convert("RGB") for path in batch_paths]
+        images = []
+        for path in batch_paths:
+            with Image.open(path) as image:
+                images.append(image.convert("RGB"))
         inputs = processor(images=images, return_tensors="pt").to(device)
         with torch.no_grad():
             image_embeds = model.get_image_features(**inputs)
@@ -64,9 +67,8 @@ def aesthetic_scores(model, processor, head, image_paths, device, batch_size):
     return rows
 
 
-def evaluate_aesthetic(
-    image_path,
-    output_json,
+def score_aesthetic_images(
+    image_paths,
     *,
     model_name=DEFAULT_MODEL,
     weights_path="",
@@ -74,10 +76,13 @@ def evaluate_aesthetic(
     batch_size=8,
     device=None,
 ):
-    """Evaluate one final pipeline image and merge its aesthetic score."""
-    image_path = Path(image_path)
-    if not image_path.is_file():
-        raise FileNotFoundError(image_path)
+    """Return LAION aesthetic scores without writing evaluation output."""
+    paths = [Path(path) for path in image_paths]
+    if not paths:
+        return []
+    missing = [path for path in paths if not path.is_file()]
+    if missing:
+        raise FileNotFoundError(missing[0])
 
     try:
         from transformers import CLIPModel, CLIPProcessor
@@ -95,8 +100,38 @@ def evaluate_aesthetic(
         int(model.config.projection_dim),
         device,
     )
-    scored_images = aesthetic_scores(
-        model, processor, head, [image_path], device, batch_size
+    return aesthetic_scores(
+        model,
+        processor,
+        head,
+        paths,
+        device,
+        batch_size,
+    )
+
+
+def evaluate_aesthetic(
+    image_path,
+    output_json,
+    *,
+    model_name=DEFAULT_MODEL,
+    weights_path="",
+    weights_url=DEFAULT_WEIGHTS_URL,
+    batch_size=8,
+    device=None,
+):
+    """Evaluate one final pipeline image and merge its aesthetic score."""
+    image_path = Path(image_path)
+    if not image_path.is_file():
+        raise FileNotFoundError(image_path)
+
+    scored_images = score_aesthetic_images(
+        [image_path],
+        model_name=model_name,
+        weights_path=weights_path,
+        weights_url=weights_url,
+        batch_size=batch_size,
+        device=device,
     )
     results = [
         {"image_id": path.name, "aesthetic_score": float(score)}

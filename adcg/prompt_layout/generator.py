@@ -17,6 +17,15 @@ from .constraints import (
 from .few_shot import EXAMPLE_SPECS, build_few_shot_content
 from .html import render_layout_html
 from .io import image_to_data_url
+from .optimizer import (
+    FINAL_WEIGHTS,
+    PRESELECTION_WEIGHTS,
+    VLM_DIMENSION_WEIGHTS,
+    final_score,
+    normalize_scores,
+    preselection_score,
+    vlm_design_score,
+)
 from .prompts import (
     LAYOUT_VARIANTS_SYSTEM_PROMPT,
     PLAN_SYSTEM_PROMPT,
@@ -45,9 +54,9 @@ ROOT_DIR = Path(__file__).resolve().parents[2]
 
 
 STYLE_SELECTION_PROMPT = """
-You are a senior advertising creative director. Select the strongest finished
-advertisement from five candidates with varied content-aware geometry and
-visual styling.
+You are a senior advertising creative director. Independently score all five
+finished advertisement candidates with varied content-aware geometry and
+visual styling. Use an integer from 0 to 100 for every dimension.
 
 Judge the rendered pixels, not the preset name. Prioritize:
 1. immediate headline hierarchy and semantic role clarity;
@@ -56,9 +65,10 @@ Judge the rendered pixels, not the preset name. Prioritize:
 4. coherent palette, restrained panels, spacing, and alignment;
 5. professional commercial finish without template-like clutter.
 
-Reject a candidate when text blends into the background, panels feel
+Penalize a candidate when text blends into the background, panels feel
 excessive, the CTA looks like body text, or the style competes with the
-product. Return one selected candidate id and a concise rationale.
+product. Judge every candidate; do not select a winner. The local optimizer
+will combine these ratings with LAION aesthetic and structural scores.
 """.strip()
 
 
@@ -70,23 +80,48 @@ class LayoutGenerationResult:
     preview_html: Path
     rendered_image: Path
     style_selection_json: Path
+    candidate_scores_json: Path
     layout_variants_json: Path
     candidate_images: tuple[Path, ...]
     selected_style: str
     selected_strategy: str
 
 
-def _selection_schema(candidate_ids: list[str]) -> dict:
+def _review_schema(candidate_ids: list[str]) -> dict:
+    score = {"type": "integer", "minimum": 0, "maximum": 100}
     return {
         "type": "object",
         "properties": {
-            "selected_candidate_id": {
-                "type": "string",
-                "enum": candidate_ids,
+            "ratings": {
+                "type": "array",
+                "minItems": len(candidate_ids),
+                "maxItems": len(candidate_ids),
+                "items": {
+                    "type": "object",
+                    "properties": {
+                        "candidate_id": {
+                            "type": "string",
+                            "enum": candidate_ids,
+                        },
+                        "hierarchy": score,
+                        "readability": score,
+                        "balance": score,
+                        "commercial_finish": score,
+                        "rationale": {"type": "string"},
+                    },
+                    "required": [
+                        "candidate_id",
+                        "hierarchy",
+                        "readability",
+                        "balance",
+                        "commercial_finish",
+                        "rationale",
+                    ],
+                    "additionalProperties": False,
+                },
             },
-            "rationale": {"type": "string"},
         },
-        "required": ["selected_candidate_id", "rationale"],
+        "required": ["ratings"],
         "additionalProperties": False,
     }
 
@@ -171,7 +206,7 @@ def _request_json(
     return _parse_response_json(response, schema_name)
 
 
-def _select_candidate(
+def _review_candidates(
     client,
     *,
     model: str,
@@ -183,9 +218,7 @@ def _select_candidate(
         {
             "type": "input_text",
             "text": (
-                "Compare all five finished candidates. The deterministic "
-                "scores are supporting diagnostics only; visual judgment "
-                "takes priority. Copy:\n"
+                "Score all five finished candidates. Copy:\n"
                 + json.dumps(ad_copy, ensure_ascii=False, indent=2)
             ),
         }
@@ -200,7 +233,15 @@ def _select_candidate(
                         f"Geometry: {candidate['strategy']}\n"
                         f"Style: {candidate['style']}\n"
                         + json.dumps(
-                            candidate["score"],
+                            {
+                                "structure": candidate["score"],
+                                "laion_aesthetic_raw": candidate[
+                                    "aesthetic_raw"
+                                ],
+                                "laion_aesthetic_normalized": candidate[
+                                    "aesthetic_normalized"
+                                ],
+                            },
                             ensure_ascii=False,
                             indent=2,
                         )
@@ -222,9 +263,9 @@ def _select_candidate(
         text={
             "format": {
                 "type": "json_schema",
-                "name": "ad_design_style_selection",
+                "name": "ad_design_candidate_review",
                 "strict": True,
-                "schema": _selection_schema(
+                "schema": _review_schema(
                     [item["id"] for item in candidates]
                 ),
             }
@@ -232,8 +273,19 @@ def _select_candidate(
     )
     return _parse_response_json(
         response,
-        "ad_design_style_selection",
+        "ad_design_candidate_review",
     )
+
+
+def _validated_ratings(review: dict, candidates: list[dict]) -> dict:
+    ratings = review.get("ratings", [])
+    by_id = {item["candidate_id"]: item for item in ratings}
+    expected = {item["id"] for item in candidates}
+    if len(ratings) != len(by_id) or set(by_id) != expected:
+        raise ValueError(
+            "GPT-4o candidate review must rate every finalist exactly once."
+        )
+    return by_id
 
 
 def _top_candidate_specs(options: list[dict]) -> list[dict]:
@@ -254,7 +306,7 @@ def _top_candidate_specs(options: list[dict]) -> list[dict]:
         chosen.append(
             max(
                 strategy_options,
-                key=lambda item: item["score"]["total"],
+                key=lambda item: item["preselection_score"],
             )
         )
     if len(chosen) < 3:
@@ -276,7 +328,7 @@ def _top_candidate_specs(options: list[dict]) -> list[dict]:
             for item in valid
             if item["id"] not in chosen_ids
         ),
-        key=lambda item: item["score"]["total"],
+        key=lambda item: item["preselection_score"],
         reverse=True,
     )
     for item in remaining:
@@ -455,11 +507,15 @@ def generate_prompt_layout(
                 }
             )
 
-    selected_specs = _top_candidate_specs(options)
     candidate_dir = output_dir / "design_candidates"
     candidate_dir.mkdir(parents=True, exist_ok=True)
     candidates = []
-    for item in selected_specs:
+    valid_options = [item for item in options if not item["violations"]]
+    if len(valid_options) < 5:
+        raise RuntimeError(
+            "Fewer than five candidates survived hard layout validation."
+        )
+    for item in valid_options:
         candidate_path = render_layout_image(
             image_path=image_path,
             layout=item["layout"],
@@ -473,19 +529,53 @@ def generate_prompt_layout(
             }
         )
 
-    selection = _select_candidate(
+    from adcg.eval.eval_LAION_aesthetic_score import (
+        score_aesthetic_images,
+    )
+
+    aesthetic_rows = score_aesthetic_images(
+        [item["path"] for item in candidates]
+    )
+    if len(aesthetic_rows) != len(candidates):
+        raise RuntimeError("LAION returned an unexpected candidate count.")
+    raw_aesthetic_scores = [float(score) for _, score in aesthetic_rows]
+    normalized_aesthetic_scores = normalize_scores(raw_aesthetic_scores)
+    for candidate, raw_score, normalized_score in zip(
+        candidates,
+        raw_aesthetic_scores,
+        normalized_aesthetic_scores,
+    ):
+        candidate["aesthetic_raw"] = round(raw_score, 6)
+        candidate["aesthetic_normalized"] = normalized_score
+        candidate["preselection_score"] = preselection_score(
+            aesthetic=normalized_score,
+            structure=float(candidate["score"]["total"]),
+        )
+
+    finalists = _top_candidate_specs(candidates)
+    review = _review_candidates(
         client,
         model=model,
         detail=detail,
         ad_copy=ad_copy,
-        candidates=candidates,
+        candidates=finalists,
     )
-    selected_candidate_id = selection["selected_candidate_id"]
-    selected_candidate = next(
-        item
-        for item in candidates
-        if item["id"] == selected_candidate_id
+    ratings = _validated_ratings(review, finalists)
+    for candidate in finalists:
+        rating = ratings[candidate["id"]]
+        candidate["vlm_rating"] = rating
+        candidate["vlm_design_score"] = vlm_design_score(rating)
+        candidate["final_score"] = final_score(
+            vlm_design=candidate["vlm_design_score"],
+            aesthetic=candidate["aesthetic_normalized"],
+            structure=float(candidate["score"]["total"]),
+        )
+
+    selected_candidate = max(
+        finalists,
+        key=lambda item: item["final_score"],
     )
+    selected_candidate_id = selected_candidate["id"]
     selected_style = selected_candidate["style"]
     selected_strategy = selected_candidate["strategy"]
     selected_layout = selected_candidate["layout"]
@@ -513,25 +603,80 @@ def generate_prompt_layout(
         output_path=output_dir / "layout_preview.html",
     )
 
-    selection_document = {
-        "model": model,
+    finalist_ids = {item["id"] for item in finalists}
+    candidate_scores_document = {
+        "optimizer": "hps_free_multi_objective",
         "selected_candidate_id": selected_candidate_id,
-        "selected_strategy": selected_strategy,
-        "selected_style": selected_style,
-        "rationale": selection["rationale"],
+        "preselection_weights": PRESELECTION_WEIGHTS,
+        "final_weights": FINAL_WEIGHTS,
+        "vlm_dimension_weights": VLM_DIMENSION_WEIGHTS,
         "candidates": [
             {
                 "id": item["id"],
                 "strategy": item["strategy"],
                 "style": item["style"],
                 "path": str(item["path"]),
-                "score": item["score"],
+                "structure": item["score"],
+                "aesthetic_raw": item["aesthetic_raw"],
+                "aesthetic_normalized": item[
+                    "aesthetic_normalized"
+                ],
+                "preselection_score": item["preselection_score"],
+                "finalist": item["id"] in finalist_ids,
+                "vlm_rating": item.get("vlm_rating"),
+                "vlm_design_score": item.get("vlm_design_score"),
+                "final_score": item.get("final_score"),
+            }
+            for item in candidates
+        ],
+        "rejected_candidates": [
+            {
+                "id": item["id"],
+                "violations": item["violations"],
+            }
+            for item in options
+            if item["violations"]
+        ],
+    }
+    candidate_scores_path = output_dir / "candidate_scores.json"
+    candidate_scores_path.write_text(
+        json.dumps(
+            candidate_scores_document,
+            ensure_ascii=False,
+            indent=2,
+        ),
+        encoding="utf-8",
+    )
+
+    selection_document = {
+        "model": model,
+        "optimizer": "hps_free_multi_objective",
+        "selected_candidate_id": selected_candidate_id,
+        "selected_strategy": selected_strategy,
+        "selected_style": selected_style,
+        "final_score": selected_candidate["final_score"],
+        "rationale": selected_candidate["vlm_rating"]["rationale"],
+        "weights": FINAL_WEIGHTS,
+        "candidates": [
+            {
+                "id": item["id"],
+                "strategy": item["strategy"],
+                "style": item["style"],
+                "path": str(item["path"]),
+                "structure": item["score"],
+                "aesthetic_raw": item["aesthetic_raw"],
+                "aesthetic_normalized": item[
+                    "aesthetic_normalized"
+                ],
+                "vlm_rating": item["vlm_rating"],
+                "vlm_design_score": item["vlm_design_score"],
+                "final_score": item["final_score"],
                 "palette": item["palette"],
                 "decorative_panel_count": item[
                     "decorative_panel_count"
                 ],
             }
-            for item in candidates
+            for item in finalists
         ],
     }
     selection_path = output_dir / "style_selection.json"
@@ -550,6 +695,7 @@ def generate_prompt_layout(
         preview_html=preview_path,
         rendered_image=rendered_path,
         style_selection_json=selection_path,
+        candidate_scores_json=candidate_scores_path,
         layout_variants_json=variants_path,
         candidate_images=tuple(
             item["path"]

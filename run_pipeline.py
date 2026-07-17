@@ -32,6 +32,7 @@ def main():
     print(f"Layout HTML : {result.layout_preview_html}")
     print(f"Variants    : {result.layout_variants_json}")
     print(f"Style JSON  : {result.style_selection_json}")
+    print(f"Scores JSON : {result.candidate_scores_json}")
     print(f"Strategy    : {result.selected_strategy}")
     print(f"Style       : {result.selected_style}")
     print(f"Candidates  : {len(result.candidate_images)} images")
