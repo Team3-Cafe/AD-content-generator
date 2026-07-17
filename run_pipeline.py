@@ -10,13 +10,15 @@ def main():
         info_path=config.info_path,
         output_dir=config.output_dir,
         gpt_model=config.gpt_model,
-        copy_count=getattr(config, "copy_count", 1),
+        copy_count=config.copy_count,
         direction=config.direction,
         layout_mode=config.layout_mode,
+        layout_model=config.layout_model,
+        layout_font=config.layout_font,
         seed=config.seed,
         cpu_offload=config.cpu_offload,
-        evaluate=getattr(config, "evaluate", False),
-        eval_metrics=getattr(config, "eval_metrics", None),
+        evaluate=config.evaluate,
+        eval_metrics=config.eval_metrics,
     )
 
     print("\n[PIPELINE DONE]")
@@ -24,6 +26,10 @@ def main():
     print(f"Copy JSON   : {result.copy_json}")
     print(f"Generated   : {result.generated_image}")
     print(f"Core refined: {result.core_refined_image}")
+    print(f"Identity img: {result.identity_restored_image}")
+    print(f"Layout plan : {result.layout_plan_json}")
+    print(f"Layout JSON : {result.layout_json}")
+    print(f"Layout HTML : {result.layout_preview_html}")
     print(f"Final image : {result.final_image}")
 
     if result.eval_json is not None:

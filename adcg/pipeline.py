@@ -5,6 +5,7 @@ from pathlib import Path
 from .eval import run_evaluation
 from .generation import run_generation
 from .preprocessing import run_preprocess
+from .prompt_layout import generate_prompt_layout, load_ad_copy
 from .prompting import generate_ad_copy, run_prompt_generation
 from .refinement import (
     run_core_refinement,
@@ -19,6 +20,10 @@ class PipelineResult:
     copy_json: Path
     generated_image: Path
     core_refined_image: Path
+    identity_restored_image: Path
+    layout_plan_json: Path
+    layout_json: Path
+    layout_preview_html: Path
     final_image: Path
     eval_json: Path | None
 
@@ -31,11 +36,14 @@ def run_pipeline(
     copy_count=1,
     direction="product_focus",
     layout_mode="layout",
+    layout_model="gpt-4o",
+    layout_font=None,
     seed=42,
     cpu_offload=False,
     generation_options=None,
     core_refinement_options=None,
     identity_options=None,
+    prompt_layout_options=None,
     evaluate=False,
     eval_metrics=None,
     eval_options=None,
@@ -48,16 +56,17 @@ def run_pipeline(
         core_refinement_options or {}
     )
     identity_options = dict(identity_options or {})
+    prompt_layout_options = dict(prompt_layout_options or {})
     eval_options = dict(eval_options or {})
 
-    print("[1/7] Product preprocessing")
+    print("[1/8] Product preprocessing")
 
     preprocessed = run_preprocess(
         image_path=image_path,
         output_dir=output_dir / "01_preprocessed",
     )
 
-    print("[2/7] Scene prompt generation")
+    print("[2/8] Scene prompt generation")
 
     prompt_json = run_prompt_generation(
         image_path=image_path,
@@ -69,7 +78,7 @@ def run_pipeline(
         direction=direction,
     )
 
-    print("[3/7] Advertisement copy generation")
+    print("[3/8] Advertisement copy generation")
 
     product_info = json.loads(
         Path(info_path).read_text(encoding="utf-8")
@@ -123,7 +132,7 @@ def run_pipeline(
     }
     generation_kwargs.update(generation_options)
 
-    print("[4/7] Conditioned diffusion generation")
+    print("[4/8] Conditioned diffusion generation")
 
     generated = run_generation(
         product_image=generation_product,
@@ -135,7 +144,7 @@ def run_pipeline(
     # Refinement 및 상품 보존 평가에는 원본 비율의 trimmed cutout 사용
     refinement_product = preprocessed["trimmed_cutout"]
 
-    print("[5/7] Core product refinement")
+    print("[5/8] Core product refinement")
 
     core_refined = run_core_refinement(
         generated_image=generated["image"],
@@ -151,9 +160,9 @@ def run_pipeline(
     }
     identity_kwargs.update(identity_options)
 
-    print("[6/7] Boundary and identity restoration")
+    print("[6/8] Boundary and identity restoration")
 
-    final_image = run_identity_restoration(
+    identity_restored_image = run_identity_restoration(
         input_image=core_refined,
         product_image=refinement_product,
         product_mask=generated["product_mask"],
@@ -165,7 +174,7 @@ def run_pipeline(
     eval_json = None
 
     if evaluate:
-        print("[7/7] Quantitative evaluation")
+        print("[7/8] Quantitative evaluation")
 
         eval_dir = output_dir / "06_eval"
         eval_dir.mkdir(parents=True, exist_ok=True)
@@ -179,7 +188,7 @@ def run_pipeline(
             eval_kwargs["metrics"] = tuple(eval_metrics)
 
         run_evaluation(
-            final_image=final_image,
+            final_image=identity_restored_image,
             prompt_json=prompt_json,
             product_image=refinement_product,
             product_mask=generated["product_mask"],
@@ -187,7 +196,21 @@ def run_pipeline(
             **eval_kwargs,
         )
     else:
-        print("[7/7] Evaluation skipped")
+        print("[7/8] Evaluation skipped")
+
+    print("[8/8] Content-aware advertisement copy layout")
+
+    layout_kwargs = {
+        "model": layout_model,
+        "font_path": layout_font,
+    }
+    layout_kwargs.update(prompt_layout_options)
+    layout_result = generate_prompt_layout(
+        image_path=identity_restored_image,
+        ad_copy=load_ad_copy(copy_json),
+        output_dir=output_dir / "07_prompt_layout",
+        **layout_kwargs,
+    )
 
     return PipelineResult(
         output_dir=output_dir,
@@ -195,6 +218,10 @@ def run_pipeline(
         copy_json=copy_json,
         generated_image=Path(generated["image"]),
         core_refined_image=Path(core_refined),
-        final_image=Path(final_image),
+        identity_restored_image=Path(identity_restored_image),
+        layout_plan_json=layout_result.plan_json,
+        layout_json=layout_result.layout_json,
+        layout_preview_html=layout_result.preview_html,
+        final_image=layout_result.rendered_image,
         eval_json=eval_json,
     )
