@@ -63,9 +63,18 @@ Treat every non-empty role as a separate layout element:
 - cta: separate compact action element placed after the information hierarchy
 Never concatenate two roles into one element or split one role into multiple
 elements. Evaluate the available safe regions independently for every role.
-Do not default to assigning all roles to one preferred zone. Use separate
-zones when the image has enough negative space, while preserving visual
-relationships through alignment, color, and hierarchy.
+Plan on a normalized 5-by-5 grid. grid_row and grid_col are zero-based values
+from 0 through 4. row_span and col_span describe how many adjacent cells the
+role may occupy. The cells stretch with the real canvas, so do not assume
+square cells. preferred_region must be the pixel bounding box of the selected
+cells on the supplied canvas. Keep row + row_span and col + col_span at or
+below 5.
+
+Do not default to assigning all roles to the same cells. Use separate cells
+when the image has enough negative space, while preserving visual
+relationships through alignment, color, and hierarchy. A one-line title
+normally needs 2-3 horizontal cells, a subtitle often needs 1-2 cells, and a
+compact price or CTA can use 1 cell. Spans may grow when the real copy is long.
 
 Planning examples:
 - If a product occupies the center and right side, place the title in the
@@ -91,6 +100,9 @@ Constraints:
   title, subtitle, price, or CTA content into the same box.
 - Keep every box fully inside the canvas with practical outer margins.
 - Avoid protected semantic regions and unnecessary element overlap.
+- Place each role inside or close to its planned 5x5 preferred_region. The
+  grid guides composition, but the final box may use precise pixel offsets
+  within the selected cells.
 - Align related elements by a shared left, center, or right edge.
 - Establish hierarchy: title is normally largest, subtitle supports title,
   price is prominent when present, and CTA is compact but readable.
@@ -142,6 +154,12 @@ def build_plan_request(copy: dict, width: int, height: int) -> str:
     payload = {
         "task": "content-aware placement plan",
         "canvas": {"width": width, "height": height},
+        "planning_grid": {
+            "rows": 5,
+            "columns": 5,
+            "coordinate_system": "zero_based",
+            "cell_sizing": "relative_to_actual_canvas",
+        },
         "copy_elements": copy_elements,
         "element_type_constraint": list(copy),
     }

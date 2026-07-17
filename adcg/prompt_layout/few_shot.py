@@ -9,6 +9,7 @@ from PIL import Image, ImageDraw
 
 
 REFERENCE_SIZE = 512
+GRID_SIZE = 5
 
 
 EXAMPLE_SPECS = (
@@ -169,6 +170,50 @@ def _scaled_placement(
     )
 
 
+def _grid_fields(
+    x: int,
+    y: int,
+    width: int,
+    height: int,
+    canvas_width: int,
+    canvas_height: int,
+) -> dict:
+    col = min(GRID_SIZE - 1, x * GRID_SIZE // canvas_width)
+    row = min(GRID_SIZE - 1, y * GRID_SIZE // canvas_height)
+    end_col = min(
+        GRID_SIZE,
+        ((x + width) * GRID_SIZE + canvas_width - 1)
+        // canvas_width,
+    )
+    end_row = min(
+        GRID_SIZE,
+        ((y + height) * GRID_SIZE + canvas_height - 1)
+        // canvas_height,
+    )
+    col_span = max(1, end_col - col)
+    row_span = max(1, end_row - row)
+    region_x = round(col * canvas_width / GRID_SIZE)
+    region_y = round(row * canvas_height / GRID_SIZE)
+    region_end_x = round(
+        (col + col_span) * canvas_width / GRID_SIZE
+    )
+    region_end_y = round(
+        (row + row_span) * canvas_height / GRID_SIZE
+    )
+    return {
+        "grid_row": row,
+        "grid_col": col,
+        "row_span": row_span,
+        "col_span": col_span,
+        "preferred_region": _bbox(
+            region_x,
+            region_y,
+            max(1, region_end_x - region_x),
+            max(1, region_end_y - region_y),
+        ),
+    }
+
+
 def _plan_output(
     spec: dict,
     canvas_width: int = REFERENCE_SIZE,
@@ -184,10 +229,10 @@ def _plan_output(
         (
             role,
             zone,
-            _x,
-            _y,
-            _width,
-            _height,
+            x,
+            y,
+            width,
+            height,
             _font_size,
             _font_weight,
             _max_lines,
@@ -196,12 +241,20 @@ def _plan_output(
             canvas_width,
             canvas_height,
         )
+        grid_fields = _grid_fields(
+            x,
+            y,
+            width,
+            height,
+            canvas_width,
+            canvas_height,
+        )
         elements.append(
             {
                 "role": role,
                 "content": spec["copy"][role],
                 "priority": ROLE_PRIORITY[role],
-                "preferred_zone": zone,
+                **grid_fields,
                 "alignment": (
                     "center" if zone.endswith("center") else
                     "right" if zone.endswith("right") else
@@ -251,8 +304,9 @@ def _plan_output(
             }
         ],
         "placement_plan": (
-            "Assign each semantic role its own box and safe region. Preserve "
-            "a shared grid while keeping CTA and price visually distinct."
+            "Assign each semantic role its own cells on the normalized 5x5 "
+            "grid. Preserve shared alignment while keeping CTA and price "
+            "visually distinct."
         ),
         "elements": elements,
         "visual_strategy": {

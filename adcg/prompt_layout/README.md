@@ -14,6 +14,11 @@ The five demonstrations are scaled at runtime to the completed image's actual
 width, height, and aspect ratio. Their boxes and font sizes are not fixed to a
 512-by-512 canvas.
 
+Placement planning uses a normalized 5-by-5 grid. Grid cells stretch to the
+actual canvas aspect ratio, and roles can span adjacent cells, so landscape,
+portrait, and square images use the same placement logic without fixed pixel
+assumptions.
+
 The command writes:
 
 - placement_plan.json: semantic regions and the placement rationale

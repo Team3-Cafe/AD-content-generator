@@ -24,7 +24,7 @@ from .renderer import (
     render_layout_image,
 )
 from .schemas import LAYOUT_SCHEMA, PLACEMENT_PLAN_SCHEMA
-from .validation import normalize_layout
+from .validation import normalize_layout, normalize_plan_grid
 
 
 ROOT_DIR = Path(__file__).resolve().parents[2]
@@ -163,6 +163,7 @@ def generate_prompt_layout(
         canvas_width=width,
         canvas_height=height,
     )
+    plan = normalize_plan_grid(plan, width, height)
     plan_path = output_dir / "placement_plan.json"
     plan_path.write_text(
         json.dumps(plan, ensure_ascii=False, indent=2),
@@ -193,6 +194,7 @@ def generate_prompt_layout(
         copy=ad_copy,
         width=width,
         height=height,
+        plan=plan,
     )
     layout = ensure_layout_contrast(image_path, layout)
     layout = fit_layout_typography(layout, font_path=font_path)
