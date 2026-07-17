@@ -50,6 +50,12 @@ def aesthetic_scores(model, processor, head, image_paths, device, batch_size):
         inputs = processor(images=images, return_tensors="pt").to(device)
         with torch.no_grad():
             image_embeds = model.get_image_features(**inputs)
+            if not torch.is_tensor(image_embeds):
+                image_embeds = getattr(image_embeds, "pooler_output", None)
+            if not torch.is_tensor(image_embeds):
+                raise TypeError(
+                    "CLIP get_image_features returned no pooled tensor"
+                )
             image_embeds = image_embeds / image_embeds.norm(
                 dim=-1, keepdim=True
             )
