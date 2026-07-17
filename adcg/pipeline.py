@@ -23,7 +23,7 @@ def run_pipeline(
     info_path,
     output_dir="outputs/pipeline",
     gpt_model="gpt-5.4-nano",
-    copy_model="gpt-5.4-mini",
+    copy_count=9,
     direction="product_focus",
     layout_mode="layout",
     seed=42,
@@ -61,17 +61,28 @@ def run_pipeline(
         Path(prompt_json).read_text(encoding="utf-8")
     )
 
-    # 광고 문구 생성
-    ad_copy = generate_ad_copy(
-        product_info=product_info,
-        background_prompt=prompt_data["generation_prompt"]["background_prompt"],
-        model=copy_model,
-    )
+    # 동일한 GPT 모델로 요청한 개수만큼 광고 문구 생성
+    ad_copies = [
+        generate_ad_copy(
+            product_info=product_info,
+            background_prompt=prompt_data["generation_prompt"]["background_prompt"],
+            model=gpt_model,
+        )
+        for _ in range(copy_count)
+    ]
 
     # 생성 결과 저장
     copy_json = output_dir / "02_prompt" / "ad_copy.json"
     copy_json.write_text(
-        json.dumps(ad_copy, ensure_ascii=False, indent=2),
+        json.dumps(
+            {
+                "model": gpt_model,
+                "copy_count": copy_count,
+                "copies": ad_copies,
+            },
+            ensure_ascii=False,
+            indent=2,
+        ),
         encoding="utf-8",
     )
 

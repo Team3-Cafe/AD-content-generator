@@ -5,7 +5,6 @@ from time import perf_counter
 
 from openai import OpenAI
 
-COPY_MODEL = "gpt-5.4-mini"
 COPY_INPUT_FIELDS = (
     "product_name",
     "store_name",
@@ -20,7 +19,7 @@ COPY_INPUT_FIELDS = (
 def generate_ad_copy(
     product_info: dict,
     background_prompt: str,
-    model: str = COPY_MODEL,
+    model: str,
 ) -> dict:
     """단일 OpenAI 모델로 한국어 광고 문구 한 세트를 생성한다."""
     request_data = {

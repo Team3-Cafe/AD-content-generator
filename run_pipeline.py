@@ -10,7 +10,7 @@ def main():
         info_path=config.info_path,
         output_dir=config.output_dir,
         gpt_model=config.gpt_model,
-        copy_model=config.copy_model,
+        copy_count=config.copy_count,
         direction=config.direction,
         layout_mode=config.layout_mode,
         seed=config.seed,
