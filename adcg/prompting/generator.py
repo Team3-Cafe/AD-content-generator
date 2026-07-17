@@ -124,11 +124,11 @@ Return only the fields required by the provided output schema.
     "negative_prompt": ""
   },
   "layout": {
-    "product_position":"",
-    "product_x":,
-    "product_y":,
-    "product_scale":,
-    "headline_position": ""
+    "product_position":"null",
+    "product_x":null,
+    "product_y":null,
+    "product_scale":null,
+    "headline_position": "null"
   }
 }
 """.strip()
@@ -259,13 +259,12 @@ def normalize_prompt_json(data):
     background_prompt = generation_prompt.get("background_prompt", "")
     negative_prompt = generation_prompt.get("negative_prompt", "")
 
-    generation_prompt["background_prompt"] = append_prompt(
-        background_prompt,
-        DEFAULT_POSITIVE,
+    generation_prompt["background_prompt"] = (
+        str(background_prompt or "").strip() or DEFAULT_POSITIVE
     )
-    generation_prompt["negative_prompt"] = append_prompt(
-        negative_prompt,
-        DEFAULT_NEGATIVE,
+    generation_prompt["negative_prompt"] = (
+        str(negative_prompt or "").strip()
+        or DEFAULT_NEGATIVE
     )
 
     layout = data.setdefault("layout", {})
