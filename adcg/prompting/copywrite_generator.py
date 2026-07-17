@@ -12,9 +12,6 @@ COPY_INPUT_FIELDS = (
     "store_type",
     "product_category",
     "product_description",
-    "features",
-    "target_customer",
-    "promotion",
     "price",
     "tone",
 )
