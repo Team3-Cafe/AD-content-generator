@@ -9,6 +9,7 @@ from dotenv import load_dotenv
 from openai import OpenAI
 from PIL import Image
 
+from .few_shot import EXAMPLE_SPECS, build_few_shot_content
 from .html import render_layout_html
 from .io import image_to_data_url
 from .prompts import (
@@ -45,24 +46,39 @@ def _request_json(
     schema_name: str,
     schema: dict,
     temperature: float,
+    few_shot_stage: str,
+    canvas_width: int,
+    canvas_height: int,
 ) -> dict:
+    content = build_few_shot_content(
+        few_shot_stage,
+        canvas_width,
+        canvas_height,
+    )
+    content.extend(
+        [
+            {
+                "type": "input_text",
+                "text": (
+                    "Test sample input. Apply the demonstrated design "
+                    "principles to this image and return only the required "
+                    "structured output:\n" + request_text
+                ),
+            },
+            {
+                "type": "input_image",
+                "image_url": image_url,
+                "detail": detail,
+            },
+        ]
+    )
     response = client.responses.create(
         model=model,
         instructions=instructions,
         input=[
             {
                 "role": "user",
-                "content": [
-                    {
-                        "type": "input_text",
-                        "text": request_text,
-                    },
-                    {
-                        "type": "input_image",
-                        "image_url": image_url,
-                        "detail": detail,
-                    },
-                ],
+                "content": content,
             }
         ],
         temperature=temperature,
@@ -106,7 +122,7 @@ def generate_prompt_layout(
     font_path: str | Path | None = None,
     client=None,
 ) -> LayoutGenerationResult:
-    """Generate a plan, pixel layout, and HTML preview without running the pipeline."""
+    """Generate a five-shot plan, pixel layout, preview, and rendered ad."""
     image_path = Path(image_path).expanduser().resolve()
     output_dir = Path(output_dir).expanduser().resolve()
     if detail not in {"low", "high", "auto"}:
@@ -139,6 +155,9 @@ def generate_prompt_layout(
         schema_name="ad_copy_placement_plan",
         schema=PLACEMENT_PLAN_SCHEMA,
         temperature=temperature,
+        few_shot_stage="plan",
+        canvas_width=width,
+        canvas_height=height,
     )
     plan_path = output_dir / "placement_plan.json"
     plan_path.write_text(
@@ -161,6 +180,9 @@ def generate_prompt_layout(
         schema_name="ad_copy_pixel_layout",
         schema=LAYOUT_SCHEMA,
         temperature=temperature,
+        few_shot_stage="layout",
+        canvas_width=width,
+        canvas_height=height,
     )
     layout = normalize_layout(
         raw_layout,
@@ -170,6 +192,7 @@ def generate_prompt_layout(
     )
     layout_document = {
         "model": model,
+        "few_shot_count": len(EXAMPLE_SPECS),
         "source_image": str(image_path),
         "latency_sec": round(perf_counter() - started_at, 2),
         "copy": ad_copy,

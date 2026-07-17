@@ -3,10 +3,16 @@
 This package independently finds content-aware positions for the text in
 ad_copy.json. It is intentionally not connected to adcg.pipeline.
 
-The implementation follows the paper's two-stage VLM workflow:
+The implementation follows the paper's two-stage VLM workflow with five
+self-contained multimodal design demonstrations:
 
-1. GPT-4o analyzes the completed background and writes a placement plan.
-2. GPT-4o converts that plan into exact pixel boxes and typography.
+1. GPT-4o studies five visual input/output layout examples.
+2. GPT-4o analyzes the completed background and writes a placement plan.
+3. GPT-4o converts that plan into exact pixel boxes and role-aware typography.
+
+The five demonstrations are scaled at runtime to the completed image's actual
+width, height, and aspect ratio. Their boxes and font sizes are not fixed to a
+512-by-512 canvas.
 
 The command writes:
 

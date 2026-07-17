@@ -115,9 +115,30 @@ def _resolve_font_path(
 def _load_font(
     size: int,
     resolved_font: Path | None,
+    weight: int,
 ):
     if resolved_font is not None:
-        return ImageFont.truetype(str(resolved_font), size=size)
+        font = ImageFont.truetype(str(resolved_font), size=size)
+        try:
+            axes = font.get_variation_axes()
+            values = []
+            for axis in axes:
+                name = axis.get("name", b"")
+                if isinstance(name, bytes):
+                    name = name.decode("utf-8", errors="ignore")
+                if "weight" in str(name).lower():
+                    value = max(
+                        int(axis["minimum"]),
+                        min(int(weight), int(axis["maximum"])),
+                    )
+                else:
+                    value = int(axis["default"])
+                values.append(value)
+            if values:
+                font.set_variation_by_axes(values)
+        except (AttributeError, KeyError, OSError, TypeError, ValueError):
+            pass
+        return font
     try:
         return ImageFont.load_default(size=size)
     except TypeError:
@@ -181,7 +202,7 @@ def _fit_text(
 
     selected = None
     for size in range(start_size, 7, -1):
-        font = _load_font(size, resolved_font)
+        font = _load_font(size, resolved_font, weight)
         lines = _wrap_text(draw, text, font, max_width)
         step = max(1, int(round(size * line_height)))
         total_height = step * len(lines)

@@ -3,6 +3,38 @@ from __future__ import annotations
 import json
 
 
+ROLE_DESIGN_INTENT = {
+    "title": {
+        "meaning": "Primary promise or headline",
+        "hierarchy": "highest",
+        "font_size_ratio": "6-9% of the shorter canvas side",
+        "font_weight": "700-900",
+        "treatment": "large, concise, dominant, maximum 2 lines",
+    },
+    "subtitle": {
+        "meaning": "Supporting explanation or credibility message",
+        "hierarchy": "supporting",
+        "font_size_ratio": "3.2-4.5% of the shorter canvas side",
+        "font_weight": "400-550",
+        "treatment": "readable body copy, maximum 3 lines",
+    },
+    "price": {
+        "meaning": "Commercial offer or price emphasis",
+        "hierarchy": "high emphasis",
+        "font_size_ratio": "4.5-6.5% of the shorter canvas side",
+        "font_weight": "650-850",
+        "treatment": "accent color or emphasis block, maximum 2 lines",
+    },
+    "cta": {
+        "meaning": "Action the viewer should take",
+        "hierarchy": "action emphasis",
+        "font_size_ratio": "3.5-4.8% of the shorter canvas side",
+        "font_weight": "600-800",
+        "treatment": "compact button-like element, maximum 2 lines",
+    },
+}
+
+
 PLAN_SYSTEM_PROMPT = """
 You are a senior advertising art director. Create a content-aware placement
 plan for copy on a completed advertising background.
@@ -71,6 +103,11 @@ Constraints:
 - If price exists, give it an independent emphasis block near the product or
   CTA without covering the product.
 - Estimate box height and font size from the actual copy length.
+- Interpret the semantic role before styling. Use the role-specific meaning,
+  hierarchy, font-size ratio, weight, and treatment supplied in the test
+  input. Do not give all roles the same font size, weight, or underlay style.
+- Avoid orphan characters or syllables on their own final line. Make the box
+  wider or adjust the font size while respecting the role hierarchy.
 - Use underlays only when needed for readability. Each underlay may support
   exactly one text role, must fully contain its target box with padding, and
   must have a lower z-index.
@@ -83,10 +120,18 @@ Output coordinates in pixels, not normalized values or percentages.
 
 
 def build_plan_request(copy: dict, width: int, height: int) -> str:
+    copy_elements = [
+        {
+            "role": role,
+            "content": content,
+            "design_intent": ROLE_DESIGN_INTENT[role],
+        }
+        for role, content in copy.items()
+    ]
     payload = {
         "task": "content-aware placement plan",
         "canvas": {"width": width, "height": height},
-        "copy_elements": copy,
+        "copy_elements": copy_elements,
         "element_type_constraint": list(copy),
     }
     return json.dumps(payload, ensure_ascii=False, indent=2)
@@ -98,10 +143,18 @@ def build_layout_request(
     width: int,
     height: int,
 ) -> str:
+    copy_elements = [
+        {
+            "role": role,
+            "content": content,
+            "design_intent": ROLE_DESIGN_INTENT[role],
+        }
+        for role, content in copy.items()
+    ]
     payload = {
         "task": "generate the final layout from the placement plan",
         "canvas": {"width": width, "height": height},
-        "copy_elements": copy,
+        "copy_elements": copy_elements,
         "element_type_constraint": list(copy),
         "placement_plan": plan,
     }
