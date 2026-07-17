@@ -27,13 +27,17 @@ Treat every non-empty role as a separate layout element:
 - price: separate high-emphasis element only when non-empty
 - cta: separate compact action element placed after the information hierarchy
 Never concatenate two roles into one element or split one role into multiple
-elements.
+elements. Evaluate the available safe regions independently for every role.
+Do not default to assigning all roles to one preferred zone. Use separate
+zones when the image has enough negative space, while preserving visual
+relationships through alignment, color, and hierarchy.
 
 Planning examples:
-- If a product occupies the center and right side, stack title and subtitle in
-  the left negative space, align their left edges, and place CTA beneath them.
-- If important objects fill both sides but the bottom is quiet, use a compact
-  bottom-center copy group with a single underlay behind the group.
+- If a product occupies the center and right side, place the title in the
+  upper-left negative space, give the subtitle its own smaller block nearby,
+  and place CTA in a separate lower-left or lower-right safe region.
+- If the product occupies the center, balance the canvas by placing title and
+  subtitle in distinct top-side blocks and CTA in a separate bottom corner.
 - Never cover a face, product identity feature, existing logo, or functional
   product detail merely because the region has low visual contrast.
 """.strip()
@@ -56,13 +60,23 @@ Constraints:
 - Establish hierarchy: title is normally largest, subtitle supports title,
   price is prominent when present, and CTA is compact but readable.
 - Keep title larger and heavier than subtitle. Place subtitle next to or below
-  title using the same alignment axis. Place CTA after the title/subtitle
-  group, not between them. Omit price entirely when its input is empty.
+  title only when that is the best content-aware choice; it must remain a
+  distinct box with visible spacing. Omit price entirely when its input is
+  empty.
+- Do not default to a single vertical stack. Distribute independent role
+  blocks across suitable negative space to balance visual weight.
+- Place CTA in a safe region separate from title and subtitle whenever the
+  image offers at least two viable safe regions. Make it read as an action
+  element rather than another paragraph.
+- If price exists, give it an independent emphasis block near the product or
+  CTA without covering the product.
 - Estimate box height and font size from the actual copy length.
-- Use underlays only when needed for readability. An underlay must fully
-  contain all target boxes with padding and have a lower z-index.
+- Use underlays only when needed for readability. Each underlay may support
+  exactly one text role, must fully contain its target box with padding, and
+  must have a lower z-index.
 - Colors must be CSS-compatible values such as #FFFFFF.
-- Prefer a single coherent copy group over scattered independent boxes.
+- Keep independent blocks visually coherent through a shared grid, consistent
+  margins, and intentional alignment. Do not group every role into one panel.
 
 Output coordinates in pixels, not normalized values or percentages.
 """.strip()

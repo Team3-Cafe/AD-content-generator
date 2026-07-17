@@ -181,6 +181,8 @@ UNDERLAY_SCHEMA = {
         "target_ids": {
             "type": "array",
             "items": {"type": "string"},
+            "minItems": 1,
+            "maxItems": 1,
         },
         **_bbox_properties(),
         "z_index": {"type": "integer", "minimum": 0},
