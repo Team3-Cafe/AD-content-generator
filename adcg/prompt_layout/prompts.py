@@ -21,6 +21,14 @@ canvas pixel coordinates. Maintain useful outer margins, coherent alignment,
 and enough room for the real text length. Recommend an underlay only when the
 background does not provide reliable contrast.
 
+Treat every non-empty role as a separate layout element:
+- title: primary headline and strongest visual hierarchy
+- subtitle: supporting explanation, smaller than the title
+- price: separate high-emphasis element only when non-empty
+- cta: separate compact action element placed after the information hierarchy
+Never concatenate two roles into one element or split one role into multiple
+elements.
+
 Planning examples:
 - If a product occupies the center and right side, stack title and subtitle in
   the left negative space, align their left edges, and place CTA beneath them.
@@ -40,11 +48,16 @@ exactly and output one element for each supplied non-empty role, with no extra
 text. Use the canvas dimensions exactly.
 
 Constraints:
+- Output exactly one separate box for each non-empty input role. Never merge
+  title, subtitle, price, or CTA content into the same box.
 - Keep every box fully inside the canvas with practical outer margins.
 - Avoid protected semantic regions and unnecessary element overlap.
 - Align related elements by a shared left, center, or right edge.
 - Establish hierarchy: title is normally largest, subtitle supports title,
   price is prominent when present, and CTA is compact but readable.
+- Keep title larger and heavier than subtitle. Place subtitle next to or below
+  title using the same alignment axis. Place CTA after the title/subtitle
+  group, not between them. Omit price entirely when its input is empty.
 - Estimate box height and font size from the actual copy length.
 - Use underlays only when needed for readability. An underlay must fully
   contain all target boxes with padding and have a lower z-index.

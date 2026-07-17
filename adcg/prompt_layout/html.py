@@ -100,7 +100,8 @@ html, body {{ margin: 0; min-height: 100%; background: #202124; }}
   justify-content: center;
   overflow: hidden;
   overflow-wrap: anywhere;
-  font-family: Pretendard, "Noto Sans KR", Arial, sans-serif;
+  font-family: Pretendard, "Noto Sans KR", "Noto Sans CJK KR",
+    "Malgun Gothic", "Apple SD Gothic Neo", Arial, sans-serif;
   text-shadow: 0 1px 2px rgba(0, 0, 0, .18);
 }}
 </style>

@@ -42,5 +42,6 @@ layout. The generated HTML is a preview artifact; no pixels are written back
 to the input image. The rendered advertisement is written to final_ad.png.
 
 For Korean text, the renderer searches for Malgun Gothic, Noto Sans CJK/KR,
-and DejaVu Sans in that order. Set ADCG_FONT_PATH when a specific brand font
-or Korean font file must be used.
+Nanum Gothic, and Korean fonts reported by fontconfig. It does not silently
+fall back to a Latin-only font for Korean copy. Set ADCG_FONT_PATH or pass
+--font/--layout-font when a specific Korean or brand font must be used.
