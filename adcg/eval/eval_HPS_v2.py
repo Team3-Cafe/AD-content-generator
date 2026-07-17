@@ -43,13 +43,24 @@ def evaluate_hps(
         ) from exc
 
     prompt = load_background_prompt(prompt_json)
-    scores = normalize_scores(
-        hpsv2.score(
+    try:
+        raw_scores = hpsv2.score(
             [str(image_path)],
             prompt,
             hps_version=hps_version,
         )
-    )
+    except FileNotFoundError as exc:
+        if exc.filename and exc.filename.endswith(
+            "bpe_simple_vocab_16e6.txt.gz"
+        ):
+            raise RuntimeError(
+                "The PyPI hpsv2 wheel is missing its tokenizer vocabulary. "
+                "Reinstall hpsv2 from the pinned GitHub source in "
+                "requirements.txt."
+            ) from exc
+        raise
+
+    scores = normalize_scores(raw_scores)
     if len(scores) != 1:
         raise RuntimeError("HPSv2 returned an unexpected score count")
 
