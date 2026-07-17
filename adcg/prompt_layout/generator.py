@@ -18,7 +18,11 @@ from .prompts import (
     build_layout_request,
     build_plan_request,
 )
-from .renderer import render_layout_image
+from .renderer import (
+    ensure_layout_contrast,
+    fit_layout_typography,
+    render_layout_image,
+)
 from .schemas import LAYOUT_SCHEMA, PLACEMENT_PLAN_SCHEMA
 from .validation import normalize_layout
 
@@ -190,6 +194,8 @@ def generate_prompt_layout(
         width=width,
         height=height,
     )
+    layout = ensure_layout_contrast(image_path, layout)
+    layout = fit_layout_typography(layout, font_path=font_path)
     layout_document = {
         "model": model,
         "few_shot_count": len(EXAMPLE_SPECS),

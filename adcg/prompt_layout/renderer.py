@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from copy import deepcopy
 import os
 from pathlib import Path
 import shutil
@@ -203,13 +204,124 @@ def _fit_text(
     selected = None
     for size in range(start_size, 7, -1):
         font = _load_font(size, resolved_font, weight)
-        lines = _wrap_text(draw, text, font, max_width)
+        lines = (
+            [text]
+            if str(item.get("role")) == "title"
+            else _wrap_text(draw, text, font, max_width)
+        )
         step = max(1, int(round(size * line_height)))
         total_height = step * len(lines)
         selected = (font, lines, step, total_height)
-        if len(lines) <= max_lines and total_height <= max_height:
+        widest_line = max(
+            (_text_width(draw, line, font) for line in lines),
+            default=0,
+        )
+        if (
+            len(lines) <= max_lines
+            and total_height <= max_height
+            and widest_line <= max_width
+        ):
             break
     return selected
+
+
+def fit_layout_typography(
+    layout: dict,
+    *,
+    font_path: str | Path | None = None,
+) -> dict:
+    """Persist the font sizes that fit each VLM-selected text box."""
+    adjusted = deepcopy(layout)
+    measuring_image = Image.new("RGB", (1, 1))
+    draw = ImageDraw.Draw(measuring_image)
+    for item in adjusted["elements"]:
+        font, _lines, _step, _height = _fit_text(
+            draw,
+            item,
+            font_path,
+        )
+        fitted_size = getattr(font, "size", item.get("font_size", 24))
+        item["font_size"] = max(8, int(fitted_size))
+        if item.get("role") == "title":
+            item["max_lines"] = 1
+    return adjusted
+
+
+def _relative_luminance(rgb: tuple[int, int, int]) -> float:
+    channels = []
+    for value in rgb[:3]:
+        channel = value / 255.0
+        channels.append(
+            channel / 12.92
+            if channel <= 0.04045
+            else ((channel + 0.055) / 1.055) ** 2.4
+        )
+    return (
+        0.2126 * channels[0]
+        + 0.7152 * channels[1]
+        + 0.0722 * channels[2]
+    )
+
+
+def _contrast_ratio(first: float, second: float) -> float:
+    lighter = max(first, second)
+    darker = min(first, second)
+    return (lighter + 0.05) / (darker + 0.05)
+
+
+def _region_luminances(image: Image.Image, item: dict) -> list[float]:
+    x = int(item["x"])
+    y = int(item["y"])
+    crop = image.crop(
+        (
+            x,
+            y,
+            x + int(item["width"]),
+            y + int(item["height"]),
+        )
+    ).convert("RGB")
+    crop.thumbnail((48, 48))
+    return [_relative_luminance(pixel) for pixel in crop.getdata()]
+
+
+def _contrast_score(
+    luminances: list[float],
+    text_color: tuple[int, int, int],
+) -> float:
+    if not luminances:
+        return 1.0
+    text_luminance = _relative_luminance(text_color)
+    ratios = sorted(
+        _contrast_ratio(text_luminance, background)
+        for background in luminances
+    )
+    percentile_index = max(0, int(len(ratios) * 0.10) - 1)
+    return ratios[percentile_index]
+
+
+def _auto_underlay(item: dict, light: bool, opacity: float) -> dict:
+    padding = max(
+        4,
+        int(round(min(item["width"], item["height"]) * 0.08)),
+    )
+    x = max(0, int(item["x"]) - padding)
+    y = max(0, int(item["y"]) - padding)
+    return {
+        "id": f"auto-contrast-{item['id']}",
+        "target_ids": [item["id"]],
+        "x": x,
+        "y": y,
+        "width": (
+            int(item["width"]) + (int(item["x"]) - x) + padding
+        ),
+        "height": (
+            int(item["height"]) + (int(item["y"]) - y) + padding
+        ),
+        "z_index": max(0, int(item.get("z_index", 2)) - 1),
+        "background_color": "#FFFFFF" if light else "#101820",
+        "opacity": opacity,
+        "border_radius": max(6, padding),
+    }
 
 
 def _draw_underlays(
@@ -244,6 +356,82 @@ def _draw_underlays(
     return Image.alpha_composite(image, overlay)
 
 
+def ensure_layout_contrast(
+    image_path: str | Path,
+    layout: dict,
+) -> dict:
+    """Return an idempotently contrast-corrected copy of a layout."""
+    adjusted = deepcopy(layout)
+    adjusted["underlays"] = [
+        item
+        for item in adjusted.get("underlays", [])
+        if not str(item.get("id", "")).startswith("auto-contrast-")
+    ]
+    with Image.open(image_path) as source:
+        working = source.convert("RGBA")
+    working = _draw_underlays(working, adjusted["underlays"])
+
+    canvas_width, canvas_height = working.size
+    for item in adjusted["elements"]:
+        threshold = (
+            3.0
+            if item.get("role") in {"title", "price"}
+            else 4.5
+        )
+        luminances = _region_luminances(working, item)
+        requested = ImageColor.getrgb(
+            str(item.get("color", "#FFFFFF"))
+        )[:3]
+        requested_score = _contrast_score(luminances, requested)
+        item["color"] = "#{:02X}{:02X}{:02X}".format(*requested)
+        if requested_score >= threshold:
+            continue
+
+        candidates = ((255, 255, 255), (16, 24, 32))
+        best_color = max(
+            candidates,
+            key=lambda color: _contrast_score(luminances, color),
+        )
+        best_score = _contrast_score(luminances, best_color)
+        item["color"] = "#{:02X}{:02X}{:02X}".format(*best_color)
+        if best_score >= threshold:
+            continue
+
+        average = sum(luminances) / max(1, len(luminances))
+        use_light_underlay = average >= 0.5
+        item["color"] = (
+            "#101820" if use_light_underlay else "#FFFFFF"
+        )
+        underlay = None
+        for opacity in (0.58, 0.68, 0.78, 0.88):
+            underlay = _auto_underlay(
+                item,
+                use_light_underlay,
+                opacity,
+            )
+            underlay["width"] = min(
+                underlay["width"],
+                canvas_width - underlay["x"],
+            )
+            underlay["height"] = min(
+                underlay["height"],
+                canvas_height - underlay["y"],
+            )
+            trial = _draw_underlays(working, [underlay])
+            trial_luminances = _region_luminances(trial, item)
+            if _contrast_score(
+                trial_luminances,
+                ImageColor.getrgb(item["color"])[:3],
+            ) >= threshold:
+                break
+        adjusted["underlays"].append(underlay)
+        working = _draw_underlays(working, [underlay])
+        warning = f"Auto contrast underlay added for {item['role']}."
+        if warning not in adjusted.setdefault("warnings", []):
+            adjusted["warnings"].append(warning)
+    return adjusted
+
+
 def render_layout_image(
     image_path: str | Path,
     layout: dict,
@@ -253,6 +441,7 @@ def render_layout_image(
 ) -> Path:
     """Render validated layout JSON onto the completed background image."""
     image_path = Path(image_path)
+    layout = ensure_layout_contrast(image_path, layout)
     output_path = Path(output_path)
     output_path.parent.mkdir(parents=True, exist_ok=True)
 

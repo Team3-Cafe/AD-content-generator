@@ -72,9 +72,13 @@ def normalize_layout(
             100,
             min(_integer(element.get("font_weight"), 600), 900),
         )
-        element["max_lines"] = max(
-            1,
-            min(_integer(element.get("max_lines"), 2), 4),
+        element["max_lines"] = (
+            1
+            if role == "title"
+            else max(
+                1,
+                min(_integer(element.get("max_lines"), 2), 4),
+            )
         )
         elements.append(element)
 

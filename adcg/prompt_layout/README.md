@@ -21,6 +21,11 @@ The command writes:
 - layout_preview.html: a browser preview using the real copy strings
 - final_ad.png: the copy rendered onto the completed background
 
+The renderer keeps titles on one line by fitting their font size to the
+selected box. It also checks local image contrast, preserves readable accent
+colors, switches between light and dark text when needed, and adds a
+role-specific translucent underlay when neither color is reliably readable.
+
 ## Usage
 
 Run after the image pipeline has created the final background:

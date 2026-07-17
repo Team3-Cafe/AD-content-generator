@@ -21,10 +21,13 @@ EXAMPLE_SPECS = (
             "cta": "Request a quote",
         },
         "placements": (
-            ("title", "top_left", 24, 28, 225, 82, 36, 800, 2),
+            ("title", "top_left", 24, 28, 260, 82, 34, 800, 1),
             ("subtitle", "middle_left", 24, 160, 220, 74, 19, 450, 3),
             ("cta", "bottom_left", 24, 408, 174, 54, 20, 700, 1),
         ),
+        "role_underlays": {
+            "subtitle": ("#101820", 0.72, "#FFFFFF"),
+        },
     },
     {
         "name": "product_lower_center_open_corners",
@@ -35,10 +38,13 @@ EXAMPLE_SPECS = (
             "cta": "Book today",
         },
         "placements": (
-            ("title", "top_left", 24, 24, 250, 86, 35, 800, 2),
+            ("title", "top_left", 24, 24, 270, 86, 33, 800, 1),
             ("subtitle", "top_right", 300, 42, 188, 88, 18, 450, 3),
             ("cta", "bottom_right", 320, 438, 168, 50, 20, 700, 1),
         ),
+        "role_underlays": {
+            "title": ("#F7F4EC", 0.90, "#101820"),
+        },
     },
     {
         "name": "portrait_left_open_right",
@@ -49,10 +55,13 @@ EXAMPLE_SPECS = (
             "cta": "Start your lesson",
         },
         "placements": (
-            ("title", "top_right", 294, 34, 194, 98, 34, 800, 3),
+            ("title", "top_right", 270, 34, 218, 98, 30, 800, 1),
             ("subtitle", "middle_right", 306, 190, 182, 76, 18, 450, 3),
             ("cta", "bottom_right", 318, 422, 170, 54, 19, 700, 1),
         ),
+        "role_underlays": {
+            "subtitle": ("#101820", 0.76, "#FFFFFF"),
+        },
     },
     {
         "name": "wide_product_bottom_price_emphasis",
@@ -64,11 +73,14 @@ EXAMPLE_SPECS = (
             "cta": "Get details",
         },
         "placements": (
-            ("title", "top_center", 86, 24, 340, 76, 37, 800, 2),
+            ("title", "top_center", 60, 24, 392, 76, 35, 800, 1),
             ("subtitle", "middle_left", 26, 150, 235, 70, 18, 450, 3),
             ("price", "middle_right", 322, 154, 166, 58, 27, 750, 1),
             ("cta", "bottom_right", 330, 448, 158, 44, 18, 700, 1),
         ),
+        "role_underlays": {
+            "title": ("#101820", 0.68, "#FFFFFF"),
+        },
     },
     {
         "name": "product_right_lower_asymmetric",
@@ -80,11 +92,14 @@ EXAMPLE_SPECS = (
             "cta": "Contact the team",
         },
         "placements": (
-            ("title", "top_left", 24, 28, 242, 80, 36, 800, 2),
+            ("title", "top_left", 24, 28, 280, 80, 34, 800, 1),
             ("subtitle", "middle_left", 24, 158, 205, 88, 18, 450, 3),
             ("price", "bottom_center", 170, 444, 150, 42, 21, 700, 1),
             ("cta", "bottom_left", 24, 390, 166, 48, 18, 700, 1),
         ),
+        "role_underlays": {
+            "subtitle": ("#F7F4EC", 0.88, "#101820"),
+        },
     },
 )
 
@@ -278,6 +293,7 @@ def _layout_output(
             canvas_height,
         )
         element_id = f"text-{role}"
+        role_underlay = spec.get("role_underlays", {}).get(role)
         elements.append(
             {
                 "id": element_id,
@@ -293,6 +309,7 @@ def _layout_output(
                 "font_weight": font_weight,
                 "line_height": 1.16,
                 "color": (
+                    role_underlay[2] if role_underlay else
                     "#101820" if role == "cta" else
                     "#FFD23F" if role == "price" else
                     "#FFFFFF"
@@ -300,7 +317,7 @@ def _layout_output(
                 "max_lines": max_lines,
             }
         )
-        if role == "cta":
+        if role == "cta" or role_underlay:
             pad_x = max(
                 4,
                 int(round(10 * canvas_width / REFERENCE_SIZE)),
@@ -319,9 +336,13 @@ def _layout_output(
                     )
                 ),
             )
+            background_color = (
+                role_underlay[0] if role_underlay else "#FFD23F"
+            )
+            opacity = role_underlay[1] if role_underlay else 0.96
             underlays.append(
                 {
-                    "id": "underlay-cta",
+                    "id": f"underlay-{role}",
                     "target_ids": [element_id],
                     **_bbox(
                         max(0, x - pad_x),
@@ -330,8 +351,8 @@ def _layout_output(
                         min(canvas_height - max(0, y - pad_y), height + 2 * pad_y),
                     ),
                     "z_index": 1,
-                    "background_color": "#FFD23F",
-                    "opacity": 0.96,
+                    "background_color": background_color,
+                    "opacity": opacity,
                     "border_radius": radius,
                 }
             )

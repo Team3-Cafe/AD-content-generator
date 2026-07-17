@@ -9,7 +9,10 @@ ROLE_DESIGN_INTENT = {
         "hierarchy": "highest",
         "font_size_ratio": "6-9% of the shorter canvas side",
         "font_weight": "700-900",
-        "treatment": "large, concise, dominant, maximum 2 lines",
+        "treatment": (
+            "large, concise, dominant, exactly 1 line; widen the box or "
+            "reduce font size enough to prevent wrapping"
+        ),
     },
     "subtitle": {
         "meaning": "Supporting explanation or credibility message",
@@ -95,6 +98,8 @@ Constraints:
   title only when that is the best content-aware choice; it must remain a
   distinct box with visible spacing. Omit price entirely when its input is
   empty.
+- The title must render on exactly one line. Give it enough horizontal room
+  and reduce its font size when necessary instead of wrapping it.
 - Do not default to a single vertical stack. Distribute independent role
   blocks across suitable negative space to balance visual weight.
 - Place CTA in a safe region separate from title and subtitle whenever the
@@ -111,6 +116,12 @@ Constraints:
 - Use underlays only when needed for readability. Each underlay may support
   exactly one text role, must fully contain its target box with padding, and
   must have a lower z-index.
+- Inspect the actual image behind every text box. Use dark text on a light
+  background and light text on a dark background. Never use white text on a
+  white or very bright underlay, or black text on a black or very dark
+  underlay. Target at least 4.5:1 contrast for subtitle and CTA and 3:1 for
+  large title and price. Add a role-specific translucent underlay when the
+  local image contains mixed tones and neither text color remains readable.
 - Colors must be CSS-compatible values such as #FFFFFF.
 - Keep independent blocks visually coherent through a shared grid, consistent
   margins, and intentional alignment. Do not group every role into one panel.
