@@ -3,210 +3,84 @@ from __future__ import annotations
 import json
 
 
-ROLE_DESIGN_INTENT = {
-    "title": {
-        "meaning": "Primary promise or headline",
-        "hierarchy": "highest",
-        "font_size_ratio": "6-9% of the shorter canvas side",
-        "font_weight": "700-900",
-        "treatment": (
-            "large, concise, dominant, exactly 1 line; widen the box or "
-            "reduce font size enough to prevent wrapping"
-        ),
-    },
-    "subtitle": {
-        "meaning": "Supporting explanation or credibility message",
-        "hierarchy": "supporting",
-        "font_size_ratio": "3.2-4.5% of the shorter canvas side",
-        "font_weight": "400-550",
-        "treatment": "readable body copy, maximum 3 lines",
-    },
-    "price": {
-        "meaning": "Commercial offer or price emphasis",
-        "hierarchy": "high emphasis",
-        "font_size_ratio": "4.5-6.5% of the shorter canvas side",
-        "font_weight": "650-850",
-        "treatment": "accent color or emphasis block, maximum 2 lines",
-    },
-    "cta": {
-        "meaning": "Action the viewer should take",
-        "hierarchy": "action emphasis",
-        "font_size_ratio": "3.5-4.8% of the shorter canvas side",
-        "font_weight": "600-800",
-        "treatment": "compact button-like element, maximum 2 lines",
-    },
-}
+DESIGN_SYSTEM_PROMPT = """
+You are an expert Korean advertising art director. Author one bespoke design
+for the supplied finished background image and ad copy. Do not generate
+alternatives, template names, candidate rankings, or aesthetic scores.
 
+Treat title/subtitle as one headline group and price/CTA as one offer group.
+Study the actual product position, negative space, brightness, texture, and
+visual flow. Place the two groups in continuous image space so they remain
+clearly separated, preserve the subject, and feel intentionally composed.
 
-PLAN_SYSTEM_PROMPT = """
-You are a senior advertising art director. Create a content-aware placement
-plan for copy on a completed advertising background.
+Use surfaces sparingly. Prefer text directly on calm high-contrast space; use
+a unified gradient scrim or soft panel only when the background is visually
+busy. Price and CTA may form one commercial lockup. Establish hierarchy with
+scale, weight, alignment, spacing, and one restrained accent drawn from the
+image. The title must remain one line, so allocate sufficient width.
 
-Use the two-stage method from content-aware ad layout research. This is the
-planning stage only:
-1. Understand the depicted products, people, faces, logos, tools, and other
-   semantically important regions.
-2. Identify protected regions that copy must not cover and safe regions where
-   copy can be placed.
-3. Plan the hierarchy and relationships of the supplied copy elements.
-
-Do not invent or rewrite copy. Preserve each supplied string exactly. Empty
-copy fields are omitted and must not be added. Bounding boxes use the original
-canvas pixel coordinates. Maintain useful outer margins, coherent alignment,
-and enough room for the real text length. Recommend an underlay only when the
-background does not provide reliable contrast.
-
-Treat every non-empty role as a separate layout element:
-- title: primary headline and strongest visual hierarchy
-- subtitle: supporting explanation, smaller than the title
-- price: separate high-emphasis element only when non-empty
-- cta: separate compact action element placed after the information hierarchy
-Never concatenate two roles into one element or split one role into multiple
-elements. Evaluate the available safe regions independently for every role.
-Plan on a normalized 5-by-5 grid. grid_row and grid_col are zero-based values
-from 0 through 4. row_span and col_span describe how many adjacent cells the
-role may occupy. The cells stretch with the real canvas, so do not assume
-square cells. preferred_region must be the pixel bounding box of the selected
-cells on the supplied canvas. Keep row + row_span and col + col_span at or
-below 5.
-
-Do not default to assigning all roles to the same cells. Use separate cells
-when the image has enough negative space, while preserving visual
-relationships through alignment, color, and hierarchy. A one-line title
-normally needs 2-3 horizontal cells, a subtitle often needs 1-2 cells, and a
-compact price or CTA can use 1 cell. Spans may grow when the real copy is long.
-
-Planning examples:
-- If a product occupies the center and right side, place the title in the
-  upper-left negative space, give the subtitle its own smaller block nearby,
-  and place CTA in a separate lower-left or lower-right safe region.
-- If the product occupies the center, balance the canvas by placing title and
-  subtitle in distinct top-side blocks and CTA in a separate bottom corner.
-- Never cover a face, product identity feature, existing logo, or functional
-  product detail merely because the region has low visual contrast.
+Return exactly one structured design specification. Anchors are normalized
+top-left positions for the two semantic groups, not independent copy boxes.
 """.strip()
 
 
-LAYOUT_SYSTEM_PROMPT = """
-You are a senior advertising layout designer. Convert an approved placement
-plan into one precise pixel layout on the supplied image.
+REVISION_SYSTEM_PROMPT = """
+You are reviewing the first render of one advertisement design. Do not compare
+candidates and do not assign scores. Decide whether this same design needs one
+small correction for hierarchy, balance, separation, or readability.
 
-Follow the plan before choosing coordinates. Preserve every copy string
-exactly and output one element for each supplied non-empty role, with no extra
-text. Use the canvas dimensions exactly.
-
-Constraints:
-- Output exactly one separate box for each non-empty input role. Never merge
-  title, subtitle, price, or CTA content into the same box.
-- Keep every box fully inside the canvas with practical outer margins.
-- Avoid protected semantic regions and unnecessary element overlap.
-- Place each role inside or close to its planned 5x5 preferred_region. The
-  grid guides composition, but the final box may use precise pixel offsets
-  within the selected cells.
-- Align related elements by a shared left, center, or right edge.
-- Establish hierarchy: title is normally largest, subtitle supports title,
-  price is prominent when present, and CTA is compact but readable.
-- Keep title larger and heavier than subtitle. Place subtitle next to or below
-  title only when that is the best content-aware choice; it must remain a
-  distinct box with visible spacing. Omit price entirely when its input is
-  empty.
-- The title must render on exactly one line. Give it enough horizontal room
-  and reduce its font size when necessary instead of wrapping it.
-- Do not default to a single vertical stack. Distribute independent role
-  blocks across suitable negative space to balance visual weight.
-- Place CTA in a safe region separate from title and subtitle whenever the
-  image offers at least two viable safe regions. Make it read as an action
-  element rather than another paragraph.
-- If price exists, give it an independent emphasis block near the product or
-  CTA without covering the product.
-- Estimate box height and font size from the actual copy length.
-- Interpret the semantic role before styling. Use the role-specific meaning,
-  hierarchy, font-size ratio, weight, and treatment supplied in the test
-  input. Do not give all roles the same font size, weight, or underlay style.
-- Avoid orphan characters or syllables on their own final line. Make the box
-  wider or adjust the font size while respecting the role hierarchy.
-- Use underlays only when needed for readability. Each underlay may support
-  exactly one text role, must fully contain its target box with padding, and
-  must have a lower z-index.
-- Inspect the actual image behind every text box. Use dark text on a light
-  background and light text on a dark background. Never use white text on a
-  white or very bright underlay, or black text on a black or very dark
-  underlay. Target at least 4.5:1 contrast for subtitle and CTA and 3:1 for
-  large title and price. Add a role-specific translucent underlay when the
-  local image contains mixed tones and neither text color remains readable.
-- Colors must be CSS-compatible values such as #FFFFFF.
-- Keep independent blocks visually coherent through a shared grid, consistent
-  margins, and intentional alignment. Do not group every role into one panel.
-
-Output coordinates in pixels, not normalized values or percentages.
+Return bounded shifts and scales only. Preserve the art direction, semantic
+grouping, copy, product visibility, and overall composition. Use neutral
+values (zero shifts, scale 1.0, opacity delta 0.0) when no correction is
+needed. Never request a new template or alternative design.
 """.strip()
 
 
-LAYOUT_VARIANTS_SYSTEM_PROMPT = (
-    LAYOUT_SYSTEM_PROMPT
-    + """
-
-Return exactly four layouts with genuinely different geometry:
-- left_hierarchy: title and subtitle use left-side negative space with the
-  commercial actions separated elsewhere.
-- split_corners: information and actions occupy different safe corners.
-- top_bottom_balance: headline information and commercial actions are
-  balanced between top and bottom safe regions.
-- asymmetric_editorial: use an intentional asymmetric composition while
-  retaining shared alignment lines.
-
-Changing only colors, font sizes, or panel styles does not count as a
-different layout. Every strategy must use meaningfully different grid cells.
-Keep at least 3% of the shorter canvas side between text boxes and at least 3%
-outer margin. Price and CTA must never touch or overlap. CTA must fit on one
-line. Do not emit a variant that intersects a protected region.
-"""
-).strip()
+def build_design_request(ad_copy: dict, image_analysis: dict) -> str:
+    return (
+        "Create one final art direction for this advertisement.\n\n"
+        "Ad copy roles:\n"
+        + json.dumps(ad_copy, ensure_ascii=False, indent=2)
+        + "\n\nComputed image-space diagnostics (descriptive, not an "
+        "aesthetic score):\n"
+        + json.dumps(image_analysis, ensure_ascii=False, indent=2)
+    )
 
 
-def build_plan_request(copy: dict, width: int, height: int) -> str:
-    copy_elements = [
-        {
-            "role": role,
-            "content": content,
-            "design_intent": ROLE_DESIGN_INTENT[role],
-        }
-        for role, content in copy.items()
-    ]
-    payload = {
-        "task": "content-aware placement plan",
-        "canvas": {"width": width, "height": height},
-        "planning_grid": {
-            "rows": 5,
-            "columns": 5,
-            "coordinate_system": "zero_based",
-            "cell_sizing": "relative_to_actual_canvas",
-        },
-        "copy_elements": copy_elements,
-        "element_type_constraint": list(copy),
-    }
-    return json.dumps(payload, ensure_ascii=False, indent=2)
-
-
-def build_layout_request(
-    copy: dict,
-    plan: dict,
-    width: int,
-    height: int,
+def build_revision_request(
+    ad_copy: dict,
+    design_spec: dict,
+    layout: dict,
 ) -> str:
-    copy_elements = [
-        {
-            "role": role,
-            "content": content,
-            "design_intent": ROLE_DESIGN_INTENT[role],
-        }
-        for role, content in copy.items()
-    ]
-    payload = {
-        "task": "generate the final layout from the placement plan",
-        "canvas": {"width": width, "height": height},
-        "copy_elements": copy_elements,
-        "element_type_constraint": list(copy),
-        "placement_plan": plan,
+    compact_layout = {
+        "canvas": layout["canvas"],
+        "elements": [
+            {
+                "role": item["role"],
+                "group": item["design_group"],
+                "x": item["x"],
+                "y": item["y"],
+                "width": item["width"],
+                "height": item["height"],
+                "font_size": item["font_size"],
+            }
+            for item in layout["elements"]
+        ],
     }
-    return json.dumps(payload, ensure_ascii=False, indent=2)
+    return (
+        "Review this first render and correct the same design only.\n\n"
+        "Copy:\n"
+        + json.dumps(ad_copy, ensure_ascii=False, indent=2)
+        + "\n\nArt direction:\n"
+        + json.dumps(design_spec, ensure_ascii=False, indent=2)
+        + "\n\nResolved geometry:\n"
+        + json.dumps(compact_layout, ensure_ascii=False, indent=2)
+    )
+
+
+__all__ = [
+    "DESIGN_SYSTEM_PROMPT",
+    "REVISION_SYSTEM_PROMPT",
+    "build_design_request",
+    "build_revision_request",
+]

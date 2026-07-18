@@ -8,7 +8,6 @@ from pathlib import Path
 
 SUPPORTED_METRICS = (
     "clip_score",
-    "aesthetic_score",
     "dino_similarity",
     "hps_v2_score",
 )
@@ -58,15 +57,6 @@ def run_evaluation(
             output_json,
             **dict(options.get("clip_score", {})),
         )[0]["clip_score"]
-
-    if "aesthetic_score" in metrics:
-        from .eval_LAION_aesthetic_score import evaluate_aesthetic
-
-        results["aesthetic_score"] = evaluate_aesthetic(
-            final_image,
-            output_json,
-            **dict(options.get("aesthetic_score", {})),
-        )[0]["aesthetic_score"]
 
     if "dino_similarity" in metrics:
         from .eval_DINO_similarity import evaluate_dino

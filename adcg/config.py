@@ -16,7 +16,6 @@ DIRECTIONS = ("product_focus", "brand_focus")
 LAYOUT_MODES = ("layout", "preserve")
 EVAL_METRICS = (
     "clip_score",
-    "aesthetic_score",
     "dino_similarity",
     "hps_v2_score",
 )
@@ -74,7 +73,10 @@ def build_parser() -> argparse.ArgumentParser:
     copy_layout.add_argument(
         "--layout-model",
         default="gpt-4o",
-        help="Vision model used for two-stage copy layout generation.",
+        help=(
+            "Vision model used for one art direction and one bounded "
+            "same-design revision."
+        ),
     )
     copy_layout.add_argument(
         "--layout-font",

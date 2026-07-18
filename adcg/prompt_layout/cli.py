@@ -17,8 +17,8 @@ def _jsonable(value):
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         description=(
-            "Generate a content-aware ad copy layout with a two-stage GPT-4o "
-            "planning workflow."
+            "Generate one content-aware ad design and refine the same design "
+            "once with GPT-4o."
         )
     )
     parser.add_argument(
@@ -34,7 +34,7 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--output-dir",
         required=True,
-        help="Directory for plan JSON, layout JSON, and HTML preview.",
+        help="Directory for design JSON and rendered images.",
     )
     parser.add_argument(
         "--copy-index",
@@ -52,7 +52,7 @@ def build_parser() -> argparse.ArgumentParser:
         choices=("low", "high", "auto"),
         default="high",
     )
-    parser.add_argument("--temperature", type=float, default=0.7)
+    parser.add_argument("--temperature", type=float, default=0.4)
     return parser
 
 

@@ -21,15 +21,11 @@ class PipelineResult:
     generated_image: Path
     core_refined_image: Path
     identity_restored_image: Path
-    layout_plan_json: Path
+    design_analysis_json: Path
+    design_spec_json: Path
+    design_revision_json: Path
     layout_json: Path
-    layout_preview_html: Path
-    style_selection_json: Path
-    candidate_scores_json: Path
-    layout_variants_json: Path
-    candidate_images: tuple[Path, ...]
-    selected_style: str
-    selected_strategy: str
+    layout_draft_image: Path
     final_image: Path
     eval_json: Path | None
 
@@ -225,15 +221,11 @@ def run_pipeline(
         generated_image=Path(generated["image"]),
         core_refined_image=Path(core_refined),
         identity_restored_image=Path(identity_restored_image),
-        layout_plan_json=layout_result.plan_json,
+        design_analysis_json=layout_result.design_analysis_json,
+        design_spec_json=layout_result.design_spec_json,
+        design_revision_json=layout_result.design_revision_json,
         layout_json=layout_result.layout_json,
-        layout_preview_html=layout_result.preview_html,
-        style_selection_json=layout_result.style_selection_json,
-        candidate_scores_json=layout_result.candidate_scores_json,
-        layout_variants_json=layout_result.layout_variants_json,
-        candidate_images=layout_result.candidate_images,
-        selected_style=layout_result.selected_style,
-        selected_strategy=layout_result.selected_strategy,
+        layout_draft_image=layout_result.draft_image,
         final_image=layout_result.rendered_image,
         eval_json=eval_json,
     )
