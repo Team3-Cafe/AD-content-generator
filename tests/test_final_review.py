@@ -610,6 +610,18 @@ class FinalReviewTests(unittest.TestCase):
             result["deliberation_warnings"],
         )
 
+    def test_openai_strict_schema_omits_unsupported_unique_items(self):
+        def contains_unique_items(node):
+            if isinstance(node, dict):
+                return "uniqueItems" in node or any(
+                    contains_unique_items(value) for value in node.values()
+                )
+            if isinstance(node, list):
+                return any(contains_unique_items(value) for value in node)
+            return False
+
+        self.assertFalse(contains_unique_items(FINAL_REVIEW_SCHEMA))
+
     def test_candidate_pool_covers_every_design_feature(self):
         analysis = {
             "canvas": {"width": 400, "height": 600},

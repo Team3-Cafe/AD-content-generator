@@ -409,7 +409,6 @@ def _feature_exploration_schema(feature: str) -> dict:
                     "type": "string", "enum": list(FINAL_REVIEW_FEATURES),
                 },
                 "minItems": 1,
-                "uniqueItems": True,
             },
             "target_layout_commitments": {
                 "type": "array",
@@ -417,7 +416,6 @@ def _feature_exploration_schema(feature: str) -> dict:
                     "type": "string",
                     "enum": FINAL_REVIEW_FEATURE_TARGETS[feature],
                 },
-                "uniqueItems": True,
             },
         },
         "required": [
@@ -543,7 +541,6 @@ FINAL_REVIEW_SCHEMA = {
                                     "enum": list(FINAL_REVIEW_FEATURES),
                                 },
                                 "minItems": 2,
-                                "uniqueItems": True,
                             },
                             "relationship": {"type": "string"},
                         },

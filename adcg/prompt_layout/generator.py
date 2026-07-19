@@ -171,12 +171,24 @@ def _design_deliberation_warnings(review: dict) -> list[str]:
             dependency != feature for dependency in decision["interacts_with"]
         ):
             warnings.append(f"{feature} names no cross-feature interaction")
+        if len(set(decision["interacts_with"])) != len(decision["interacts_with"]):
+            warnings.append(f"{feature} repeats cross-feature interactions")
         commitments = decision["target_layout_commitments"]
+        if len(set(commitments)) != len(commitments):
+            warnings.append(f"{feature} repeats target-layout commitments")
         verdict = feature_reviews[feature]["verdict"]
         if verdict == "revise" and not commitments:
             warnings.append(f"{feature} revision has no target-layout commitment")
         if verdict == "keep" and commitments:
             warnings.append(f"{feature} keep decision claims target-layout commitments")
+    for index, relationship in enumerate(
+        review["coherence_review"]["cross_feature_decisions"]
+    ):
+        features = relationship["features"]
+        if len(set(features)) != len(features):
+            warnings.append(
+                f"coherence relationship {index} repeats design features"
+            )
     return warnings
 
 
