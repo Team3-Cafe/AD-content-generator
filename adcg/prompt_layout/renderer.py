@@ -708,7 +708,7 @@ def _draw_price_line(
     return True
 
 
-def render_layout_image(
+def _render_layout_image_pillow(
     image_path: str | Path,
     layout: dict,
     output_path: str | Path,
@@ -794,3 +794,31 @@ def render_layout_image(
 
     image.convert("RGB").save(output_path)
     return output_path
+
+
+def render_layout_image(
+    image_path: str | Path,
+    layout: dict,
+    output_path: str | Path,
+    *,
+    font_path: str | Path | None = None,
+) -> Path:
+    """Render with HTML/CSS and fall back only when Chromium is unavailable."""
+    from .html_renderer import HtmlRendererUnavailable, render_layout_image_html
+
+    adjusted = ensure_layout_contrast(image_path, layout)
+    try:
+        return render_layout_image_html(
+            image_path=image_path,
+            layout=adjusted,
+            output_path=output_path,
+            font_path=font_path,
+        )
+    except HtmlRendererUnavailable as error:
+        print(f"[WARN] {error}; using Pillow layout renderer")
+        return _render_layout_image_pillow(
+            image_path=image_path,
+            layout=adjusted,
+            output_path=output_path,
+            font_path=font_path,
+        )

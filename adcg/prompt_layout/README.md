@@ -46,9 +46,13 @@ rank alternatives, or measure aesthetic scores.
     fixed.
 
 
-The renderer uses the configured Korean-capable font, fits the title to one
-line, renders the VLM-authored composable surface effects, and adapts text colors
-to local background contrast without inventing an unrequested surface.
+The primary renderer converts the resolved layout to an HTML/CSS scene and uses
+headless Chromium through Playwright to capture the final PNG. Browser typography
+provides native baseline layout, wrapping, font fallback, flex alignment, gradients,
+backdrop blur, blend modes, borders, shadows, strokes, and layered surfaces. The
+existing Pillow renderer remains an automatic fallback only when Playwright or its
+Chromium runtime is unavailable. Both paths adapt text colors to local background
+contrast without inventing an unrequested surface.
 
 ## Outputs
 
@@ -77,5 +81,13 @@ is `0.4`. Exactly three OpenAI calls are made: one art-direction call, one
 draft revision call, and one final review of the completed advertisement.
 `OPENAI_API_KEY` is loaded from the project-root `.env` when present.
 
-No new font is downloaded. For Korean copy, pass `--font`/`--layout-font` or
-set `ADCG_FONT_PATH` when the project font is not discoverable automatically.
+Install the browser runtime once after installing requirements:
+
+    python -m playwright install chromium
+
+The renderer automatically discovers Korean-capable system fonts and exposes a
+browser fallback stack (`Noto Sans KR`, `Noto Sans CJK KR`, `Malgun Gothic`, and
+`Apple SD Gothic Neo`). `--font`/`--layout-font` and `ADCG_FONT_PATH` remain optional
+overrides for deterministic branding; they are not required when a suitable system
+font is installed. A renderer cannot display Korean glyphs if neither the system
+nor the supplied font contains them.

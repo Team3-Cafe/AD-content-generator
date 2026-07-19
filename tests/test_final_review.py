@@ -22,11 +22,19 @@ from adcg.prompt_layout.generator import (
     _request_json,
     generate_prompt_layout,
 )
+from adcg.prompt_layout.html_renderer import (
+    HtmlRendererUnavailable,
+    _build_ad_html,
+)
 from adcg.prompt_layout.prompts import (
     build_final_polish_request,
     build_final_review_request,
 )
-from adcg.prompt_layout.renderer import _draw_price_line, _draw_underlays
+from adcg.prompt_layout.renderer import (
+    _draw_price_line,
+    _draw_underlays,
+    render_layout_image,
+)
 from adcg.prompt_layout.schemas import (
     FINAL_POLISH_SCHEMA,
     FINAL_REVIEW_FEATURES,
@@ -886,6 +894,38 @@ class FinalReviewTests(unittest.TestCase):
         self.assertTrue(_draw_price_line(ImageDraw.Draw(shifted), "10 USD", 10, 40,
                                          shifted_item, None, (0, 0, 0)))
         self.assertIsNotNone(ImageChops.difference(baseline, shifted).getbbox())
+
+    def test_html_renderer_exposes_css_design_features_and_price_baseline(self):
+        with patch(
+            "adcg.prompt_layout.html_renderer.image_to_data_url",
+            return_value="data:image/png;base64,background",
+        ):
+            document = _build_ad_html("background.png", _layout(), None)
+        self.assertIn("display:inline-flex;align-items:baseline", document)
+        self.assertIn("linear-gradient", document)
+        self.assertIn("backdrop-filter:blur", document)
+        self.assertIn("mix-blend-mode", document)
+        self.assertIn("-webkit-text-stroke", document)
+        self.assertIn("Noto Sans KR", document)
+        self.assertIn("data:image/png;base64", document)
+
+    def test_public_renderer_falls_back_only_when_html_runtime_is_unavailable(self):
+        output = Path("output.png")
+        with patch(
+            "adcg.prompt_layout.html_renderer.render_layout_image_html",
+            side_effect=HtmlRendererUnavailable("Chromium unavailable"),
+        ), patch(
+            "adcg.prompt_layout.renderer.ensure_layout_contrast",
+            return_value=_layout(),
+        ), patch(
+            "adcg.prompt_layout.renderer._render_layout_image_pillow",
+            return_value=output,
+        ) as pillow:
+            result = render_layout_image(
+                "background.png", _layout(), output
+            )
+        self.assertEqual(result, output)
+        pillow.assert_called_once()
 
 
 if __name__ == "__main__":
