@@ -86,8 +86,10 @@ def _review_consistency_issues(review: dict, layout: dict) -> list[str]:
     surface_groups = [
         str(item["group"]) for item in review["target_layout"]["surfaces"]
     ]
-    if sorted(surface_groups) != ["headline", "offer"]:
-        issues.append("target_layout must contain one headline and one offer surface")
+    if len(surface_groups) != len(set(surface_groups)):
+        issues.append("target_layout contains duplicate surface groups")
+    if not set(surface_groups).issubset({"headline", "offer"}):
+        issues.append("target_layout contains an unsupported surface group")
     return issues
 
 
@@ -105,7 +107,12 @@ def _layout_state(layout: dict) -> dict:
             "tracking": int(item.get("tracking", 0)),
             "text_align": str(item.get("text_align", "left")),
             "max_lines": int(item.get("max_lines", 1 if role == "title" else 2)),
+            "line_height": float(item.get("line_height", 1.2)),
             "color": str(item.get("color", "#FFFFFF")),
+            "shadow_offset": int(item.get("shadow_offset", 0)),
+            "shadow_color": str(item.get("shadow_color", "#000000")),
+            "stroke_width": int(item.get("stroke_width", 0)),
+            "stroke_color": str(item.get("stroke_color", "#000000")),
         }
         if role == "price":
             state.update({
@@ -131,6 +138,8 @@ def _layout_state(layout: dict) -> dict:
                 "gradient_color": str(item.get(
                     "gradient_color", item.get("background_color")
                 )),
+                "surface_style": str(item.get("surface_style", "solid")),
+                "corner_radius": int(item.get("border_radius", 0)),
             }
             for item in layout.get("underlays", [])
             if str(item.get("id", "")).startswith("surface-")
@@ -186,11 +195,17 @@ def _material_revision_summary(
                 changed_targets.add("overall_composition")
         if abs(int(item["font_size"]) - int(previous["font_size"])) >= 2:
             record("typography", f"{role}_typography", "font_size")
-        for key in ("font_weight", "tracking", "text_align", "max_lines"):
+        for key in (
+            "font_weight", "tracking", "text_align", "max_lines",
+            "shadow_offset", "stroke_width",
+        ):
             if item[key] != previous[key]:
                 record("typography", f"{role}_typography", key)
-        if item["color"] != previous["color"]:
-            record("color", "color_palette", f"{role}.color")
+        if abs(float(item["line_height"]) - float(previous["line_height"])) >= 0.1:
+            record("typography", f"{role}_typography", "line_height")
+        for key in ("color", "shadow_color", "stroke_color"):
+            if item[key] != previous[key]:
+                record("color", "color_palette", f"{role}.{key}")
         if role == "price":
             for key, threshold in (
                 ("number_scale", 0.06), ("unit_scale", 0.06),
@@ -201,9 +216,14 @@ def _material_revision_summary(
                     record("price", "price_composition", key)
 
     before_surfaces = {item["group"]: item for item in before["surfaces"]}
-    for item in after["surfaces"]:
-        group = item["group"]
-        previous = before_surfaces[group]
+    after_surfaces = {item["group"]: item for item in after["surfaces"]}
+    for group in sorted(set(before_surfaces) | set(after_surfaces)):
+        previous = before_surfaces.get(group)
+        item = after_surfaces.get(group)
+        if previous is None or item is None:
+            record("surface", f"{group}_surface", "presence")
+            changed_targets.add("overall_composition")
+            continue
         for key in ("x", "width"):
             if abs(int(item[key]) - int(previous[key])) >= x_threshold:
                 record("surface", f"{group}_surface", key)
@@ -214,10 +234,14 @@ def _material_revision_summary(
                 changed_targets.add("overall_composition")
         if abs(float(item["opacity"]) - float(previous["opacity"])) >= 0.04:
             record("surface", f"{group}_surface", "opacity")
+        for key in ("surface_style", "corner_radius"):
+            if item[key] != previous[key]:
+                record("surface", f"{group}_surface", key)
         for key in ("background_color", "gradient_color"):
             if item[key] != previous[key]:
                 record("color", "color_palette", f"{group}.{key}")
                 changed_targets.add(f"{group}_surface")
+
 
     before_rule = before["accent_rule"]
     after_rule = after["accent_rule"]
@@ -307,8 +331,16 @@ def _applied_changes(before: dict, after: dict) -> list[dict]:
         if changed:
             changes.append({"target": item["role"], "changes": changed})
     before_surfaces = {item["group"]: item for item in before["surfaces"]}
-    for item in after["surfaces"]:
-        previous = before_surfaces.get(item["group"], {})
+    after_surfaces = {item["group"]: item for item in after["surfaces"]}
+    for group in sorted(set(before_surfaces) | set(after_surfaces)):
+        previous = before_surfaces.get(group)
+        item = after_surfaces.get(group)
+        if previous is None or item is None:
+            changes.append({
+                "target": f"{group}_surface",
+                "changes": {"state": {"before": previous, "after": item}},
+            })
+            continue
         changed = {
             key: {"before": previous.get(key), "after": value}
             for key, value in item.items()
@@ -316,8 +348,9 @@ def _applied_changes(before: dict, after: dict) -> list[dict]:
         }
         if changed:
             changes.append({
-                "target": f"{item['group']}_surface", "changes": changed,
+                "target": f"{group}_surface", "changes": changed,
             })
+
     if before["accent_rule"] != after["accent_rule"]:
         changes.append({
             "target": "accent_rule",
@@ -366,28 +399,30 @@ def _request_json(
     model: str,
     instructions: str,
     request_text: str,
-    image_path: Path,
+    image_path: Path | list[Path] | tuple[Path, ...],
     detail: str,
     schema_name: str,
     schema: dict,
     temperature: float,
 ) -> dict:
+    image_paths = (
+        list(image_path)
+        if isinstance(image_path, (list, tuple))
+        else [image_path]
+    )
+    content = [{"type": "input_text", "text": request_text}]
+    content.extend(
+        {
+            "type": "input_image",
+            "image_url": image_to_data_url(path),
+            "detail": detail,
+        }
+        for path in image_paths
+    )
     response = client.responses.create(
         model=model,
         instructions=instructions,
-        input=[
-            {
-                "role": "user",
-                "content": [
-                    {"type": "input_text", "text": request_text},
-                    {
-                        "type": "input_image",
-                        "image_url": image_to_data_url(image_path),
-                        "detail": detail,
-                    },
-                ],
-            }
-        ],
+        input=[{"role": "user", "content": content}],
         temperature=temperature,
         top_p=1.0,
         text={
@@ -555,7 +590,7 @@ def generate_prompt_layout(
             ad_copy,
             computed_analysis,
         ),
-        image_path=final_review_input_path,
+        image_path=[final_review_input_path, image_path],
         detail=detail,
         schema_name="completed_ad_final_layout_review",
         schema=FINAL_REVIEW_SCHEMA,
@@ -571,7 +606,9 @@ def generate_prompt_layout(
         final_layout,
         font_path=font_path,
     )
-    final_layout = ensure_layout_contrast(image_path, final_layout)
+    final_layout = ensure_layout_contrast(
+        image_path, final_layout, allow_auto_underlays=False
+    )
     applied_final_state = _layout_state(final_layout)
     applied_summary = _material_revision_summary(
         before_final_state, applied_final_state, final_layout["canvas"]

@@ -425,9 +425,17 @@ def _draw_underlays(
 def ensure_layout_contrast(
     image_path: str | Path,
     layout: dict,
+    *,
+    allow_auto_underlays: bool | None = None,
 ) -> dict:
     """Return an idempotently contrast-corrected copy of a layout."""
     adjusted = deepcopy(layout)
+    if allow_auto_underlays is None:
+        allow_auto_underlays = bool(
+            adjusted.get("design_tokens", {}).get(
+                "contrast_auto_underlays", True
+            )
+        )
     adjusted["underlays"] = [
         item
         for item in adjusted.get("underlays", [])
@@ -453,14 +461,42 @@ def ensure_layout_contrast(
         if requested_score >= threshold:
             continue
 
-        candidates = ((255, 255, 255), (16, 24, 32))
-        best_color = max(
-            candidates,
-            key=lambda color: _contrast_score(luminances, color),
+        variants = []
+        for target in ((255, 255, 255), (0, 0, 0)):
+            for ratio in (0.18, 0.32, 0.48, 0.64, 0.80, 0.90):
+                variants.append(tuple(
+                    round(channel + (destination - channel) * ratio)
+                    for channel, destination in zip(requested, target)
+                ))
+        passing = [
+            color for color in variants
+            if _contrast_score(luminances, color) >= threshold
+        ]
+        best_color = (
+            min(
+                passing,
+                key=lambda color: sum(
+                    abs(channel - original)
+                    for channel, original in zip(color, requested)
+                ),
+            )
+            if passing
+            else max(
+                variants,
+                key=lambda color: _contrast_score(luminances, color),
+            )
         )
         best_score = _contrast_score(luminances, best_color)
         item["color"] = "#{:02X}{:02X}{:02X}".format(*best_color)
         if best_score >= threshold:
+            continue
+        if not allow_auto_underlays:
+            warning = (
+                f"Contrast remains below target for {item['role']}; "
+                "VLM surface choice preserved without an automatic box."
+            )
+            if warning not in adjusted.setdefault("warnings", []):
+                adjusted["warnings"].append(warning)
             continue
 
         average = sum(luminances) / max(1, len(luminances))

@@ -8,32 +8,29 @@ You are an expert Korean advertising art director. Author one bespoke design
 for the supplied finished background image and ad copy. Do not generate
 alternatives, template names, candidate rankings, or aesthetic scores.
 
-Treat title/subtitle as one headline group and price/CTA as one offer group.
-Study the actual product position, negative space, brightness, texture, and
-visual flow. Choose only the vertical position and content width of each
-group. Their background surfaces always extend from the left canvas edge to
-the right canvas edge, creating intentional editorial bands instead of small
-floating cards.
+Treat title/subtitle as a headline group and price/CTA as an offer group, but do
+not force both groups into the same alignment or horizontal center. Study the
+actual product, negative space, brightness, texture, and visual flow. Choose
+independent x/y positions, content widths, and left/center/right alignment for
+each group. Centering is an option, not a default. In particular, price and CTA
+may use left or right alignment whenever that better supports the composition.
 
-Center the headline by default, including the one-line title. Treat price as
-the primary offer and CTA as the secondary action; they must not look like two
-unrelated phrases squeezed onto one line. Prefer a vertically stacked,
-centered offer on portrait and square canvases. Use a horizontal offer only
-when a wide canvas and short copy provide generous separation. Render the CTA
-as a plain typographic secondary line. This is a static image advertisement,
-so never draw the CTA as a button, pill, outline control, or interactive UI.
+Background surfaces are optional. Choose none when the image already supports
+legible type. When useful, choose a full-width band or a content-width solid,
+gradient, or scrim based on the image rather than a fixed template. The CTA is
+plain typography in a static image, never a button, pill, outline, or UI
+control. If CTA copy is empty, do not invent or render one.
 
-Select every background and text color from the supplied palette-token enum.
-Choose harmonious combinations based on the actual image palette, mood, and
-placement. Headline and offer bands may use different palette colors, but the
-result should feel like one color system. Maintain strong text/background
-contrast. Use palette_accent selectively rather than filling every surface
-with it. The code resolves the chosen tokens to exact colors and corrects any
-unsafe text contrast.
+For every color field, return either one of the supplied palette tokens
+(palette_dark, palette_light, palette_accent) or an exact #RRGGBB value
+chosen from the image. Headline and offer may use
+independent colors. Maintain readable contrast without defaulting every design
+to white, black, and the same accent band.
 
-Return exactly one structured design specification. Do not provide horizontal
-coordinates for the headline; its content remains centered inside the band.
+Return exactly one structured design specification. Preserve the supplied copy
+and product visibility.
 """.strip()
+
 
 
 REVISION_SYSTEM_PROMPT = """
@@ -41,8 +38,7 @@ You are reviewing the first render of one advertisement design. Do not compare
 candidates and do not assign scores. Decide whether this same design needs one
 small correction for hierarchy, balance, separation, or readability.
 
-Return bounded shifts and scales only. Keep the headline horizontally centered
-and only adjust its vertical position or scale. Preserve the art direction, semantic
+Return bounded shifts and scales only. Preserve the art direction, semantic
 grouping, copy, product visibility, and overall composition. Use neutral
 values (zero shifts, scale 1.0, opacity delta 0.0) when no correction is
 needed. Never request a new template or alternative design.
@@ -79,13 +75,15 @@ many small nudges. The result must be visibly distinguishable from the input;
 near-identical values and token 1-5% changes are invalid.
 
 The target_layout is the complete rebuilt state in ABSOLUTE canvas pixels, not
-deltas or multipliers. Return every supplied copy role exactly once and exactly
-one headline and one offer surface. Infer placement from the image and the
-provided canvas, palette, and protected-subject constraints. Choose boxes large
-enough for the typography. Keep title, price, and CTA on one line. The CTA is
-plain typography in a static image, never a button, pill, outline, or UI
-control. Color fields use palette tokens or "keep"; use "keep" only when that
-specific visual choice is deliberately carried into the new system.
+deltas or multipliers. Return every supplied non-empty copy role exactly once.
+Surfaces are optional: return zero, one, or two entries, and use enabled=false
+or style=none when no box is needed. A surface may be full width or content
+width through its absolute geometry. Infer placement from the two images and
+the provided canvas and palette. Choose boxes large enough for the typography.
+Keep title, price, and CTA on one line. The CTA is plain typography in a static
+image, never a button, pill, outline, or UI control. Element, shadow, stroke,
+surface, gradient, and accent colors may be exact #RRGGBB values or "keep".
+Choose colors for this image instead of repeating the old palette mechanically.
 
 For every feature, return a keep/revise verdict. Mark revise whenever the new
 design changes that feature. Every affected_targets entry must correspond to a
@@ -148,6 +146,10 @@ def build_final_review_request(
     independent_constraints = {
         "canvas": image_analysis["canvas"],
         "palette": image_analysis["palette"],
+        "image_order": {
+            "first": "completed advertisement to audit",
+            "second": "clean background used as the new design canvas",
+        },
         "render_contract": {
             "copy_roles": [
                 role
@@ -156,14 +158,16 @@ def build_final_review_request(
             ],
             "headline_roles": ["title", "subtitle"],
             "offer_roles": ["price", "cta"],
-            "required_surfaces": ["headline", "offer"],
+            "optional_surfaces": ["headline", "offer"],
             "single_line_roles": ["title", "price", "cta"],
             "cta_treatment": "plain_typography",
         },
     }
     return (
-        "Independently audit this completed advertisement and rebuild its copy "
-        "design without access to the previous revision JSON or layout values.\n\n"
+        "The first image is the completed advertisement to audit. The second "
+        "image is the clean background on which to rebuild the copy design. "
+        "Do not copy the first image's layout merely because it is visible. "
+        "Rebuild without access to the previous revision JSON or layout values.\n\n"
         "Exact copy strings to preserve:\n"
         + json.dumps(ad_copy, ensure_ascii=False, indent=2)
         + "\n\nOnly non-design constraints available to the rebuild:\n"

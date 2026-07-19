@@ -16,12 +16,19 @@ COPY_INPUT_FIELDS = (
 )
 
 
+def _normalize_cta(copy: dict) -> dict:
+    """Remove unsupported contact invitations from the generated copy."""
+    normalized = dict(copy)
+    normalized["cta"] = ""
+    return normalized
+
+
 def generate_ad_copy(
     product_info: dict,
     background_prompt: str,
     model: str,
 ) -> dict:
-    """단일 OpenAI 모델로 한국어 광고 문구 한 세트를 생성한다."""
+    """Generate one concise, evidence-grounded Korean advertising copy set."""
     request_data = {
         field: product_info.get(field)
         for field in COPY_INPUT_FIELDS
@@ -39,19 +46,22 @@ def generate_ad_copy(
         "additionalProperties": False,
     }
     prompt = (
-        "아래 정보를 바탕으로 자연스럽고 간결한 한국어 광고 문구를 작성하세요. "
-        "확인할 수 없는 가격, 할인율, 효능은 만들지 마세요. "
-        "가격 정보가 없으면 price는 빈 문자열로 반환하세요.\n\n"
+        "Write concise Korean advertising copy using only the supplied facts. "
+        "Do not invent prices, discounts, benefits, or contact channels. Return "
+        "an empty price when price is absent. The accepted input has no contact "
+        "destination, so return an empty CTA and never invent a generic contact "
+        "invitation.\n\n"
         + json.dumps(request_data, ensure_ascii=False, indent=2)
     )
+
 
     started_at = perf_counter()
     client = OpenAI()
     response = client.responses.create(
         model=model,
         instructions=(
-            "당신은 상품 광고 카피라이터입니다. title, subtitle, price, cta를 "
-            "각각 짧고 명확하게 작성하세요."
+            "You are a Korean advertising copywriter. Write title, subtitle, "
+            "price, and CTA briefly and clearly using supplied facts only."
         ),
         input=prompt,
         text={
@@ -63,7 +73,7 @@ def generate_ad_copy(
             }
         },
     )
-    copy = json.loads(response.output_text)
+    copy = _normalize_cta(json.loads(response.output_text))
     copy["model"] = model
     copy["latency_sec"] = round(perf_counter() - started_at, 2)
     return copy

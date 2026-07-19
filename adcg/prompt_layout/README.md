@@ -13,14 +13,12 @@ rank alternatives, or measure aesthetic scores.
    art direction. Title/subtitle form a headline group and price/CTA form an
    offer group. It also selects semantic color tokens from the extracted image
    palette for each band, text group, and CTA.
-3. A relational layout engine converts the two vertical positions and design tokens
-   into responsive pixel geometry. Headline and offer backgrounds extend from
-   the left edge to the right edge, while their content stays inside a centered
-   safe width. The title remains centered by default.
-4. Portrait and square canvases stack price above CTA with clear hierarchy;
-   horizontal lockups are allowed only when a wide canvas and short copy leave
-   enough room. CTA is always rendered as a plain typographic line, never as a
-   button, pill, outline control, or other interactive UI.
+3. A relational layout engine converts independent headline/offer x/y positions,
+   widths, and alignments into responsive pixel geometry. Each surface may be
+   absent, content-width, or full-width, and colors may use image-palette tokens
+   or exact hex values. Centering is an option rather than a fixed template.
+4. Price and CTA keep independent alignment and placement. CTA remains optional
+   plain typography rather than a button, pill, outline, or interactive UI.
 5. Selected palette colors are resolved to exact values and checked for WCAG
    text contrast. Unsafe foreground colors are replaced automatically while
    preserving the VLM's background-color direction.
@@ -34,7 +32,10 @@ rank alternatives, or measure aesthetic scores.
    only previous-design reference, records distinct strengths and weaknesses
    across all eleven design categories (up to 24 observations), then creates an
    independent art direction and rebuilds all copy, bands, color, accent, and
-   price construction as one complete absolute-pixel target.
+   price construction as one complete absolute-pixel target. The same VLM call
+   receives the completed ad for diagnosis and the clean background as its new
+   canvas; optional surfaces and exact colors are rebuilt without inheriting the
+   previous overlay object.
 10. The rebuilt state must materially change copy geometry plus multiple other
     design systems. Feature claims are checked against actual target properties
     before and after typography fitting. Canvas constraints, requested/applied

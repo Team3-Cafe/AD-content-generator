@@ -153,7 +153,7 @@ def _place_group(
     )
 
 
-def _place_centered_group(
+def _place_group(
     desired: dict,
     *,
     canvas_width: int,
@@ -161,10 +161,14 @@ def _place_centered_group(
     margin: int,
     avoid: list[dict],
 ) -> dict:
-    """Keep content centered and resolve collisions only on the y-axis."""
+    """Respect the requested horizontal position and resolve y collisions."""
     width = min(desired["width"], canvas_width - margin * 2)
     height = min(desired["height"], canvas_height - margin * 2)
-    x = (canvas_width - width) // 2
+    x = _clamp(
+        int(desired.get("x", margin)),
+        margin,
+        canvas_width - margin - width,
+    )
     requested_y = _clamp(
         desired["y"],
         margin,
@@ -244,13 +248,21 @@ def _hex_luminance(color: str) -> float:
 
 
 def _resolve_color_token(token: str, palette: dict[str, str]) -> str:
+    value = str(token).strip()
+    if len(value) == 7 and value.startswith("#"):
+        try:
+            int(value[1:], 16)
+        except ValueError:
+            pass
+        else:
+            return value.upper()
     return {
         "palette_dark": palette["dark"],
         "palette_light": palette["light"],
         "palette_accent": palette["accent"],
         "neutral_dark": "#101820",
         "neutral_light": "#FFFFFF",
-    }.get(token, palette["dark"])
+    }.get(value, palette["dark"])
 
 
 def _contrast_ratio(first: str, second: str) -> float:
@@ -279,18 +291,34 @@ def _safe_text_color(
     requested: str,
     palette: dict[str, str],
 ) -> str:
-    candidates = [
-        requested,
-        palette["light"],
-        palette["dark"],
-        "#FFFFFF",
-        "#101820",
-    ]
+    del palette  # Palette does not override the art director's requested hue.
     if _contrast_ratio(background, requested) >= 4.5:
         return requested
-    return max(
-        candidates,
-        key=lambda color: _contrast_ratio(background, color),
+    source = tuple(
+        int(requested[index:index + 2], 16) for index in (1, 3, 5)
+    )
+    variants = []
+    for destination in ((255, 255, 255), (0, 0, 0)):
+        for ratio in (0.18, 0.32, 0.48, 0.64, 0.80, 0.90):
+            rgb = tuple(
+                round(channel + (target - channel) * ratio)
+                for channel, target in zip(source, destination)
+            )
+            variants.append("#{:02X}{:02X}{:02X}".format(*rgb))
+    passing = [
+        color for color in variants
+        if _contrast_ratio(background, color) >= 4.5
+    ]
+    return (
+        min(
+            passing,
+            key=lambda color: sum(
+                abs(int(color[index:index + 2], 16) - source[offset])
+                for offset, index in enumerate((1, 3, 5))
+            ),
+        )
+        if passing
+        else max(variants, key=lambda color: _contrast_ratio(background, color))
     )
 
 
@@ -320,8 +348,12 @@ def _band_style(
     busy = float(band["contrast"]) + float(band["edge_density"]) > 0.42
     background = _resolve_color_token(background_token, palette)
     requested_text = _resolve_color_token(text_token, palette)
-    text = _safe_text_color(background, requested_text, palette)
-    if surface == "full_width_gradient":
+    text = (
+        requested_text
+        if surface == "none"
+        else _safe_text_color(background, requested_text, palette)
+    )
+    if surface in {"full_width_gradient", "content_gradient"}:
         gradient_target = (
             palette["dark"]
             if _hex_luminance(background) >= 0.55
@@ -335,6 +367,9 @@ def _band_style(
         "full_width_gradient": 0.84,
         "full_width_scrim": 0.78,
         "accent_band": 0.94,
+        "content_solid": 0.88,
+        "content_gradient": 0.82,
+        "none": 0.0,
     }.get(surface, 0.84)
     if busy:
         opacity = min(0.92, opacity + 0.08)
@@ -409,7 +444,7 @@ def _element(
         "max_lines": max_lines,
         "line_height": line_height,
         "tracking": 0,
-        "shadow_offset": 1,
+        "shadow_offset": 0,
         "shadow_color": "#000000",
         "stroke_width": 0,
         "stroke_color": "#000000",
@@ -422,7 +457,7 @@ def build_design_layout(
     ad_copy: dict[str, str],
     design_spec: dict,
 ) -> dict:
-    """Compile one VLM direction into two adaptive full-width bands."""
+    """Compile one VLM direction into freely placed copy groups and surfaces."""
     canvas = image_analysis["canvas"]
     width = int(canvas["width"])
     height = int(canvas["height"])
@@ -432,7 +467,8 @@ def build_design_layout(
     direction = design_spec["art_direction"]
     color_direction = design_spec["color_direction"]
     composition = design_spec["composition"]
-    offer_alignment = direction["alignment"]
+    headline_alignment = direction["headline_alignment"]
+    offer_alignment = direction["offer_alignment"]
     density = direction["spacing_density"]
     gap_ratio = {
         "compact": 0.012,
@@ -469,9 +505,9 @@ def build_design_layout(
         width,
         height,
     )
-    headline_group = _place_centered_group(
+    headline_group = _place_group(
         {
-            "x": 0,
+            "x": round(float(composition["headline_x_ratio"]) * width),
             "y": round(float(composition["headline_y_ratio"]) * height),
             "width": headline_width,
             "height": headline_height,
@@ -510,9 +546,9 @@ def build_design_layout(
             + (inner_gap if has_price and has_cta else 0)
             + (round(cta_size * 1.6) if has_cta else 0)
         )
-    offer_group = _place_centered_group(
+    offer_group = _place_group(
         {
-            "x": 0,
+            "x": round(float(composition["offer_x_ratio"]) * width),
             "y": round(float(composition["offer_y_ratio"]) * height),
             "width": offer_width,
             "height": max(1, offer_height),
@@ -553,7 +589,7 @@ def build_design_layout(
             font_size=title_size,
             font_weight=820,
             color=headline_band["text"],
-            align="center",
+            align=headline_alignment,
             max_lines=1,
             line_height=1.1,
         )
@@ -573,7 +609,7 @@ def build_design_layout(
                 font_size=subtitle_size,
                 font_weight=480,
                 color=headline_band["text"],
-                align="center",
+                align=headline_alignment,
                 max_lines=2,
                 line_height=1.25,
             )
@@ -626,26 +662,15 @@ def build_design_layout(
 
     accent_role = direction["accent_role"]
     cta_treatment = "plain"
-    requested_cta_background = _resolve_color_token(
-        color_direction["cta_background"],
-        palette,
-    )
     requested_cta_text = _resolve_color_token(
         color_direction["cta_text"],
         palette,
     )
-    if cta_treatment == "accent_pill":
-        cta_text_color = _safe_text_color(
-            requested_cta_background,
-            requested_cta_text,
-            palette,
-        )
-    else:
-        cta_text_color = _safe_text_color(
-            offer_band["background"],
-            requested_cta_text,
-            palette,
-        )
+    cta_text_color = _safe_text_color(
+        offer_band["background"],
+        requested_cta_text,
+        palette,
+    )
     if has_price:
         price_color = offer_band["text"]
         if (
@@ -666,7 +691,7 @@ def build_design_layout(
             font_size=price_size,
             font_weight=800,
             color=price_color,
-            align=("center" if arrangement == "vertical" else offer_alignment),
+            align=offer_alignment,
             max_lines=1,
             line_height=1.0,
         )
@@ -682,17 +707,8 @@ def build_design_layout(
                 offer_boxes["cta"],
                 font_size=cta_size,
                 font_weight=720,
-                color=(
-                    offer_band["text"]
-                    if cta_treatment == "plain"
-                    else cta_text_color
-                ),
-                align=(
-                    "center"
-                    if arrangement == "vertical"
-                    or accent_role in {"cta", "price_and_cta"}
-                    else offer_alignment
-                ),
+                color=cta_text_color,
+                align=offer_alignment,
                 max_lines=1,
                 line_height=1.0,
             )
@@ -708,63 +724,57 @@ def build_design_layout(
         height - offer_band_y,
         offer_group["height"] + band_padding * 2,
     )
-    underlays = [
-        _panel(
-            "surface-headline",
-            "headline",
-            {
-                "x": 0,
-                "y": headline_band_y,
-                "width": width,
-                "height": headline_band_height,
-            },
-            background=headline_band["background"],
-            gradient=headline_band["gradient"],
-            opacity=headline_band["opacity"],
-            radius=0,
+    underlays = []
+
+    def add_group_surface(
+        group: str,
+        surface_style: str,
+        group_box: dict,
+        band_y: int,
+        band_height: int,
+        band: dict,
+    ) -> None:
+        if surface_style == "none":
+            return
+        full_width = surface_style.startswith("full_width") or (
+            group == "offer" and surface_style == "accent_band"
         )
-    ]
+        content_x = max(0, group_box["x"] - band_padding)
+        box = (
+            {"x": 0, "y": band_y, "width": width, "height": band_height}
+            if full_width
+            else {
+                "x": content_x,
+                "y": band_y,
+                "width": min(
+                    width - content_x,
+                    group_box["width"] + band_padding * 2,
+                ),
+                "height": band_height,
+            }
+        )
+        underlays.append(
+            _panel(
+                f"surface-{group}",
+                group,
+                box,
+                background=band["background"],
+                gradient=band["gradient"],
+                opacity=band["opacity"],
+                radius=(0 if full_width else max(6, round(short_side * 0.02))),
+            )
+        )
+
+    add_group_surface(
+        "headline", direction["headline_surface"], headline_group,
+        headline_band_y, headline_band_height, headline_band,
+    )
     if has_price or has_cta:
-        underlays.append(
-            _panel(
-                "surface-offer",
-                "offer",
-                {
-                    "x": 0,
-                    "y": offer_band_y,
-                    "width": width,
-                    "height": offer_band_height,
-                },
-                background=offer_band["background"],
-                gradient=offer_band["gradient"],
-                opacity=offer_band["opacity"],
-                radius=0,
-            )
+        add_group_surface(
+            "offer", direction["offer_surface"], offer_group,
+            offer_band_y, offer_band_height, offer_band,
         )
-    if has_cta and cta_treatment in {"accent_pill", "outline"}:
-        cta_box = offer_boxes["cta"]
-        underlays.append(
-            _panel(
-                "surface-cta",
-                "offer",
-                cta_box,
-                background=requested_cta_background,
-                gradient=requested_cta_background,
-                opacity=(0.96 if cta_treatment == "accent_pill" else 0.10),
-                radius=max(8, round(cta_box["height"] * 0.48)),
-                border_color=(
-                    requested_cta_background
-                    if cta_treatment == "outline"
-                    else None
-                ),
-                border_width=(
-                    max(1, round(short_side * 0.004))
-                    if cta_treatment == "outline"
-                    else 0
-                ),
-                z_index=1,
-            )
-        )
+
 
     rule_width = max(3, round(short_side * 0.008))
     rule_length = max(
@@ -803,11 +813,12 @@ def build_design_layout(
         },
         "design_tokens": {
             "palette": palette,
-            "headline_alignment": "center",
+            "headline_alignment": headline_alignment,
             "offer_alignment": offer_alignment,
             "offer_arrangement": arrangement,
             "requested_offer_arrangement": requested_arrangement,
             "cta_treatment": cta_treatment,
+            "contrast_auto_underlays": False,
             "color_direction": color_direction,
             "mood": direction["mood"],
             "spacing_density": density,
@@ -893,16 +904,21 @@ def apply_design_revision(layout: dict, revision: dict) -> dict:
 
 
 def apply_final_review_revision(layout: dict, revision: dict) -> dict:
-    """Apply the final VLM's absolute target state without multiplier stacking."""
-    adjusted = deepcopy(layout)
+    """Build a fresh final copy overlay from the VLM's absolute target."""
     if not revision.get("needs_revision"):
-        return adjusted
+        return deepcopy(layout)
 
     target = revision["target_layout"]
-    width = int(adjusted["canvas"]["width"])
-    height = int(adjusted["canvas"]["height"])
-    palette = adjusted["design_tokens"]["palette"]
+    width = int(layout["canvas"]["width"])
+    height = int(layout["canvas"]["height"])
+    palette = layout["design_tokens"]["palette"]
     constraints = []
+    source_elements = {
+        str(item.get("role")): item for item in layout["elements"]
+    }
+    source_underlays = {
+        str(item.get("id")): item for item in layout.get("underlays", [])
+    }
 
     def bounded_box(source: dict, label: str) -> dict[str, int]:
         box_width = _clamp(int(source["width"]), 1, width)
@@ -921,80 +937,59 @@ def apply_final_review_revision(layout: dict, revision: dict) -> dict:
             })
         return applied
 
-    def resolve(token: str, current: str) -> str:
-        return current if token == "keep" else _resolve_color_token(token, palette)
+    def resolve(value: str, current: str) -> str:
+        selected = str(value).strip()
+        if selected == "keep":
+            return current
+        return _resolve_color_token(selected, palette)
 
-    elements_by_role = {
-        str(item.get("role")): item for item in adjusted["elements"]
-    }
+    elements = []
     for element_target in target["elements"]:
         role = str(element_target["role"])
-        item = elements_by_role.get(role)
-        if item is None:
+        source = source_elements.get(role)
+        if source is None:
             continue
-        item.update(bounded_box(element_target, role))
-        item["font_size"] = max(8, int(element_target["font_size"]))
-        item["font_weight"] = int(element_target["font_weight"])
-        item["tracking"] = int(element_target["tracking"])
-        item["text_align"] = str(element_target["text_align"])
         requested_lines = int(element_target["max_lines"])
-        item["max_lines"] = 1 if role in {"title", "price", "cta"} else requested_lines
-        if item["max_lines"] != requested_lines:
+        max_lines = 1 if role in {"title", "price", "cta"} else requested_lines
+        if max_lines != requested_lines:
             constraints.append({
                 "target": role, "reason": "single_line_role",
-                "requested": requested_lines, "applied": item["max_lines"],
+                "requested": requested_lines, "applied": max_lines,
             })
-        item["color"] = resolve(
-            str(element_target["color"]), str(item.get("color", "#FFFFFF"))
-        )
+        item = {
+            "id": f"copy-{role}",
+            "role": role,
+            "design_group": (
+                "headline" if role in {"title", "subtitle"} else "offer"
+            ),
+            "content": source["content"],
+            **bounded_box(element_target, role),
+            "font_size": max(8, int(element_target["font_size"])),
+            "font_weight": int(element_target["font_weight"]),
+            "tracking": int(element_target["tracking"]),
+            "text_align": str(element_target["text_align"]),
+            "vertical_align": "center",
+            "max_lines": max_lines,
+            "line_height": float(element_target["line_height"]),
+            "color": resolve(
+                str(element_target["color"]),
+                str(source.get("color", palette["dark"])),
+            ),
+            "shadow_offset": int(element_target["shadow_offset"]),
+            "shadow_color": resolve(
+                str(element_target["shadow_color"]),
+                str(source.get("shadow_color", "#000000")),
+            ),
+            "stroke_width": int(element_target["stroke_width"]),
+            "stroke_color": resolve(
+                str(element_target["stroke_color"]),
+                str(source.get("stroke_color", "#000000")),
+            ),
+            "z_index": 2,
+        }
+        elements.append(item)
 
-    adjusted["underlays"] = [
-        item for item in adjusted.get("underlays", [])
-        if str(item.get("id")) != "surface-cta"
-    ]
-    underlays = {
-        str(item.get("id")): item for item in adjusted.get("underlays", [])
-    }
-    for surface_target in target["surfaces"]:
-        group = str(surface_target["group"])
-        surface = underlays.get(f"surface-{group}")
-        if surface is None:
-            continue
-        surface.update(bounded_box(surface_target, f"{group}_surface"))
-        surface["opacity"] = round(float(surface_target["opacity"]), 3)
-        surface["background_color"] = resolve(
-            str(surface_target["background"]),
-            str(surface.get("background_color", palette["dark"])),
-        )
-        surface["gradient_color"] = resolve(
-            str(surface_target["gradient"]),
-            str(surface.get("gradient_color", surface["background_color"])),
-        )
-        if surface.get("border_color") is not None:
-            surface["border_color"] = surface["background_color"]
-
-    accent_target = target["accent_rule"]
-    accent_rule = underlays.get("accent-rule")
-    if not accent_target["present"]:
-        adjusted["underlays"] = [
-            item for item in adjusted["underlays"]
-            if str(item.get("id")) != "accent-rule"
-        ]
-    else:
-        if accent_rule is None:
-            accent_rule = {
-                "id": "accent-rule", "design_group": "headline",
-                "opacity": 1.0, "border_radius": 0, "z_index": 1,
-                "background_color": palette["accent"],
-            }
-            adjusted["underlays"].append(accent_rule)
-            underlays["accent-rule"] = accent_rule
-        accent_rule.update(bounded_box(accent_target, "accent_rule"))
-        accent_rule["background_color"] = resolve(
-            str(accent_target["color"]),
-            str(accent_rule.get("background_color", palette["accent"])),
-        )
-
+    elements_by_role = {item["role"]: item for item in elements}
     price = elements_by_role.get("price")
     if price is not None:
         composition = target["price_composition"]
@@ -1004,10 +999,56 @@ def apply_final_review_revision(layout: dict, revision: dict) -> dict:
         ):
             price[name] = round(float(composition[name]), 4)
 
+    underlays = []
+    for surface_target in target["surfaces"]:
+        group = str(surface_target["group"])
+        if not surface_target["enabled"] or surface_target["style"] == "none":
+            continue
+        source = source_underlays.get(f"surface-{group}", {})
+        background = resolve(
+            str(surface_target["background_color"]),
+            str(source.get("background_color", palette["dark"])),
+        )
+        gradient = resolve(
+            str(surface_target["gradient_color"]),
+            str(source.get("gradient_color", background)),
+        )
+        style = str(surface_target["style"])
+        if style in {"solid", "scrim"}:
+            gradient = background
+        underlays.append({
+            "id": f"surface-{group}",
+            "design_group": group,
+            **bounded_box(surface_target, f"{group}_surface"),
+            "background_color": background,
+            "gradient_color": gradient,
+            "opacity": round(float(surface_target["opacity"]), 3),
+            "border_radius": int(surface_target["corner_radius"]),
+            "surface_style": style,
+            "z_index": 0,
+        })
+
+    accent_target = target["accent_rule"]
+    if accent_target["present"]:
+        source = source_underlays.get("accent-rule", {})
+        rule_box = bounded_box(accent_target, "accent_rule")
+        underlays.append({
+            "id": "accent-rule",
+            "design_group": "headline",
+            **rule_box,
+            "background_color": resolve(
+                str(accent_target["color"]),
+                str(source.get("background_color", palette["accent"])),
+            ),
+            "opacity": 1.0,
+            "border_radius": max(0, int(rule_box["height"]) // 2),
+            "z_index": 1,
+        })
+
+    design_groups = {}
     for group in ("headline", "offer"):
         group_items = [
-            item for item in adjusted["elements"]
-            if item.get("design_group") == group
+            item for item in elements if item["design_group"] == group
         ]
         if not group_items:
             continue
@@ -1015,14 +1056,23 @@ def apply_final_review_revision(layout: dict, revision: dict) -> dict:
         top = min(int(item["y"]) for item in group_items)
         right = max(int(item["x"]) + int(item["width"]) for item in group_items)
         bottom = max(int(item["y"]) + int(item["height"]) for item in group_items)
-        adjusted["design_groups"][group].update({
+        design_groups[group] = {
             "x": left, "y": top, "width": right - left, "height": bottom - top,
-        })
+        }
+    if "protected_subject" in layout.get("design_groups", {}):
+        design_groups["protected_subject"] = deepcopy(
+            layout["design_groups"]["protected_subject"]
+        )
 
+    surface_items = {
+        item["design_group"]: item
+        for item in underlays
+        if str(item.get("id", "")).startswith("surface-")
+    }
     padding = max(4, round(min(width, height) * 0.012))
     for group in ("headline", "offer"):
-        surface = underlays.get(f"surface-{group}")
-        group_box = adjusted["design_groups"].get(group)
+        surface = surface_items.get(group)
+        group_box = design_groups.get(group)
         if surface is None or group_box is None:
             continue
         left = min(int(surface["x"]), max(0, int(group_box["x"]) - padding))
@@ -1047,25 +1097,46 @@ def apply_final_review_revision(layout: dict, revision: dict) -> dict:
                 "requested": current, "applied": contained,
             })
 
-    tokens = adjusted["design_tokens"]
-    tokens["cta_treatment"] = "plain"
-    tokens["headline_alignment"] = elements_by_role["title"].get(
-        "text_align", tokens.get("headline_alignment", "center")
+    headline_alignment = elements_by_role.get("title", {}).get(
+        "text_align", "left"
     )
-    offer_roles = [role for role in ("price", "cta") if role in elements_by_role]
-    if offer_roles:
-        tokens["offer_alignment"] = elements_by_role[offer_roles[0]].get(
-            "text_align", tokens.get("offer_alignment", "center")
-        )
-    for group in ("headline", "offer"):
-        surface = underlays.get(f"surface-{group}")
-        band = tokens.get(f"{group}_band")
-        if surface is not None and isinstance(band, dict):
-            band["background"] = surface["background_color"]
-            band["gradient"] = surface["gradient_color"]
+    offer_role = "price" if "price" in elements_by_role else "cta"
+    offer_alignment = elements_by_role.get(offer_role, {}).get(
+        "text_align", "left"
+    )
+    offer_items = [
+        elements_by_role[role]
+        for role in ("price", "cta") if role in elements_by_role
+    ]
+    arrangement = "vertical"
+    if len(offer_items) == 2:
+        first, second = offer_items
+        if abs(int(first["y"]) - int(second["y"])) < max(
+            int(first["height"]), int(second["height"])
+        ):
+            arrangement = "horizontal"
 
-    adjusted["final_review_constraints"] = constraints
-    return adjusted
+    return {
+        "canvas": {"width": width, "height": height},
+        "elements": elements,
+        "underlays": underlays,
+        "warnings": [],
+        "design_groups": design_groups,
+        "design_tokens": {
+            "palette": deepcopy(palette),
+            "headline_alignment": headline_alignment,
+            "offer_alignment": offer_alignment,
+            "offer_arrangement": arrangement,
+            "cta_treatment": "plain",
+            "contrast_auto_underlays": False,
+            "redesign_concept": revision.get("redesign_plan", {}).get(
+                "concept", ""
+            ),
+            "headline_band": {},
+            "offer_band": {},
+        },
+        "final_review_constraints": constraints,
+    }
 
 
 __all__ = [

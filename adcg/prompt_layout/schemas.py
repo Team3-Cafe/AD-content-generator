@@ -3,16 +3,24 @@ from __future__ import annotations
 COPY_ROLES = ("title", "subtitle", "price", "cta")
 
 
+COLOR_VALUE_PATTERN = (
+    r"^(?:palette_dark|palette_light|palette_accent|#[0-9A-Fa-f]{6})$"
+)
 COLOR_TOKEN_SCHEMA = {
     "type": "string",
-    "enum": [
-        "palette_dark",
-        "palette_light",
-        "palette_accent",
-        "neutral_dark",
-        "neutral_light",
-    ],
+    "pattern": COLOR_VALUE_PATTERN,
+    "description": (
+        "A supplied palette token or an exact #RRGGBB color chosen for the image."
+    ),
 }
+FINAL_COLOR_SCHEMA = {
+    "type": "string",
+    "pattern": (
+        r"^(?:keep|palette_dark|palette_light|palette_accent|"
+        r"#[0-9A-Fa-f]{6})$"
+    ),
+}
+
 
 
 NORMALIZED_BOX_SCHEMA = {
@@ -60,7 +68,11 @@ DESIGN_SPEC_SCHEMA = {
                         "editorial",
                     ],
                 },
-                "alignment": {
+                "headline_alignment": {
+                    "type": "string",
+                    "enum": ["left", "center", "right"],
+                },
+                "offer_alignment": {
                     "type": "string",
                     "enum": ["left", "center", "right"],
                 },
@@ -74,6 +86,9 @@ DESIGN_SPEC_SCHEMA = {
                         "full_width_solid",
                         "full_width_gradient",
                         "full_width_scrim",
+                        "content_solid",
+                        "content_gradient",
+                        "none",
                     ],
                 },
                 "offer_surface": {
@@ -82,11 +97,14 @@ DESIGN_SPEC_SCHEMA = {
                         "full_width_solid",
                         "full_width_gradient",
                         "accent_band",
+                        "content_solid",
+                        "content_gradient",
+                        "none",
                     ],
                 },
                 "accent_role": {
                     "type": "string",
-                    "enum": ["rule", "price", "cta", "price_and_cta"],
+                    "enum": ["rule", "price"],
                 },
                 "cta_treatment": {
                     "type": "string",
@@ -95,7 +113,8 @@ DESIGN_SPEC_SCHEMA = {
             },
             "required": [
                 "mood",
-                "alignment",
+                "headline_alignment",
+                "offer_alignment",
                 "spacing_density",
                 "headline_surface",
                 "offer_surface",
@@ -111,7 +130,6 @@ DESIGN_SPEC_SCHEMA = {
                 "headline_text": COLOR_TOKEN_SCHEMA,
                 "offer_background": COLOR_TOKEN_SCHEMA,
                 "offer_text": COLOR_TOKEN_SCHEMA,
-                "cta_background": COLOR_TOKEN_SCHEMA,
                 "cta_text": COLOR_TOKEN_SCHEMA,
             },
             "required": [
@@ -119,7 +137,6 @@ DESIGN_SPEC_SCHEMA = {
                 "headline_text",
                 "offer_background",
                 "offer_text",
-                "cta_background",
                 "cta_text",
             ],
             "additionalProperties": False,
@@ -127,10 +144,16 @@ DESIGN_SPEC_SCHEMA = {
         "composition": {
             "type": "object",
             "properties": {
+                "headline_x_ratio": {
+                    "type": "number", "minimum": 0.0, "maximum": 0.95,
+                },
                 "headline_y_ratio": {
                     "type": "number",
                     "minimum": 0.03,
                     "maximum": 0.72,
+                },
+                "offer_x_ratio": {
+                    "type": "number", "minimum": 0.0, "maximum": 0.95,
                 },
                 "offer_y_ratio": {
                     "type": "number",
@@ -158,7 +181,9 @@ DESIGN_SPEC_SCHEMA = {
                 },
             },
             "required": [
+                "headline_x_ratio",
                 "headline_y_ratio",
+                "offer_x_ratio",
                 "offer_y_ratio",
                 "headline_content_width_ratio",
                 "offer_content_width_ratio",
@@ -233,15 +258,6 @@ DESIGN_REVISION_SCHEMA = {
     "required": ["needs_revision", "adjustments", "reason"],
     "additionalProperties": False,
 }
-
-FINAL_COLOR_TOKENS = [
-    "keep",
-    "palette_dark",
-    "palette_light",
-    "palette_accent",
-    "neutral_dark",
-    "neutral_light",
-]
 
 
 FINAL_REVIEW_FEATURES = (
@@ -337,11 +353,18 @@ _ABSOLUTE_ELEMENT_SCHEMA = {
             "type": "string", "enum": ["left", "center", "right"],
         },
         "max_lines": {"type": "integer", "minimum": 1, "maximum": 3},
-        "color": {"type": "string", "enum": FINAL_COLOR_TOKENS},
+        "color": FINAL_COLOR_SCHEMA,
+        "line_height": {"type": "number", "minimum": 0.8, "maximum": 1.8},
+        "shadow_offset": {"type": "integer", "minimum": 0, "maximum": 8},
+        "shadow_color": FINAL_COLOR_SCHEMA,
+        "stroke_width": {"type": "integer", "minimum": 0, "maximum": 6},
+        "stroke_color": FINAL_COLOR_SCHEMA,
     },
     "required": [
         "role", "x", "y", "width", "height", "font_size",
         "font_weight", "tracking", "text_align", "max_lines", "color",
+        "line_height", "shadow_offset", "shadow_color",
+        "stroke_width", "stroke_color",
     ],
     "additionalProperties": False,
 }
@@ -350,20 +373,27 @@ _ABSOLUTE_SURFACE_SCHEMA = {
     "type": "object",
     "properties": {
         "group": {"type": "string", "enum": ["headline", "offer"]},
+        "enabled": {"type": "boolean"},
+        "style": {
+            "type": "string",
+            "enum": ["none", "solid", "gradient", "scrim"],
+        },
         "x": {"type": "integer", "minimum": 0, "maximum": 4096},
         "y": {"type": "integer", "minimum": 0, "maximum": 4096},
         "width": {"type": "integer", "minimum": 1, "maximum": 4096},
         "height": {"type": "integer", "minimum": 1, "maximum": 4096},
-        "opacity": {"type": "number", "minimum": 0.25, "maximum": 0.95},
-        "background": {"type": "string", "enum": FINAL_COLOR_TOKENS},
-        "gradient": {"type": "string", "enum": FINAL_COLOR_TOKENS},
+        "opacity": {"type": "number", "minimum": 0.0, "maximum": 1.0},
+        "background_color": FINAL_COLOR_SCHEMA,
+        "gradient_color": FINAL_COLOR_SCHEMA,
+        "corner_radius": {"type": "integer", "minimum": 0, "maximum": 256},
     },
     "required": [
-        "group", "x", "y", "width", "height", "opacity",
-        "background", "gradient",
+        "group", "enabled", "style", "x", "y", "width", "height",
+        "opacity", "background_color", "gradient_color", "corner_radius",
     ],
     "additionalProperties": False,
 }
+
 
 FINAL_REVIEW_SCHEMA = {
     "type": "object",
@@ -463,7 +493,7 @@ FINAL_REVIEW_SCHEMA = {
                 },
                 "surfaces": {
                     "type": "array", "items": _ABSOLUTE_SURFACE_SCHEMA,
-                    "minItems": 2, "maxItems": 2,
+                    "minItems": 0, "maxItems": 2,
                 },
                 "accent_rule": {
                     "type": "object",
@@ -473,7 +503,7 @@ FINAL_REVIEW_SCHEMA = {
                         "y": {"type": "integer", "minimum": 0, "maximum": 4096},
                         "width": {"type": "integer", "minimum": 1, "maximum": 4096},
                         "height": {"type": "integer", "minimum": 1, "maximum": 64},
-                        "color": {"type": "string", "enum": FINAL_COLOR_TOKENS},
+                        "color": FINAL_COLOR_SCHEMA,
                     },
                     "required": [
                         "present", "x", "y", "width", "height", "color",

@@ -2,15 +2,22 @@ from __future__ import annotations
 
 import inspect
 import json
+from pathlib import Path
+from types import SimpleNamespace
 import unittest
+from unittest.mock import patch
 
 from PIL import Image, ImageChops, ImageDraw
 
-from adcg.prompt_layout.engine import apply_final_review_revision
+from adcg.prompt_layout.engine import (
+    apply_final_review_revision,
+    build_design_layout,
+)
 from adcg.prompt_layout.generator import (
     _applied_changes,
     _enforce_final_review_revision,
     _layout_state,
+    _request_json,
     generate_prompt_layout,
 )
 from adcg.prompt_layout.prompts import build_final_review_request
@@ -96,31 +103,44 @@ def _feature_reviews() -> dict:
 
 
 def _target_layout() -> dict:
+    elements = [
+        {"role": "title", "x": 24, "y": 36, "width": 352, "height": 48,
+         "font_size": 34, "font_weight": 800, "tracking": 1,
+         "text_align": "left", "max_lines": 1, "color": "#F8F1E5"},
+        {"role": "subtitle", "x": 50, "y": 94, "width": 300, "height": 28,
+         "font_size": 15, "font_weight": 500, "tracking": 0,
+         "text_align": "left", "max_lines": 2, "color": "#F8F1E5"},
+        {"role": "price", "x": 55, "y": 270, "width": 290, "height": 48,
+         "font_size": 28, "font_weight": 800, "tracking": 0,
+         "text_align": "right", "max_lines": 1, "color": "#17324D"},
+        {"role": "cta", "x": 80, "y": 330, "width": 240, "height": 28,
+         "font_size": 16, "font_weight": 600, "tracking": 1,
+         "text_align": "right", "max_lines": 1, "color": "#17324D"},
+    ]
+    for item in elements:
+        item.update({
+            "line_height": 1.1, "shadow_offset": 0,
+            "shadow_color": "#000000", "stroke_width": 0,
+            "stroke_color": "#000000",
+        })
     return {
-        "elements": [
-            {"role": "title", "x": 24, "y": 36, "width": 352, "height": 48,
-             "font_size": 34, "font_weight": 800, "tracking": 1,
-             "text_align": "center", "max_lines": 1, "color": "neutral_light"},
-            {"role": "subtitle", "x": 50, "y": 94, "width": 300, "height": 28,
-             "font_size": 15, "font_weight": 500, "tracking": 0,
-             "text_align": "center", "max_lines": 2, "color": "neutral_light"},
-            {"role": "price", "x": 55, "y": 270, "width": 290, "height": 48,
-             "font_size": 28, "font_weight": 800, "tracking": 0,
-             "text_align": "center", "max_lines": 1, "color": "neutral_dark"},
-            {"role": "cta", "x": 80, "y": 330, "width": 240, "height": 28,
-             "font_size": 16, "font_weight": 600, "tracking": 1,
-             "text_align": "center", "max_lines": 1, "color": "neutral_dark"},
-        ],
+        "elements": elements,
         "surfaces": [
-            {"group": "headline", "x": 0, "y": 20, "width": 400,
-             "height": 120, "opacity": 0.88, "background": "palette_dark",
-             "gradient": "palette_dark"},
-            {"group": "offer", "x": 0, "y": 250, "width": 400,
-             "height": 125, "opacity": 0.90, "background": "palette_light",
-             "gradient": "palette_light"},
+            {
+                "group": "headline", "enabled": True, "style": "gradient",
+                "x": 12, "y": 20, "width": 376, "height": 120,
+                "opacity": 0.82, "background_color": "#17324D",
+                "gradient_color": "#315B73", "corner_radius": 18,
+            },
+            {
+                "group": "offer", "enabled": False, "style": "none",
+                "x": 0, "y": 250, "width": 400, "height": 125,
+                "opacity": 0.0, "background_color": "#F8F1E5",
+                "gradient_color": "#F8F1E5", "corner_radius": 0,
+            },
         ],
         "accent_rule": {"present": True, "x": 145, "y": 87,
-                         "width": 110, "height": 4, "color": "palette_accent"},
+                         "width": 110, "height": 4, "color": "#D9822B"},
         "price_composition": {"number_scale": 1.15, "unit_scale": 0.92,
                               "number_baseline_shift": 0.0,
                               "unit_baseline_shift": -0.02},
@@ -177,6 +197,78 @@ def _review() -> dict:
 
 
 class FinalReviewTests(unittest.TestCase):
+    def test_initial_layout_respects_independent_alignment_and_no_surfaces(self):
+        analysis = {
+            "canvas": {"width": 400, "height": 600},
+            "palette": {
+                "dark": "#111111", "light": "#F5F5F5",
+                "accent": "#FF6600",
+            },
+            "overall_luminance": 0.5,
+            "horizontal_bands": [],
+        }
+        design_spec = {
+            "scene_analysis": {
+                "subject_region": {
+                    "x": 0.45, "y": 0.35, "width": 0.4, "height": 0.4,
+                }
+            },
+            "art_direction": {
+                "mood": "editorial",
+                "headline_alignment": "left",
+                "offer_alignment": "right",
+                "spacing_density": "balanced",
+                "headline_surface": "none",
+                "offer_surface": "none",
+                "accent_role": "rule",
+                "cta_treatment": "plain",
+            },
+            "color_direction": {
+                "headline_background": "#23405A",
+                "headline_text": "#F1E7D2",
+                "offer_background": "#D9B66F",
+                "offer_text": "#17324D",
+                "cta_text": "#000080",
+            },
+            "composition": {
+                "headline_x_ratio": 0.08, "headline_y_ratio": 0.08,
+                "offer_x_ratio": 0.18, "offer_y_ratio": 0.75,
+                "headline_content_width_ratio": 0.70,
+                "offer_content_width_ratio": 0.62,
+                "offer_arrangement": "vertical", "title_scale": 1.0,
+            },
+        }
+        layout = build_design_layout(
+            analysis,
+            {"title": "TITLE", "subtitle": "SUB", "price": "$10", "cta": ""},
+            design_spec,
+        )
+        items = {item["role"]: item for item in layout["elements"]}
+        self.assertEqual(items["title"]["text_align"], "left")
+        self.assertEqual(items["price"]["text_align"], "right")
+        self.assertNotIn("cta", items)
+        surface_ids = {
+            item["id"] for item in layout["underlays"]
+            if item["id"].startswith("surface-")
+        }
+        self.assertEqual(surface_ids, set())
+
+        with_cta = build_design_layout(
+            analysis,
+            {
+                "title": "TITLE", "subtitle": "SUB", "price": "$10",
+                "cta": "Call 02-123-4567",
+            },
+            design_spec,
+        )
+        with_cta_items = {
+            item["role"]: item for item in with_cta["elements"]
+        }
+        self.assertNotEqual(
+            with_cta_items["cta"]["color"],
+            with_cta_items["price"]["color"],
+        )
+
     def test_final_request_excludes_previous_design_state(self):
         request = build_final_review_request(
             {"title": "TITLE", "price": "10????"},
@@ -194,6 +286,35 @@ class FinalReviewTests(unittest.TestCase):
         self.assertNotIn("surface-headline", request)
         self.assertNotIn("Art direction", request)
         self.assertNotIn("design_revision", request)
+
+    def test_final_vlm_request_can_include_completed_and_clean_images(self):
+        captured = {}
+
+        class Responses:
+            def create(self, **kwargs):
+                captured.update(kwargs)
+                return SimpleNamespace(output_text="{}")
+
+        client = SimpleNamespace(responses=Responses())
+        with patch(
+            "adcg.prompt_layout.generator.image_to_data_url",
+            side_effect=lambda path: f"data:image/png;base64,{Path(path).stem}",
+        ):
+            result = _request_json(
+                client, model="gpt-4o", instructions="review",
+                request_text="rebuild",
+                image_path=[Path("completed.png"), Path("clean.png")],
+                detail="high", schema_name="test", schema={},
+                temperature=0.4,
+            )
+        self.assertEqual(result, {})
+        images = [
+            item for item in captured["input"][0]["content"]
+            if item["type"] == "input_image"
+        ]
+        self.assertEqual(len(images), 2)
+        self.assertTrue(images[0]["image_url"].endswith("completed"))
+        self.assertTrue(images[1]["image_url"].endswith("clean"))
 
     def test_pipeline_keeps_exactly_three_vlm_calls(self):
         source = inspect.getsource(generate_prompt_layout)
@@ -223,7 +344,11 @@ class FinalReviewTests(unittest.TestCase):
         self.assertEqual(items["price"]["unit_baseline_shift"], -0.02)
         underlays = {item["id"]: item for item in result["underlays"]}
         self.assertNotIn("surface-cta", underlays)
-        self.assertEqual(underlays["surface-offer"]["background_color"], "#F5F5F5")
+        self.assertNotIn("surface-offer", underlays)
+        self.assertEqual(
+            underlays["surface-headline"]["background_color"], "#17324D"
+        )
+        self.assertEqual(items["price"]["text_align"], "right")
         self.assertEqual(underlays["accent-rule"]["width"], 110)
         self.assertEqual(result["design_tokens"]["cta_treatment"], "plain")
 
@@ -251,6 +376,11 @@ class FinalReviewTests(unittest.TestCase):
                 "tracking": item["tracking"],
                 "text_align": item["text_align"],
                 "max_lines": item["max_lines"], "color": "keep",
+                "line_height": item.get("line_height", 1.2),
+                "shadow_offset": item.get("shadow_offset", 0),
+                "shadow_color": "keep",
+                "stroke_width": item.get("stroke_width", 0),
+                "stroke_color": "keep",
             }
             for item in layout["elements"]
         ]
@@ -259,7 +389,9 @@ class FinalReviewTests(unittest.TestCase):
                 "group": item["design_group"], "x": item["x"],
                 "y": item["y"], "width": item["width"],
                 "height": item["height"], "opacity": item["opacity"],
-                "background": "keep", "gradient": "keep",
+                "enabled": True, "style": "solid",
+                "background_color": "keep", "gradient_color": "keep",
+                "corner_radius": item.get("border_radius", 0),
             }
             for item in layout["underlays"]
             if item["id"] in {"surface-headline", "surface-offer"}
