@@ -68,6 +68,12 @@ group, gap, and accent-rule shifts as normalized canvas ratios where 0.0 means
 keep. Treat price number/unit baseline shifts as fractions of the base price
 font size. Color choices must use the supplied palette tokens or "keep".
 
+This is a substantial redesign pass, not a conservative polish pass. Mark at
+least six features as revise and select at least ten distinct non-neutral
+adjustment controls across them. Distribute changes across typography, geometry,
+spacing, surfaces, color/contrast, accents, CTA, and product visibility whenever
+the image supports them. Do not satisfy the scope with duplicate controls.
+
 For each feature marked revise, list the exact adjustment controls that implement
 its recommended change and set those controls to meaningful non-neutral values.
 For each feature marked keep, return an empty controls list. Every non-neutral

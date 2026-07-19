@@ -599,7 +599,23 @@ def _draw_price_line(
     total_width = sum(width for _part, _font, width in segments)
     box_width = int(item["width"])
     if total_width > box_width:
-        return False
+        shrink = box_width / max(1, total_width)
+        resized_segments = []
+        for part, font, _width in segments:
+            resized_font = _load_font(
+                max(8, int(getattr(font, "size", base_size) * shrink)),
+                resolved_font,
+                max(700, int(item.get("font_weight", 700))),
+            )
+            resized_segments.append(
+                (part, resized_font, _text_width(draw, part, resized_font))
+            )
+        segments = resized_segments
+        total_width = sum(
+            width for _part, _font, width in segments
+        )
+        if total_width > box_width:
+            return False
     align = str(item.get("text_align", "left"))
     if align == "right":
         cursor_x = int(item["x"]) + box_width - total_width

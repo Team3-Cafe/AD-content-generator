@@ -8,6 +8,39 @@ def _clamp(value: int, low: int, high: int) -> int:
     return max(low, min(value, high))
 
 
+def _scale_element_box(
+    item: dict,
+    scale: float,
+    *,
+    canvas_width: int,
+    canvas_height: int,
+    margin: int = 0,
+) -> None:
+    """Scale a text box around its center so font growth survives fitting."""
+    if abs(scale - 1.0) < 1e-9:
+        return
+    old_width = int(item["width"])
+    old_height = int(item["height"])
+    center_x = int(item["x"]) + old_width / 2
+    center_y = int(item["y"]) + old_height / 2
+    max_width = max(1, canvas_width - margin * 2)
+    max_height = max(1, canvas_height - margin * 2)
+    new_width = max(1, min(max_width, round(old_width * scale)))
+    new_height = max(1, min(max_height, round(old_height * scale)))
+    item["width"] = new_width
+    item["height"] = new_height
+    item["x"] = _clamp(
+        round(center_x - new_width / 2),
+        margin,
+        canvas_width - margin - new_width,
+    )
+    item["y"] = _clamp(
+        round(center_y - new_height / 2),
+        margin,
+        canvas_height - margin - new_height,
+    )
+
+
 def _overlap(first: dict, second: dict) -> bool:
     return (
         first["x"] < second["x"] + second["width"]
@@ -830,6 +863,13 @@ def apply_design_revision(layout: dict, revision: dict) -> dict:
         for item in element_items:
             item["x"] = int(item["x"]) + dx
             item["y"] = int(item["y"]) + dy
+            _scale_element_box(
+                item,
+                scale,
+                canvas_width=width,
+                canvas_height=height,
+                margin=margin,
+            )
             item["font_size"] = max(
                 10,
                 round(int(item["font_size"]) * scale),
@@ -878,9 +918,16 @@ def apply_final_review_revision(layout: dict, revision: dict) -> dict:
         role = str(item.get("role", ""))
         group = str(item.get("design_group", ""))
         if role in role_scales:
+            role_scale = role_scales[role]
+            _scale_element_box(
+                item,
+                role_scale,
+                canvas_width=width,
+                canvas_height=height,
+            )
             item["font_size"] = max(
                 8,
-                round(int(item["font_size"]) * role_scales[role]),
+                round(int(item["font_size"]) * role_scale),
             )
         weight_choice = str(changes.get(f"{group}_weight", "keep"))
         item["font_weight"] = max(
@@ -902,6 +949,17 @@ def apply_final_review_revision(layout: dict, revision: dict) -> dict:
     }
     price = elements_by_role.get("price")
     if price is not None:
+        segment_box_scale = max(
+            1.0,
+            float(changes["price_number_scale"]),
+            float(changes["price_unit_scale"]),
+        )
+        _scale_element_box(
+            price,
+            segment_box_scale,
+            canvas_width=width,
+            canvas_height=height,
+        )
         price["number_scale"] = round(
             float(price.get("number_scale", 1.22))
             * float(changes["price_number_scale"]),

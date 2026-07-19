@@ -38,6 +38,8 @@ from .schemas import (
 
 
 ROOT_DIR = Path(__file__).resolve().parents[2]
+MIN_FINAL_REVISED_FEATURES = 6
+MIN_FINAL_NON_NEUTRAL_CONTROLS = 10
 
 
 _SCALE_ADJUSTMENTS = {
@@ -164,6 +166,38 @@ def _review_consistency_issues(review: dict) -> list[str]:
     return issues
 
 
+def _review_scope_issues(review: dict) -> list[str]:
+    """Require a substantial, model-selected final design revision."""
+    feature_reviews = review["diagnosis"]["feature_reviews"]
+    revised_features = [
+        feature
+        for feature, feedback in feature_reviews.items()
+        if feedback["verdict"] == "revise" and feedback["controls"]
+    ]
+    active_controls = {
+        control
+        for feature in revised_features
+        for control in feature_reviews[feature]["controls"]
+        if _is_non_neutral_adjustment(
+            control, review["adjustments"][control]
+        )
+    }
+    issues = []
+    if len(revised_features) < MIN_FINAL_REVISED_FEATURES:
+        issues.append(
+            "broad revision requires at least "
+            f"{MIN_FINAL_REVISED_FEATURES} revised features; "
+            f"received {len(revised_features)}"
+        )
+    if len(active_controls) < MIN_FINAL_NON_NEUTRAL_CONTROLS:
+        issues.append(
+            "broad revision requires at least "
+            f"{MIN_FINAL_NON_NEUTRAL_CONTROLS} non-neutral controls; "
+            f"received {len(active_controls)}"
+        )
+    return issues
+
+
 @dataclass(frozen=True)
 class LayoutGenerationResult:
     output_dir: Path
@@ -247,6 +281,11 @@ def _enforce_final_review_revision(review: dict, layout: dict) -> dict:
             "Final review feedback is inconsistent with its adjustments: "
             + "; ".join(consistency_issues)
         )
+
+    scope_issues = _review_scope_issues(review)
+    review["scope_target_met"] = not scope_issues
+    if scope_issues:
+        review["scope_issues"] = scope_issues
 
     candidate = apply_final_review_revision(layout, review)
     visible_change = (
@@ -400,6 +439,7 @@ def generate_prompt_layout(
     final_review = _enforce_final_review_revision(
         final_review, revised_layout
     )
+    final_review["review_attempts"] = 1
     final_review_path = _write_json(
         output_dir / "final_review.json",
         {"model": model, **final_review},

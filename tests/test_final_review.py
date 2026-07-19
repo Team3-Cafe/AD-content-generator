@@ -310,7 +310,9 @@ class FinalReviewTests(unittest.TestCase):
         price = items["price"]
         cta = items["cta"]
         self.assertEqual((title["font_size"], title["font_weight"]), (33, 800))
+        self.assertEqual(title["width"], 352)
         self.assertEqual((cta["font_size"], cta["font_weight"]), (18, 600))
+        self.assertEqual(cta["width"], 180)
         self.assertEqual((title["tracking"], cta["tracking"]), (2, 1))
         self.assertEqual(cta["text_align"], "right")
         self.assertAlmostEqual(price["number_scale"], 0.976)
@@ -358,6 +360,25 @@ class FinalReviewTests(unittest.TestCase):
         difference = ImageChops.difference(baseline, shifted)
         self.assertIsNotNone(difference.getbbox())
 
+        narrow = Image.new("RGB", (80, 80), "white")
+        narrow_item = {
+            **base_item,
+            "width": 40,
+            "number_scale": 2.0,
+            "unit_scale": 2.0,
+        }
+        self.assertTrue(
+            _draw_price_line(
+                ImageDraw.Draw(narrow),
+                "10 USD",
+                10,
+                40,
+                narrow_item,
+                None,
+                (0, 0, 0),
+            )
+        )
+
 
     def test_neutral_response_is_rejected_without_hardcoded_fallback(self):
         review = {
@@ -400,6 +421,11 @@ class FinalReviewTests(unittest.TestCase):
                 "cta_scale": 1.05,
                 "headline_tracking_delta": 1,
                 "offer_tracking_delta": 1,
+                "headline_y_shift": 0.02,
+                "headline_band_height_scale": 0.90,
+                "accent_rule_width_scale": 1.20,
+                "offer_background": "palette_dark",
+                "offer_y_shift": -0.02,
             }
         )
         review = _enforce_final_review_revision(
@@ -442,14 +468,48 @@ class FinalReviewTests(unittest.TestCase):
 
     def test_price_is_not_changed_without_price_feedback(self):
         adjustments = _neutral_adjustments()
-        adjustments["title_scale"] = 1.10
+        adjustments.update(
+            {
+                "title_scale": 1.10,
+                "headline_scale": 1.05,
+                "headline_y_shift": 0.02,
+                "headline_subtitle_gap_delta": 0.02,
+                "headline_band_height_scale": 0.90,
+                "offer_band_height_scale": 0.90,
+                "accent_rule_width_scale": 1.20,
+                "accent_rule_y_shift": 0.01,
+                "surface_opacity_delta": 0.05,
+                "headline_text": "neutral_light",
+                "cta_scale": 1.05,
+                "offer_tracking_delta": 1,
+            }
+        )
         review = _enforce_final_review_revision(
             {
                 "needs_revision": True,
                 "diagnosis": {
                     "primary_issue": "hierarchy",
                     "feature_reviews": _feature_reviews(
-                        {"hierarchy": ["title_scale"]}
+                        {
+                            "hierarchy": ["title_scale", "headline_scale"],
+                            "spacing": [
+                                "headline_y_shift",
+                                "headline_subtitle_gap_delta",
+                            ],
+                            "band_proportion": [
+                                "headline_band_height_scale",
+                                "offer_band_height_scale",
+                            ],
+                            "accent_rule": [
+                                "accent_rule_width_scale",
+                                "accent_rule_y_shift",
+                            ],
+                            "contrast": [
+                                "surface_opacity_delta",
+                                "headline_text",
+                            ],
+                            "cta": ["cta_scale", "offer_tracking_delta"],
+                        }
                     ),
                     "observed_problems": [
                         {
