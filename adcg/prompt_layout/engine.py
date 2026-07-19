@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 from copy import deepcopy
-from pathlib import Path
 
 
 def _clamp(value: int, low: int, high: int) -> int:
@@ -57,100 +56,6 @@ def _normalized_box(box: dict, width: int, height: int) -> dict:
         "width": max(1, round(float(box["width"]) * width)),
         "height": max(1, round(float(box["height"]) * height)),
     }
-
-
-def _place_group(
-    desired: dict,
-    *,
-    canvas_width: int,
-    canvas_height: int,
-    margin: int,
-    avoid: list[dict],
-) -> dict:
-    width = min(desired["width"], canvas_width - margin * 2)
-    height = min(desired["height"], canvas_height - margin * 2)
-    x = _clamp(desired["x"], margin, canvas_width - margin - width)
-    y = _clamp(desired["y"], margin, canvas_height - margin - height)
-    initial = {"x": x, "y": y, "width": width, "height": height}
-    if not any(_overlap(initial, obstacle) for obstacle in avoid):
-        return initial
-
-    candidates = [
-        {**initial, "x": margin},
-        {**initial, "x": canvas_width - margin - width},
-        {**initial, "y": margin},
-        {**initial, "y": canvas_height - margin - height},
-    ]
-    candidates.extend(
-        [
-            {**initial, "x": obstacle["x"] - margin - width},
-            {
-                **initial,
-                "x": obstacle["x"] + obstacle["width"] + margin,
-            },
-            {**initial, "y": obstacle["y"] - margin - height},
-            {
-                **initial,
-                "y": obstacle["y"] + obstacle["height"] + margin,
-            },
-        ]
-        for obstacle in avoid
-    )
-    flattened = []
-    for candidate in candidates:
-        if isinstance(candidate, list):
-            flattened.extend(candidate)
-        else:
-            flattened.append(candidate)
-    valid = []
-    evaluated = []
-    for candidate in flattened:
-        candidate = {
-            **candidate,
-            "x": _clamp(
-                candidate["x"],
-                margin,
-                canvas_width - margin - width,
-            ),
-            "y": _clamp(
-                candidate["y"],
-                margin,
-                canvas_height - margin - height,
-            ),
-        }
-        evaluated.append(candidate)
-        if not any(_overlap(candidate, obstacle) for obstacle in avoid):
-            distance = abs(candidate["x"] - x) + abs(candidate["y"] - y)
-            valid.append((distance, candidate))
-    if valid:
-        return min(valid, key=lambda item: item[0])[1]
-    def overlap_area(candidate: dict) -> int:
-        total = 0
-        for obstacle in avoid:
-            overlap_width = max(
-                0,
-                min(
-                    candidate["x"] + candidate["width"],
-                    obstacle["x"] + obstacle["width"],
-                ) - max(candidate["x"], obstacle["x"]),
-            )
-            overlap_height = max(
-                0,
-                min(
-                    candidate["y"] + candidate["height"],
-                    obstacle["y"] + obstacle["height"],
-                ) - max(candidate["y"], obstacle["y"]),
-            )
-            total += overlap_width * overlap_height
-        return total
-
-    return min(
-        evaluated,
-        key=lambda item: (
-            overlap_area(item),
-            abs(item["x"] - x) + abs(item["y"] - y),
-        ),
-    )
 
 
 def _place_group(
@@ -260,8 +165,6 @@ def _resolve_color_token(token: str, palette: dict[str, str]) -> str:
         "palette_dark": palette["dark"],
         "palette_light": palette["light"],
         "palette_accent": palette["accent"],
-        "neutral_dark": "#101820",
-        "neutral_light": "#FFFFFF",
     }.get(value, palette["dark"])
 
 
@@ -394,14 +297,11 @@ def _panel(
     opacity: float,
     radius: int,
     gradient: str | None = None,
-    border_color: str | None = None,
-    border_width: int = 0,
     z_index: int = 0,
 ) -> dict:
     item = {
         "id": panel_id,
         "design_group": group,
-        "target_ids": [],
         **box,
         "z_index": z_index,
         "background_color": background,
@@ -410,9 +310,6 @@ def _panel(
     }
     if gradient is not None:
         item["gradient_color"] = gradient
-    if border_color is not None and border_width > 0:
-        item["border_color"] = border_color
-        item["border_width"] = border_width
     return item
 
 
@@ -661,7 +558,6 @@ def build_design_layout(
             }
 
     accent_role = direction["accent_role"]
-    cta_treatment = "plain"
     requested_cta_text = _resolve_color_token(
         color_direction["cta_text"],
         palette,
@@ -674,7 +570,7 @@ def build_design_layout(
     if has_price:
         price_color = offer_band["text"]
         if (
-            accent_role in {"price", "price_and_cta"}
+            accent_role == "price"
             and direction["offer_surface"] != "accent_band"
         ):
             price_color = palette["accent"]
@@ -817,8 +713,6 @@ def build_design_layout(
             "offer_alignment": offer_alignment,
             "offer_arrangement": arrangement,
             "requested_offer_arrangement": requested_arrangement,
-            "cta_treatment": cta_treatment,
-            "contrast_auto_underlays": False,
             "color_direction": color_direction,
             "mood": direction["mood"],
             "spacing_density": density,
@@ -1127,8 +1021,6 @@ def apply_final_review_revision(layout: dict, revision: dict) -> dict:
             "headline_alignment": headline_alignment,
             "offer_alignment": offer_alignment,
             "offer_arrangement": arrangement,
-            "cta_treatment": "plain",
-            "contrast_auto_underlays": False,
             "redesign_concept": revision.get("redesign_plan", {}).get(
                 "concept", ""
             ),

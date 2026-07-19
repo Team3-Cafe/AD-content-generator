@@ -56,10 +56,6 @@ def _layout() -> dict:
              "y": 265, "width": 400, "height": 110,
              "background_color": "#222222", "gradient_color": "#222222",
              "opacity": 0.84},
-            {"id": "surface-cta", "design_group": "offer", "x": 100,
-             "y": 325, "width": 200, "height": 30,
-             "background_color": "#FF6600", "gradient_color": "#FF6600",
-             "opacity": 0.96},
             {"id": "accent-rule", "design_group": "headline", "x": 170,
              "y": 75, "width": 60, "height": 3,
              "background_color": "#FF6600", "opacity": 1.0},
@@ -71,7 +67,7 @@ def _layout() -> dict:
         "design_tokens": {
             "palette": {"dark": "#111111", "light": "#F5F5F5", "accent": "#FF6600"},
             "headline_alignment": "center", "offer_alignment": "center",
-            "offer_arrangement": "vertical", "cta_treatment": "accent_pill",
+            "offer_arrangement": "vertical",
             "color_direction": {}, "headline_band": {}, "offer_band": {},
         },
     }
@@ -197,6 +193,27 @@ def _review() -> dict:
 
 
 class FinalReviewTests(unittest.TestCase):
+    def test_keep_feedback_targets_are_normalized_without_aborting(self):
+        review = _review()
+        review["diagnosis"]["feature_reviews"]["product_visibility"] = {
+            "verdict": "keep",
+            "evidence": "The product remains unobstructed.",
+            "recommended_change": "Preserve product visibility.",
+            "affected_targets": ["overall_composition"],
+        }
+
+        result = _enforce_final_review_revision(review, _layout())
+
+        feedback = result["diagnosis"]["feature_reviews"][
+            "product_visibility"
+        ]
+        self.assertEqual(feedback["affected_targets"], [])
+        self.assertEqual(
+            result["feedback_normalizations"][0]["feature"],
+            "product_visibility",
+        )
+        self.assertTrue(result["consistency_validated"])
+
     def test_initial_layout_respects_independent_alignment_and_no_surfaces(self):
         analysis = {
             "canvas": {"width": 400, "height": 600},
@@ -221,7 +238,6 @@ class FinalReviewTests(unittest.TestCase):
                 "headline_surface": "none",
                 "offer_surface": "none",
                 "accent_role": "rule",
-                "cta_treatment": "plain",
             },
             "color_direction": {
                 "headline_background": "#23405A",
@@ -343,14 +359,12 @@ class FinalReviewTests(unittest.TestCase):
         self.assertEqual(items["price"]["unit_scale"], 0.92)
         self.assertEqual(items["price"]["unit_baseline_shift"], -0.02)
         underlays = {item["id"]: item for item in result["underlays"]}
-        self.assertNotIn("surface-cta", underlays)
         self.assertNotIn("surface-offer", underlays)
         self.assertEqual(
             underlays["surface-headline"]["background_color"], "#17324D"
         )
         self.assertEqual(items["price"]["text_align"], "right")
         self.assertEqual(underlays["accent-rule"]["width"], 110)
-        self.assertEqual(result["design_tokens"]["cta_treatment"], "plain")
 
     def test_canvas_constraints_are_recorded(self):
         review = _review()

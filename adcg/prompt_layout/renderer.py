@@ -7,7 +7,7 @@ import re
 import shutil
 import subprocess
 
-from PIL import Image, ImageColor, ImageDraw, ImageFilter, ImageFont
+from PIL import Image, ImageColor, ImageDraw, ImageFont
 
 
 REGULAR_FONT_CANDIDATES = (
@@ -320,31 +320,6 @@ def _contrast_score(
     return ratios[percentile_index]
 
 
-def _auto_underlay(item: dict, light: bool, opacity: float) -> dict:
-    padding = max(
-        4,
-        int(round(min(item["width"], item["height"]) * 0.08)),
-    )
-    x = max(0, int(item["x"]) - padding)
-    y = max(0, int(item["y"]) - padding)
-    return {
-        "id": f"auto-contrast-{item['id']}",
-        "target_ids": [item["id"]],
-        "x": x,
-        "y": y,
-        "width": (
-            int(item["width"]) + (int(item["x"]) - x) + padding
-        ),
-        "height": (
-            int(item["height"]) + (int(item["y"]) - y) + padding
-        ),
-        "z_index": max(0, int(item.get("z_index", 2)) - 1),
-        "background_color": "#FFFFFF" if light else "#101820",
-        "opacity": opacity,
-        "border_radius": max(6, padding),
-    }
-
-
 def _draw_underlays(
     image: Image.Image,
     underlays: list[dict],
@@ -368,15 +343,6 @@ def _draw_underlays(
             radius=radius,
             fill=255,
         )
-        blur_radius = max(0, int(item.get("blur_radius", 0)))
-        if blur_radius:
-            blurred = result.filter(
-                ImageFilter.GaussianBlur(radius=blur_radius)
-            )
-            full_mask = Image.new("L", result.size, 0)
-            full_mask.paste(local_mask, (x, y))
-            result = Image.composite(blurred, result, full_mask)
-
         start_rgb = ImageColor.getrgb(
             str(item.get("background_color", "#000000"))
         )[:3]
@@ -404,48 +370,20 @@ def _draw_underlays(
             local_mask.point(lambda value: value * alpha // 255)
         )
         result.alpha_composite(panel, (x, y))
-
-        border_width = max(0, int(item.get("border_width", 0)))
-        if border_width:
-            border = Image.new("RGBA", result.size, (0, 0, 0, 0))
-            border_draw = ImageDraw.Draw(border)
-            border_color = ImageColor.getrgb(
-                str(item.get("border_color", "#FFFFFF"))
-            )[:3]
-            border_draw.rounded_rectangle(
-                (x, y, x + width - 1, y + height - 1),
-                radius=radius,
-                outline=(*border_color, 210),
-                width=border_width,
-            )
-            result = Image.alpha_composite(result, border)
     return result
 
 
 def ensure_layout_contrast(
     image_path: str | Path,
     layout: dict,
-    *,
-    allow_auto_underlays: bool | None = None,
 ) -> dict:
     """Return an idempotently contrast-corrected copy of a layout."""
     adjusted = deepcopy(layout)
-    if allow_auto_underlays is None:
-        allow_auto_underlays = bool(
-            adjusted.get("design_tokens", {}).get(
-                "contrast_auto_underlays", True
-            )
-        )
-    adjusted["underlays"] = [
-        item
-        for item in adjusted.get("underlays", [])
-        if not str(item.get("id", "")).startswith("auto-contrast-")
-    ]
+    adjusted["underlays"] = list(adjusted.get("underlays", []))
     with Image.open(image_path) as source:
         working = source.convert("RGBA")
     working = _draw_underlays(working, adjusted["underlays"])
 
-    canvas_width, canvas_height = working.size
     for item in adjusted["elements"]:
         threshold = (
             3.0
@@ -490,45 +428,10 @@ def ensure_layout_contrast(
         item["color"] = "#{:02X}{:02X}{:02X}".format(*best_color)
         if best_score >= threshold:
             continue
-        if not allow_auto_underlays:
-            warning = (
-                f"Contrast remains below target for {item['role']}; "
-                "VLM surface choice preserved without an automatic box."
-            )
-            if warning not in adjusted.setdefault("warnings", []):
-                adjusted["warnings"].append(warning)
-            continue
-
-        average = sum(luminances) / max(1, len(luminances))
-        use_light_underlay = average >= 0.5
-        item["color"] = (
-            "#101820" if use_light_underlay else "#FFFFFF"
+        warning = (
+            f"Contrast remains below target for {item['role']}; "
+            "VLM surface choice preserved without an automatic box."
         )
-        underlay = None
-        for opacity in (0.58, 0.68, 0.78, 0.88):
-            underlay = _auto_underlay(
-                item,
-                use_light_underlay,
-                opacity,
-            )
-            underlay["width"] = min(
-                underlay["width"],
-                canvas_width - underlay["x"],
-            )
-            underlay["height"] = min(
-                underlay["height"],
-                canvas_height - underlay["y"],
-            )
-            trial = _draw_underlays(working, [underlay])
-            trial_luminances = _region_luminances(trial, item)
-            if _contrast_score(
-                trial_luminances,
-                ImageColor.getrgb(item["color"])[:3],
-            ) >= threshold:
-                break
-        adjusted["underlays"].append(underlay)
-        working = _draw_underlays(working, [underlay])
-        warning = f"Auto contrast underlay added for {item['role']}."
         if warning not in adjusted.setdefault("warnings", []):
             adjusted["warnings"].append(warning)
     return adjusted

@@ -106,10 +106,6 @@ DESIGN_SPEC_SCHEMA = {
                     "type": "string",
                     "enum": ["rule", "price"],
                 },
-                "cta_treatment": {
-                    "type": "string",
-                    "enum": ["plain"],
-                },
             },
             "required": [
                 "mood",
@@ -119,7 +115,6 @@ DESIGN_SPEC_SCHEMA = {
                 "headline_surface",
                 "offer_surface",
                 "accent_role",
-                "cta_treatment",
             ],
             "additionalProperties": False,
         },
@@ -264,15 +259,6 @@ FINAL_REVIEW_FEATURES = (
     "typography", "hierarchy", "spacing", "price_composition",
     "band_proportion", "accent_rule", "placement", "color",
     "contrast", "cta", "product_visibility",
-)
-
-FINAL_REVIEW_TARGETS = (
-    "title_geometry", "title_typography",
-    "subtitle_geometry", "subtitle_typography",
-    "price_geometry", "price_typography",
-    "cta_geometry", "cta_typography",
-    "headline_surface", "offer_surface", "accent_rule",
-    "price_composition", "color_palette", "overall_composition",
 )
 
 FINAL_REVIEW_FEATURE_TARGETS = {
@@ -553,7 +539,6 @@ __all__ = [
     "DESIGN_REVISION_SCHEMA",
     "FINAL_REVIEW_SCHEMA",
     "FINAL_REVIEW_FEATURES",
-    "FINAL_REVIEW_TARGETS",
     "FINAL_REVIEW_FEATURE_TARGETS",
     "DESIGN_SPEC_SCHEMA",
 ]

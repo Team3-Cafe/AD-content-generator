@@ -86,8 +86,9 @@ surface, gradient, and accent colors may be exact #RRGGBB values or "keep".
 Choose colors for this image instead of repeating the old palette mechanically.
 
 For every feature, return a keep/revise verdict. Mark revise whenever the new
-design changes that feature. Every affected_targets entry must correspond to a
-material change in target_layout. When composing a price such as a large number
+design changes that feature. When verdict is keep, affected_targets MUST be an
+empty array. When verdict is revise, every affected_targets entry must correspond
+to a material change in target_layout. When composing a price such as a large number
 with qualifier and unit text, balance number_scale, unit_scale, and baselines
 so emphasis remains integrated rather than detached or oversized. Never ask
 for new copy, a different background, another image, or another VLM review.

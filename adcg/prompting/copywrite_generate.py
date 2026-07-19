@@ -16,13 +16,6 @@ COPY_INPUT_FIELDS = (
 )
 
 
-def _normalize_cta(copy: dict) -> dict:
-    """Remove unsupported contact invitations from the generated copy."""
-    normalized = dict(copy)
-    normalized["cta"] = ""
-    return normalized
-
-
 def generate_ad_copy(
     product_info: dict,
     background_prompt: str,
@@ -73,7 +66,8 @@ def generate_ad_copy(
             }
         },
     )
-    copy = _normalize_cta(json.loads(response.output_text))
+    copy = json.loads(response.output_text)
+    copy["cta"] = ""
     copy["model"] = model
     copy["latency_sec"] = round(perf_counter() - started_at, 2)
     return copy

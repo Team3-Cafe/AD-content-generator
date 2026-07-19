@@ -39,6 +39,24 @@ from .schemas import (
 ROOT_DIR = Path(__file__).resolve().parents[2]
 
 
+def _normalize_feature_review_metadata(review: dict) -> list[dict]:
+    """Repair harmless verdict/target contradictions from the VLM response."""
+    normalizations = []
+    feature_reviews = review["diagnosis"]["feature_reviews"]
+    for feature, feedback in feature_reviews.items():
+        targets = list(feedback.get("affected_targets", []))
+        if feedback.get("verdict") == "keep" and targets:
+            feedback["affected_targets"] = []
+            normalizations.append({
+                "feature": feature,
+                "field": "affected_targets",
+                "before": targets,
+                "after": [],
+                "reason": "keep verdict cannot claim redesigned targets",
+            })
+    return normalizations
+
+
 def _review_consistency_issues(review: dict, layout: dict) -> list[str]:
     """Validate target completeness and feature-to-target accountability."""
     issues = []
@@ -70,8 +88,6 @@ def _review_consistency_issues(review: dict, layout: dict) -> list[str]:
         targets = feedback["affected_targets"]
         if feedback["verdict"] == "revise" and not targets:
             issues.append(f"{feature} needs revision but names no affected targets")
-        if feedback["verdict"] == "keep" and targets:
-            issues.append(f"{feature} is keep but names affected targets")
 
     expected_roles = {str(item["role"]) for item in layout["elements"]}
     target_roles = [str(item["role"]) for item in review["target_layout"]["elements"]]
@@ -143,7 +159,6 @@ def _layout_state(layout: dict) -> dict:
             }
             for item in layout.get("underlays", [])
             if str(item.get("id", "")).startswith("surface-")
-            and item.get("id") != "surface-cta"
         ],
         "accent_rule": next(
             (
@@ -439,6 +454,9 @@ def _request_json(
 def _enforce_final_review_revision(review: dict, layout: dict) -> dict:
     """Validate the VLM's complete absolute target before applying it."""
     review["needs_revision"] = True
+    review["feedback_normalizations"] = (
+        _normalize_feature_review_metadata(review)
+    )
     consistency_issues = _review_consistency_issues(review, layout)
     if consistency_issues:
         raise ValueError(
@@ -606,9 +624,7 @@ def generate_prompt_layout(
         final_layout,
         font_path=font_path,
     )
-    final_layout = ensure_layout_contrast(
-        image_path, final_layout, allow_auto_underlays=False
-    )
+    final_layout = ensure_layout_contrast(image_path, final_layout)
     applied_final_state = _layout_state(final_layout)
     applied_summary = _material_revision_summary(
         before_final_state, applied_final_state, final_layout["canvas"]
