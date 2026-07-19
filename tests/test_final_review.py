@@ -214,6 +214,45 @@ class FinalReviewTests(unittest.TestCase):
         )
         self.assertTrue(result["consistency_validated"])
 
+    def test_feedback_target_mismatch_warns_without_rejecting_redesign(self):
+        review = _review()
+        original_rule = next(
+            item for item in _layout()["underlays"]
+            if item["id"] == "accent-rule"
+        )
+        review["target_layout"]["accent_rule"] = {
+            "present": True,
+            "x": original_rule["x"],
+            "y": original_rule["y"],
+            "width": original_rule["width"],
+            "height": original_rule["height"],
+            "color": "keep",
+        }
+
+        result = _enforce_final_review_revision(review, _layout())
+
+        self.assertTrue(result["consistency_validated"])
+        self.assertIn(
+            "accent_rule claims targets with no material applied change",
+            result["material_feedback_warnings"],
+        )
+
+    def test_missing_audit_categories_warn_without_rejecting_target(self):
+        review = _review()
+        review["diagnosis"]["design_observations"] = [
+            item
+            for item in review["diagnosis"]["design_observations"]
+            if item["category"] not in {"accent_rule", "cta"}
+        ]
+
+        result = _enforce_final_review_revision(review, _layout())
+
+        self.assertTrue(result["consistency_validated"])
+        self.assertTrue(any(
+            "accent_rule, cta" in warning
+            for warning in result["audit_warnings"]
+        ))
+
     def test_feedback_for_an_absent_cta_is_normalized_to_keep(self):
         layout = _layout()
         layout["elements"] = [

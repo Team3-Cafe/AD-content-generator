@@ -57,7 +57,10 @@ Audit the completed pixels as broadly as possible before redesigning. Collect
 both weaknesses and strengths worth preserving or building on. Cover EVERY
 category at least once: typography, hierarchy, spacing, price composition, band
 proportion, accent rule, placement, color, contrast, CTA treatment, and product
-visibility. Return at least eleven distinct design_observations and continue up
+visibility. A missing visual component still requires a category observation: for
+example, record the absence of CTA as a strength when no actionable CTA copy was
+supplied, or the absence of an accent rule as a deliberate or missed design choice.
+Return at least eleven distinct design_observations and continue up
 to the schema limit when the image supports more. Evidence must describe what
 is visibly happening in the image, its design consequence, and whether the new
 design should preserve, build on, or redesign it. Do not repeat the same point

@@ -96,15 +96,13 @@ def _normalize_feature_review_metadata(
     return normalizations
 
 
-def _review_consistency_issues(review: dict, layout: dict) -> list[str]:
-    """Validate target completeness and feature-to-target accountability."""
-    issues = []
-    feature_reviews = review["diagnosis"]["feature_reviews"]
+def _review_audit_warnings(review: dict) -> list[str]:
+    """Report diagnosis coverage issues without rejecting a valid target."""
+    warnings = []
     observations = review["diagnosis"]["design_observations"]
     if len(observations) < len(FINAL_REVIEW_FEATURES):
-        issues.append(
-            "completed-ad audit must include at least one observation per "
-            "design feature"
+        warnings.append(
+            "completed-ad audit has fewer observations than design categories"
         )
     observation_keys = {
         (
@@ -114,14 +112,21 @@ def _review_consistency_issues(review: dict, layout: dict) -> list[str]:
         for item in observations
     }
     if len(observation_keys) != len(observations):
-        issues.append("completed-ad audit contains duplicate observations")
+        warnings.append("completed-ad audit contains duplicate observations")
     categories = {item["category"] for item in observations}
     missing_categories = set(FINAL_REVIEW_FEATURES) - categories
     if missing_categories:
-        issues.append(
+        warnings.append(
             "completed-ad audit is missing design categories: "
             + ", ".join(sorted(missing_categories))
         )
+    return warnings
+
+
+def _review_consistency_issues(review: dict, layout: dict) -> list[str]:
+    """Validate render-critical target completeness and accountability."""
+    issues = []
+    feature_reviews = review["diagnosis"]["feature_reviews"]
     for feature in FINAL_REVIEW_FEATURES:
         feedback = feature_reviews[feature]
         targets = feedback["affected_targets"]
@@ -329,8 +334,8 @@ def _material_revision_summary(
     }
 
 
-def _material_revision_issues(review: dict, summary: dict) -> list[str]:
-    """Require a broad redesign and truthful feature-to-target claims."""
+def _material_revision_issues(summary: dict) -> list[str]:
+    """Require broad visible changes in the rebuilt target."""
     issues = []
     composition_targets = summary["systems"]["composition"]
     if len(composition_targets) < 2:
@@ -343,7 +348,12 @@ def _material_revision_issues(review: dict, summary: dict) -> list[str]:
             "rebuilt design must change at least three design systems; "
             f"changed {len(summary['active_systems'])}"
         )
+    return issues
 
+
+def _material_feedback_warnings(review: dict, summary: dict) -> list[str]:
+    """Audit diagnosis-to-target claims without blocking a valid redesign."""
+    warnings = []
     feature_reviews = review["diagnosis"]["feature_reviews"]
     revised_features = [
         feature for feature, feedback in feature_reviews.items()
@@ -358,7 +368,7 @@ def _material_revision_issues(review: dict, summary: dict) -> list[str]:
     for feature in revised_features:
         claimed = set(feature_reviews[feature]["affected_targets"])
         if not claimed.intersection(changed_targets):
-            issues.append(
+            warnings.append(
                 f"{feature} claims targets with no material applied change"
             )
     for system in summary["active_systems"]:
@@ -366,10 +376,10 @@ def _material_revision_issues(review: dict, summary: dict) -> list[str]:
         if system == "composition":
             system_targets.add("overall_composition")
         if not system_targets.intersection(claimed_targets):
-            issues.append(
+            warnings.append(
                 f"materially changed {system} system has no revise feedback"
             )
-    return issues
+    return warnings
 
 
 def _applied_changes(before: dict, after: dict) -> list[dict]:
@@ -496,6 +506,7 @@ def _enforce_final_review_revision(review: dict, layout: dict) -> dict:
     review["feedback_normalizations"] = (
         _normalize_feature_review_metadata(review, layout)
     )
+    review["audit_warnings"] = _review_audit_warnings(review)
     consistency_issues = _review_consistency_issues(review, layout)
     if consistency_issues:
         raise ValueError(
@@ -507,12 +518,15 @@ def _enforce_final_review_revision(review: dict, layout: dict) -> dict:
     requested_summary = _material_revision_summary(
         _layout_state(layout), _layout_state(candidate), layout["canvas"]
     )
-    material_issues = _material_revision_issues(review, requested_summary)
+    material_issues = _material_revision_issues(requested_summary)
     if material_issues:
         raise ValueError(
             "Final review did not produce a material redesign: "
             + "; ".join(material_issues)
         )
+    review["material_feedback_warnings"] = _material_feedback_warnings(
+        review, requested_summary
+    )
     review["consistency_validated"] = True
     review["revision_mode"] = "completed_ad_rebuild"
     review["requested_material_changes"] = requested_summary
@@ -668,12 +682,15 @@ def generate_prompt_layout(
     applied_summary = _material_revision_summary(
         before_final_state, applied_final_state, final_layout["canvas"]
     )
-    post_fit_issues = _material_revision_issues(final_review, applied_summary)
+    post_fit_issues = _material_revision_issues(applied_summary)
     if post_fit_issues:
         raise ValueError(
             "Final layout fitting erased the material redesign: "
             + "; ".join(post_fit_issues)
         )
+    final_review["material_feedback_warnings"] = (
+        _material_feedback_warnings(final_review, applied_summary)
+    )
     final_review["applied_target_layout"] = applied_final_state
     final_review["applied_material_changes"] = applied_summary
     final_review["applied_changes"] = _applied_changes(
