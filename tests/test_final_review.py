@@ -9,7 +9,7 @@ from unittest.mock import patch
 
 from PIL import Image, ImageChops, ImageDraw
 
-from adcg.prompt_layout.analysis import _palette
+from adcg.prompt_layout.analysis import _palette, build_design_candidate_pool
 from adcg.prompt_layout.engine import (
     apply_final_review_revision,
     build_design_layout,
@@ -487,22 +487,22 @@ class FinalReviewTests(unittest.TestCase):
         self.assertTrue(images[0]["image_url"].endswith("completed"))
         self.assertTrue(images[1]["image_url"].endswith("clean"))
 
-    def test_pipeline_orders_design_redesign_then_rendered_polish(self):
+    def test_pipeline_orders_design_revision_then_final_redesign(self):
         source = inspect.getsource(generate_prompt_layout)
         self.assertEqual(source.count("_request_json("), 3)
         design = source.index('schema_name="single_ad_design_spec"')
-        redesign = source.index(
-            'schema_name="completed_ad_independent_redesign"'
+        revision = source.index(
+            'schema_name="initial_ad_second_design_revision"'
         )
-        redesign_render = source.index(
+        revision_render = source.index(
             'output_path=output_dir / "final_review_input.png"'
         )
-        polish = source.index(
-            'schema_name="rendered_ad_final_visual_polish"'
+        redesign = source.index(
+            'schema_name="completed_ad_final_independent_redesign"'
         )
-        self.assertLess(design, redesign)
-        self.assertLess(redesign, redesign_render)
-        self.assertLess(redesign_render, polish)
+        self.assertLess(design, revision)
+        self.assertLess(revision, revision_render)
+        self.assertLess(revision_render, redesign)
 
     def test_final_polish_covers_every_feature_and_full_target(self):
         strategies = FINAL_POLISH_SCHEMA["properties"]["feature_strategy"]
@@ -536,9 +536,55 @@ class FinalReviewTests(unittest.TestCase):
             },
             state,
         )
-        self.assertIn("Exact redesigned state to polish", request)
+        self.assertIn("Exact initial-design state to refine", request)
         self.assertIn("fill_colors", request)
         self.assertIn("text_align", request)
+
+    def test_final_redesign_explores_choices_for_every_feature(self):
+        exploration = FINAL_REVIEW_SCHEMA["properties"]["design_exploration"]
+        self.assertEqual(
+            set(exploration["required"]), set(FINAL_REVIEW_FEATURES)
+        )
+        for feature in FINAL_REVIEW_FEATURES:
+            options = exploration["properties"][feature]["properties"][
+                "options_considered"
+            ]
+            self.assertEqual(options["minItems"], 1)
+            self.assertNotIn("maxItems", options)
+        self.assertIn("design_exploration", FINAL_REVIEW_SCHEMA["required"])
+
+    def test_candidate_pool_covers_every_design_feature(self):
+        analysis = {
+            "canvas": {"width": 400, "height": 600},
+            "palette": {
+                "dark": "#101820", "light": "#F7F4EC",
+                "accent": "#E6A21A", "swatches": ["#101820", "#E6A21A"],
+                "dominant_colors": ["#607080"],
+                "accent_candidates": ["#E6A21A"],
+                "tonal_variants": {"#E6A21A": ["#F0C56B"]},
+                "harmony_sets": [{"type": "complementary", "colors": ["#E6A21A", "#1A5EE6"]}],
+            },
+            "quiet_regions": [{
+                "bbox": {"x": 0.0, "y": 0.0, "width": 0.5, "height": 0.25},
+                "quietness": 0.9, "luminance": 0.8, "mean_color": "#DDDDDD",
+            }],
+        }
+        pool = build_design_candidate_pool(
+            analysis,
+            {"title": "TITLE", "subtitle": "SUB", "price": "10", "cta": "CALL"},
+            {"x": 0.3, "y": 0.3, "width": 0.5, "height": 0.5},
+        )
+        self.assertTrue(set(FINAL_REVIEW_FEATURES).issubset(pool))
+        self.assertEqual(len(pool["alignment_combinations"]), 9)
+        self.assertGreaterEqual(len(pool["color"]["strategies"]), 8)
+        self.assertGreaterEqual(len(pool["band_proportion"]), 8)
+        self.assertEqual(pool["placement"]["safe_region_candidates_px"][0]["width"], 200)
+
+        request = build_final_review_request(
+            {"title": "TITLE", "price": "10"}, analysis, pool
+        )
+        self.assertIn("design candidate pool", request)
+        self.assertIn("alignment_combinations", request)
 
     def test_schema_uses_absolute_target_layout(self):
         self.assertIn("target_layout", FINAL_REVIEW_SCHEMA["properties"])
@@ -664,6 +710,9 @@ class FinalReviewTests(unittest.TestCase):
         palette = _palette(image)
         self.assertGreaterEqual(len(palette["swatches"]), 4)
         self.assertIn(palette["accent"], palette["swatches"] or [palette["accent"]])
+        self.assertIn("dominant_colors", palette)
+        self.assertIn("tonal_variants", palette)
+        self.assertEqual(len(palette["harmony_sets"]), 4)
 
     def test_composable_surface_effects_change_rendered_pixels(self):
         background = Image.new("RGB", (220, 160), "#B8C4CC")

@@ -40,9 +40,8 @@ and product visibility.
 
 
 FINAL_POLISH_SYSTEM_PROMPT = """
-You are the final senior art director polishing a freshly redesigned Korean
-advertisement. You see the actual redesigned pixels and receive their exact
-resolved layout state. This is the last visual decision before delivery.
+You are the second-stage art director refining an initial Korean advertisement
+design. You see its rendered pixels and receive its exact resolved layout state.
 
 Preserve successful placement and hierarchy by default, but inspect EVERY feature:
 typography, hierarchy, spacing, price composition, band proportion, accent rule,
@@ -50,8 +49,8 @@ placement, color, contrast, CTA treatment, and product visibility. For every
 feature, provide evidence, a keep/revise verdict, affected targets, and an explicit
 feature_strategy. You may revise any feature when the rendered pixels justify it.
 
-Prioritize visual integration that the independent redesign could not verify in its
-own output: image-derived color harmony, text/background contrast, surface presence,
+Prioritize visual integration that the initial design could not verify in its own
+output: image-derived color harmony, text/background contrast, surface presence,
 fill type, two-to-five color stops, gradient angle, opacity, radius, backdrop blur,
 blend mode, border, shadow, text color, stroke, and shadow. Avoid generic white or
 beige cards unless the image visibly supports them. Use the product and background
@@ -61,7 +60,7 @@ Return target_layout as the COMPLETE final absolute-pixel state. Do not return
 deltas. Keep every supplied non-empty copy role exactly once. Surfaces remain
 optional and may be added, removed, or restyled. Do not invent copy, CTA, contact
 information, or a different background. Always set needs_revision=true and finish
-the polish in this single response.
+this second-stage revision in one response.
 """.strip()
 
 
@@ -96,6 +95,27 @@ colors, and accent-rule treatment. Use strengths as raw material, not as a
 reason to copy the existing layout. Prefer one coordinated composition over
 many small nudges. The result must be visibly distinguishable from the input;
 near-identical values and token 1-5% changes are invalid.
+
+Before committing to target_layout, use design_exploration to examine the broad
+candidate pool for EACH of the eleven feature categories. Record every meaningful,
+non-duplicative finalist you actually compare; do not stop at a fixed number. Then
+select the strongest direction for this particular image. Alternatives must be
+real visual choices, not paraphrases: consider different type scale/weight/
+tracking systems, hierarchy models, dense versus open spacing, integrated versus
+split price construction, absent/content/full-width surfaces, absent/subtle/bold
+accent rules, asymmetric/edge/center placement, multiple image-derived color
+families, solid/gradient/scrim treatments, stroke/shadow/contrast strategies, CTA
+presence and typographic treatment, and different ways to protect the product.
+The selected directions must form one coherent design and be expressed materially
+in target_layout. No alignment, color family, surface presence, or effect is the
+default merely because it appeared in the input.
+
+The supplied design_candidate_pool is a set of image-aware affordances computed
+from color clusters, quiet regions, copy roles, and renderer capabilities. It is
+not a template, whitelist, or ranking. Combine candidates across categories,
+modify their values, reject them, or author a better exact solution when the
+completed pixels support it. Breadth matters, but the final target must remain one
+coherent composition rather than an arbitrary collection of effects.
 
 The target_layout is the complete rebuilt state in ABSOLUTE canvas pixels, not
 deltas or multipliers. Return every supplied non-empty copy role exactly once.
@@ -145,7 +165,7 @@ def build_final_polish_request(
     layout_state: dict,
 ) -> str:
     return (
-        "Polish the redesigned advertisement shown in the image. Preserve its "
+        "Refine the initial advertisement shown in the image. Preserve its "
         "successful composition unless visible evidence justifies a change, and "
         "return one complete final target across every design feature.\n\n"
         "Exact copy strings:\n"
@@ -156,7 +176,7 @@ def build_final_polish_request(
             "palette": image_analysis["palette"],
             "quiet_regions": image_analysis.get("quiet_regions", []),
         }, ensure_ascii=False, indent=2)
-        + "\n\nExact redesigned state to polish:\n"
+        + "\n\nExact initial-design state to refine:\n"
         + json.dumps(layout_state, ensure_ascii=False, indent=2)
     )
 
@@ -164,6 +184,7 @@ def build_final_polish_request(
 def build_final_review_request(
     ad_copy: dict,
     image_analysis: dict,
+    design_candidate_pool: dict | None = None,
 ) -> str:
     independent_constraints = {
         "canvas": image_analysis["canvas"],
@@ -195,6 +216,12 @@ def build_final_review_request(
         + "\n\nOnly non-design constraints available to the rebuild:\n"
         + json.dumps(
             independent_constraints,
+            ensure_ascii=False,
+            indent=2,
+        )
+        + "\n\nImage-aware design candidate pool (affordances, not limits):\n"
+        + json.dumps(
+            design_candidate_pool or {},
             ensure_ascii=False,
             indent=2,
         )

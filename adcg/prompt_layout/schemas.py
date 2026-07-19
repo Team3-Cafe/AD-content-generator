@@ -465,6 +465,31 @@ FINAL_REVIEW_SCHEMA = {
             ],
             "additionalProperties": False,
         },
+        "design_exploration": {
+            "type": "object",
+            "properties": {
+                feature: {
+                    "type": "object",
+                    "properties": {
+                        "options_considered": {
+                            "type": "array",
+                            "items": {"type": "string"},
+                            "minItems": 1,
+                        },
+                        "selected_direction": {"type": "string"},
+                        "selection_reason": {"type": "string"},
+                    },
+                    "required": [
+                        "options_considered", "selected_direction",
+                        "selection_reason",
+                    ],
+                    "additionalProperties": False,
+                }
+                for feature in FINAL_REVIEW_FEATURES
+            },
+            "required": list(FINAL_REVIEW_FEATURES),
+            "additionalProperties": False,
+        },
         "target_layout": {
             "type": "object",
             "properties": {
@@ -522,7 +547,7 @@ FINAL_REVIEW_SCHEMA = {
         "reason": {"type": "string"},
     },
     "required": [
-        "needs_revision", "diagnosis", "redesign_plan",
+        "needs_revision", "diagnosis", "redesign_plan", "design_exploration",
         "target_layout", "reason",
     ],
     "additionalProperties": False,

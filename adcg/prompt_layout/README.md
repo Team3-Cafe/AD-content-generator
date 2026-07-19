@@ -7,8 +7,9 @@ rank alternatives, or measure aesthetic scores.
 ## Workflow
 
 1. Code describes the image's canvas, palette, luminance, edge density, and
-   quiet regions. These are spatial diagnostics rather than an aesthetic
-   metric.
+   quiet regions. OpenCV LAB clustering expands dominant colors into swatches,
+   accents, tonal variants, and harmony sets. These are diagnostics and design
+   affordances rather than an aesthetic metric.
 2. GPT-4o studies the actual image and copy roles, then authors one structured
    art direction. Title/subtitle form a headline group and price/CTA form an
    offer group. It also selects semantic color tokens from the extracted image
@@ -25,18 +26,17 @@ rank alternatives, or measure aesthetic scores.
    text contrast. Unsafe foreground colors are replaced automatically while
    preserving the VLM's background-color direction.
 6. The first design is rendered to `design_draft.png`.
-7. GPT-4o receives no earlier art direction, resolved element boxes, or surface
-   values. It reads `design_draft.png`, audits all eleven design categories, and
-   independently rebuilds the copy design on the clean background as one complete
-   absolute-pixel target.
-8. The independent redesign is fitted and rendered to `final_review_input.png`.
-9. A third GPT-4o visual-polish call sees those actual redesigned pixels, the clean
-   background, and the exact redesigned state. It reviews every feature and may
-   preserve successful placement while revising color harmony, contrast, typography,
-   price construction, geometry, accent, and all composable surface effects.
-10. The independent redesign must materially change copy geometry and multiple
-    design systems. The final polish is audited separately without forcing it to
-    discard a successful composition. Requested/applied states, constraints,
+7. A second GPT-4o call sees `design_draft.png` and its exact resolved state, then
+   refines all design features into a coherent second-stage design.
+8. That revision is fitted and rendered to `final_review_input.png`.
+9. The third GPT-4o call receives no earlier art direction, resolved element boxes,
+   or revision JSON. It reads the completed second-stage pixels, audits all eleven
+   categories, receives broad image/copy/renderer-aware candidate pools for all
+   categories, and independently rebuilds the copy layer as one complete
+   absolute-pixel target. Candidate pools are neither templates nor limits; the
+   VLM may combine, alter, reject, or exceed them.
+10. The final redesign must materially change copy geometry and multiple design
+    systems. Requested/applied states, constraints,
     warnings, material-change summaries, and exact property changes are saved in
     `final_review.json`, `design_revision.json`, and `layout.json`. The copy remains
     fixed.
@@ -51,9 +51,9 @@ to local background contrast without inventing an unrequested surface.
 - `design_analysis.json`: computed image-space diagnostics and VLM scene notes
 - `design_spec.json`: the single art direction and relational composition
 - `design_draft.png`: first rendering of that design
-- `design_revision.json`: final rendered-pixel polish across every feature
-- `final_review_input.png`: independent redesign supplied to final visual polish
-- `final_review.json`: independent redesign diagnosis, absolute target, actual
+- `design_revision.json`: second-stage state-based design refinement
+- `final_review_input.png`: completed second-stage design supplied to final redesign
+- `final_review.json`: final independent redesign exploration, diagnosis, absolute target, actual
   post-fit state, applied constraints, and changed properties
 - `layout.json`: final resolved pixels, typography, colors, and surfaces
 - `final_ad.png`: the completed advertisement image
