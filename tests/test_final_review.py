@@ -16,14 +16,22 @@ from adcg.prompt_layout.engine import (
 )
 from adcg.prompt_layout.generator import (
     _applied_changes,
+    _enforce_final_polish,
     _enforce_final_review_revision,
     _layout_state,
     _request_json,
     generate_prompt_layout,
 )
-from adcg.prompt_layout.prompts import build_final_review_request
+from adcg.prompt_layout.prompts import (
+    build_final_polish_request,
+    build_final_review_request,
+)
 from adcg.prompt_layout.renderer import _draw_price_line, _draw_underlays
-from adcg.prompt_layout.schemas import FINAL_REVIEW_FEATURES, FINAL_REVIEW_SCHEMA
+from adcg.prompt_layout.schemas import (
+    FINAL_POLISH_SCHEMA,
+    FINAL_REVIEW_FEATURES,
+    FINAL_REVIEW_SCHEMA,
+)
 
 
 def _effect(
@@ -235,6 +243,23 @@ def _review() -> dict:
         },
         "target_layout": _target_layout(),
         "reason": "Resolve the visible hierarchy and spacing defects.",
+    }
+
+
+def _polish() -> dict:
+    review = _review()
+    return {
+        "needs_revision": True,
+        "diagnosis": {
+            "feature_reviews": review["diagnosis"]["feature_reviews"],
+            "correction_summary": "Polish color and surface integration.",
+        },
+        "feature_strategy": {
+            feature: f"Make a deliberate final choice for {feature}."
+            for feature in FINAL_REVIEW_FEATURES
+        },
+        "target_layout": review["target_layout"],
+        "reason": "Finish the rendered design without discarding its strengths.",
     }
 
 
@@ -462,9 +487,58 @@ class FinalReviewTests(unittest.TestCase):
         self.assertTrue(images[0]["image_url"].endswith("completed"))
         self.assertTrue(images[1]["image_url"].endswith("clean"))
 
-    def test_pipeline_keeps_exactly_three_vlm_calls(self):
+    def test_pipeline_orders_design_redesign_then_rendered_polish(self):
         source = inspect.getsource(generate_prompt_layout)
         self.assertEqual(source.count("_request_json("), 3)
+        design = source.index('schema_name="single_ad_design_spec"')
+        redesign = source.index(
+            'schema_name="completed_ad_independent_redesign"'
+        )
+        redesign_render = source.index(
+            'output_path=output_dir / "final_review_input.png"'
+        )
+        polish = source.index(
+            'schema_name="rendered_ad_final_visual_polish"'
+        )
+        self.assertLess(design, redesign)
+        self.assertLess(redesign, redesign_render)
+        self.assertLess(redesign_render, polish)
+
+    def test_final_polish_covers_every_feature_and_full_target(self):
+        strategies = FINAL_POLISH_SCHEMA["properties"]["feature_strategy"]
+        self.assertEqual(
+            set(strategies["required"]), set(FINAL_REVIEW_FEATURES)
+        )
+        target = FINAL_POLISH_SCHEMA["properties"]["target_layout"]
+        self.assertIn("elements", target["properties"])
+        surface = target["properties"]["surfaces"]["items"]
+        effect = surface["properties"]["effect"]["properties"]
+        self.assertTrue({
+            "fill_type", "fill_colors", "gradient_angle",
+            "backdrop_blur", "blend_mode", "border_enabled",
+            "shadow_enabled",
+        }.issubset(effect))
+        result = _enforce_final_polish(_polish(), _layout())
+        self.assertEqual(result["revision_mode"], "rendered_redesign_polish")
+        self.assertTrue(result["consistency_validated"])
+
+    def test_final_polish_request_includes_resolved_redesign_state(self):
+        state = _layout_state(_layout())
+        request = build_final_polish_request(
+            {"title": "TITLE", "price": "10 USD"},
+            {
+                "canvas": {"width": 400, "height": 400},
+                "palette": {
+                    "dark": "#111111", "light": "#F5F5F5",
+                    "accent": "#FF6600", "swatches": ["#111111"],
+                },
+                "quiet_regions": [],
+            },
+            state,
+        )
+        self.assertIn("Exact redesigned state to polish", request)
+        self.assertIn("fill_colors", request)
+        self.assertIn("text_align", request)
 
     def test_schema_uses_absolute_target_layout(self):
         self.assertIn("target_layout", FINAL_REVIEW_SCHEMA["properties"])

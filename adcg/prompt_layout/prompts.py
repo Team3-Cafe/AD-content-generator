@@ -39,15 +39,29 @@ and product visibility.
 
 
 
-REVISION_SYSTEM_PROMPT = """
-You are reviewing the first render of one advertisement design. Do not compare
-candidates and do not assign scores. Decide whether this same design needs one
-small correction for hierarchy, balance, separation, or readability.
+FINAL_POLISH_SYSTEM_PROMPT = """
+You are the final senior art director polishing a freshly redesigned Korean
+advertisement. You see the actual redesigned pixels and receive their exact
+resolved layout state. This is the last visual decision before delivery.
 
-Return bounded shifts and scales only. Preserve the art direction, semantic
-grouping, copy, product visibility, and overall composition. Use neutral
-values (zero shifts, scale 1.0, opacity delta 0.0) when no correction is
-needed. Never request a new template or alternative design.
+Preserve successful placement and hierarchy by default, but inspect EVERY feature:
+typography, hierarchy, spacing, price composition, band proportion, accent rule,
+placement, color, contrast, CTA treatment, and product visibility. For every
+feature, provide evidence, a keep/revise verdict, affected targets, and an explicit
+feature_strategy. You may revise any feature when the rendered pixels justify it.
+
+Prioritize visual integration that the independent redesign could not verify in its
+own output: image-derived color harmony, text/background contrast, surface presence,
+fill type, two-to-five color stops, gradient angle, opacity, radius, backdrop blur,
+blend mode, border, shadow, text color, stroke, and shadow. Avoid generic white or
+beige cards unless the image visibly supports them. Use the product and background
+colors as evidence, not as a fixed template.
+
+Return target_layout as the COMPLETE final absolute-pixel state. Do not return
+deltas. Keep every supplied non-empty copy role exactly once. Surfaces remain
+optional and may be added, removed, or restyled. Do not invent copy, CTA, contact
+information, or a different background. Always set needs_revision=true and finish
+the polish in this single response.
 """.strip()
 
 
@@ -125,34 +139,25 @@ def build_design_request(ad_copy: dict, image_analysis: dict) -> str:
     )
 
 
-def build_revision_request(
+def build_final_polish_request(
     ad_copy: dict,
-    design_spec: dict,
-    layout: dict,
+    image_analysis: dict,
+    layout_state: dict,
 ) -> str:
-    compact_layout = {
-        "canvas": layout["canvas"],
-        "elements": [
-            {
-                "role": item["role"],
-                "group": item["design_group"],
-                "x": item["x"],
-                "y": item["y"],
-                "width": item["width"],
-                "height": item["height"],
-                "font_size": item["font_size"],
-            }
-            for item in layout["elements"]
-        ],
-    }
     return (
-        "Review this first render and correct the same design only.\n\n"
-        "Copy:\n"
+        "Polish the redesigned advertisement shown in the image. Preserve its "
+        "successful composition unless visible evidence justifies a change, and "
+        "return one complete final target across every design feature.\n\n"
+        "Exact copy strings:\n"
         + json.dumps(ad_copy, ensure_ascii=False, indent=2)
-        + "\n\nArt direction:\n"
-        + json.dumps(design_spec, ensure_ascii=False, indent=2)
-        + "\n\nResolved geometry:\n"
-        + json.dumps(compact_layout, ensure_ascii=False, indent=2)
+        + "\n\nImage-derived palette and spatial diagnostics:\n"
+        + json.dumps({
+            "canvas": image_analysis["canvas"],
+            "palette": image_analysis["palette"],
+            "quiet_regions": image_analysis.get("quiet_regions", []),
+        }, ensure_ascii=False, indent=2)
+        + "\n\nExact redesigned state to polish:\n"
+        + json.dumps(layout_state, ensure_ascii=False, indent=2)
     )
 
 
@@ -200,8 +205,8 @@ def build_final_review_request(
 __all__ = [
     "DESIGN_SYSTEM_PROMPT",
     "FINAL_REVIEW_SYSTEM_PROMPT",
-    "REVISION_SYSTEM_PROMPT",
+    "FINAL_POLISH_SYSTEM_PROMPT",
     "build_design_request",
     "build_final_review_request",
-    "build_revision_request",
+    "build_final_polish_request",
 ]

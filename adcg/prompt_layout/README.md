@@ -25,24 +25,22 @@ rank alternatives, or measure aesthetic scores.
    text contrast. Unsafe foreground colors are replaced automatically while
    preserving the VLM's background-color direction.
 6. The first design is rendered to `design_draft.png`.
-7. GPT-4o reviews that same render once and returns bounded position, scale,
-   and surface-opacity corrections. It never compares or selects candidates.
-8. The corrected design, including all copy, is rendered to
-   `final_review_input.png`.
-9. GPT-4o receives no earlier art direction, revision JSON, resolved element
-   boxes, or surface values. It reads the completed advertisement pixels as the
-   only previous-design reference, records distinct strengths and weaknesses
-   across all eleven design categories (up to 24 observations), then creates an
-   independent art direction and rebuilds all copy, bands, color, accent, and
-   price construction as one complete absolute-pixel target. The same VLM call
-   receives the completed ad for diagnosis and the clean background as its new
-   canvas; optional surfaces and exact colors are rebuilt without inheriting the
-   previous overlay object.
-10. The rebuilt state must materially change copy geometry plus multiple other
-    design systems. Feature claims are checked against actual target properties
-    before and after typography fitting. Canvas constraints, requested/applied
-    states, material-change summaries, and exact property changes are saved to
-    `final_review.json` before `final_ad.png` is rendered. The copy remains fixed.
+7. GPT-4o receives no earlier art direction, resolved element boxes, or surface
+   values. It reads `design_draft.png`, audits all eleven design categories, and
+   independently rebuilds the copy design on the clean background as one complete
+   absolute-pixel target.
+8. The independent redesign is fitted and rendered to `final_review_input.png`.
+9. A third GPT-4o visual-polish call sees those actual redesigned pixels, the clean
+   background, and the exact redesigned state. It reviews every feature and may
+   preserve successful placement while revising color harmony, contrast, typography,
+   price construction, geometry, accent, and all composable surface effects.
+10. The independent redesign must materially change copy geometry and multiple
+    design systems. The final polish is audited separately without forcing it to
+    discard a successful composition. Requested/applied states, constraints,
+    warnings, material-change summaries, and exact property changes are saved in
+    `final_review.json`, `design_revision.json`, and `layout.json`. The copy remains
+    fixed.
+
 
 The renderer uses the configured Korean-capable font, fits the title to one
 line, renders the VLM-authored composable surface effects, and adapts text colors
@@ -53,9 +51,9 @@ to local background contrast without inventing an unrequested surface.
 - `design_analysis.json`: computed image-space diagnostics and VLM scene notes
 - `design_spec.json`: the single art direction and relational composition
 - `design_draft.png`: first rendering of that design
-- `design_revision.json`: one bounded critique of the same design
-- `final_review_input.png`: completed advertisement supplied to the final VLM review
-- `final_review.json`: final diagnosis, requested absolute target, actual
+- `design_revision.json`: final rendered-pixel polish across every feature
+- `final_review_input.png`: independent redesign supplied to final visual polish
+- `final_review.json`: independent redesign diagnosis, absolute target, actual
   post-fit state, applied constraints, and changed properties
 - `layout.json`: final resolved pixels, typography, colors, and surfaces
 - `final_ad.png`: the completed advertisement image

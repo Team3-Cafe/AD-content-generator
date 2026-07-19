@@ -7,39 +7,6 @@ def _clamp(value: int, low: int, high: int) -> int:
     return max(low, min(value, high))
 
 
-def _scale_element_box(
-    item: dict,
-    scale: float,
-    *,
-    canvas_width: int,
-    canvas_height: int,
-    margin: int = 0,
-) -> None:
-    """Scale a text box around its center so font growth survives fitting."""
-    if abs(scale - 1.0) < 1e-9:
-        return
-    old_width = int(item["width"])
-    old_height = int(item["height"])
-    center_x = int(item["x"]) + old_width / 2
-    center_y = int(item["y"]) + old_height / 2
-    max_width = max(1, canvas_width - margin * 2)
-    max_height = max(1, canvas_height - margin * 2)
-    new_width = max(1, min(max_width, round(old_width * scale)))
-    new_height = max(1, min(max_height, round(old_height * scale)))
-    item["width"] = new_width
-    item["height"] = new_height
-    item["x"] = _clamp(
-        round(center_x - new_width / 2),
-        margin,
-        canvas_width - margin - new_width,
-    )
-    item["y"] = _clamp(
-        round(center_y - new_height / 2),
-        margin,
-        canvas_height - margin - new_height,
-    )
-
-
 def _overlap(first: dict, second: dict) -> bool:
     return (
         first["x"] < second["x"] + second["width"]
@@ -717,81 +684,6 @@ def build_design_layout(
     }
 
 
-def apply_design_revision(layout: dict, revision: dict) -> dict:
-    """Apply one bounded VLM critique to the same design, never a candidate."""
-    adjusted = deepcopy(layout)
-    if not revision.get("needs_revision"):
-        return adjusted
-    changes = revision["adjustments"]
-    width = int(adjusted["canvas"]["width"])
-    height = int(adjusted["canvas"]["height"])
-    margin = max(8, round(min(width, height) * 0.025))
-
-    for group, prefix in (("headline", "headline"), ("offer", "offer")):
-        dx = (
-            0
-            if group == "headline"
-            else round(float(changes["offer_x_shift"]) * width)
-        )
-        dy = round(float(changes[f"{prefix}_y_shift"]) * height)
-        scale = float(changes[f"{prefix}_scale"])
-        element_items = [
-            item
-            for item in adjusted["elements"]
-            if item.get("design_group") == group
-        ]
-        surface_items = [
-            item
-            for item in adjusted.get("underlays", [])
-            if item.get("design_group") == group
-        ]
-        group_items = element_items + surface_items
-        if not element_items:
-            continue
-        left = min(int(item["x"]) for item in element_items)
-        right = max(
-            int(item["x"]) + int(item["width"])
-            for item in element_items
-        )
-        top = min(int(item["y"]) for item in group_items)
-        bottom = max(
-            int(item["y"]) + int(item["height"])
-            for item in group_items
-        )
-        dx = _clamp(dx, margin - left, width - margin - right)
-        dy = _clamp(dy, -top, height - bottom)
-        for item in element_items:
-            item["x"] = int(item["x"]) + dx
-            item["y"] = int(item["y"]) + dy
-            _scale_element_box(
-                item,
-                scale,
-                canvas_width=width,
-                canvas_height=height,
-                margin=margin,
-            )
-            item["font_size"] = max(
-                10,
-                round(int(item["font_size"]) * scale),
-            )
-        for item in surface_items:
-            if int(item["width"]) < width:
-                item["x"] = int(item["x"]) + dx
-            item["y"] = int(item["y"]) + dy
-        if group in adjusted.get("design_groups", {}):
-            adjusted["design_groups"][group]["x"] += dx
-            adjusted["design_groups"][group]["y"] += dy
-
-    opacity_delta = float(changes["surface_opacity_delta"])
-    for underlay in adjusted.get("underlays", []):
-        if str(underlay.get("id", "")).startswith("surface-"):
-            underlay["opacity"] = round(
-                max(0.25, min(0.95, float(underlay["opacity"]) + opacity_delta)),
-                3,
-            )
-    return adjusted
-
-
 def apply_final_review_revision(layout: dict, revision: dict) -> dict:
     """Build a fresh final copy overlay from the VLM's absolute target."""
     if not revision.get("needs_revision"):
@@ -1015,7 +907,8 @@ def apply_final_review_revision(layout: dict, revision: dict) -> dict:
             "offer_alignment": offer_alignment,
             "offer_arrangement": arrangement,
             "redesign_concept": revision.get("redesign_plan", {}).get(
-                "concept", ""
+                "concept",
+                layout.get("design_tokens", {}).get("redesign_concept", ""),
             ),
             "headline_band": {},
             "offer_band": {},
@@ -1025,7 +918,6 @@ def apply_final_review_revision(layout: dict, revision: dict) -> dict:
 
 
 __all__ = [
-    "apply_design_revision",
     "apply_final_review_revision",
     "build_design_layout",
 ]

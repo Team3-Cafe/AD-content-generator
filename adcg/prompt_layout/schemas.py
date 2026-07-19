@@ -258,61 +258,6 @@ DESIGN_SPEC_SCHEMA = {
 }
 
 
-DESIGN_REVISION_SCHEMA = {
-    "type": "object",
-    "properties": {
-        "needs_revision": {"type": "boolean"},
-        "adjustments": {
-            "type": "object",
-            "properties": {
-                "headline_y_shift": {
-                    "type": "number",
-                    "minimum": -0.08,
-                    "maximum": 0.08,
-                },
-                "headline_scale": {
-                    "type": "number",
-                    "minimum": 0.85,
-                    "maximum": 1.15,
-                },
-                "offer_x_shift": {
-                    "type": "number",
-                    "minimum": -0.08,
-                    "maximum": 0.08,
-                },
-                "offer_y_shift": {
-                    "type": "number",
-                    "minimum": -0.08,
-                    "maximum": 0.08,
-                },
-                "offer_scale": {
-                    "type": "number",
-                    "minimum": 0.85,
-                    "maximum": 1.15,
-                },
-                "surface_opacity_delta": {
-                    "type": "number",
-                    "minimum": -0.20,
-                    "maximum": 0.20,
-                },
-            },
-            "required": [
-                "headline_y_shift",
-                "headline_scale",
-                "offer_x_shift",
-                "offer_y_shift",
-                "offer_scale",
-                "surface_opacity_delta",
-            ],
-            "additionalProperties": False,
-        },
-        "reason": {"type": "string"},
-    },
-    "required": ["needs_revision", "adjustments", "reason"],
-    "additionalProperties": False,
-}
-
-
 FINAL_REVIEW_FEATURES = (
     "typography", "hierarchy", "spacing", "price_composition",
     "band_proportion", "accent_rule", "placement", "color",
@@ -584,10 +529,51 @@ FINAL_REVIEW_SCHEMA = {
 }
 
 
+FINAL_POLISH_SCHEMA = {
+    "type": "object",
+    "properties": {
+        "needs_revision": {"type": "boolean", "enum": [True]},
+        "diagnosis": {
+            "type": "object",
+            "properties": {
+                "feature_reviews": {
+                    "type": "object",
+                    "properties": {
+                        feature: _feature_feedback_schema(feature)
+                        for feature in FINAL_REVIEW_FEATURES
+                    },
+                    "required": list(FINAL_REVIEW_FEATURES),
+                    "additionalProperties": False,
+                },
+                "correction_summary": {"type": "string"},
+            },
+            "required": ["feature_reviews", "correction_summary"],
+            "additionalProperties": False,
+        },
+        "feature_strategy": {
+            "type": "object",
+            "properties": {
+                feature: {"type": "string"}
+                for feature in FINAL_REVIEW_FEATURES
+            },
+            "required": list(FINAL_REVIEW_FEATURES),
+            "additionalProperties": False,
+        },
+        "target_layout": FINAL_REVIEW_SCHEMA["properties"]["target_layout"],
+        "reason": {"type": "string"},
+    },
+    "required": [
+        "needs_revision", "diagnosis", "feature_strategy",
+        "target_layout", "reason",
+    ],
+    "additionalProperties": False,
+}
+
+
 __all__ = [
     "COPY_ROLES",
-    "DESIGN_REVISION_SCHEMA",
     "FINAL_REVIEW_SCHEMA",
+    "FINAL_POLISH_SCHEMA",
     "FINAL_REVIEW_FEATURES",
     "FINAL_REVIEW_FEATURE_TARGETS",
     "DESIGN_SPEC_SCHEMA",

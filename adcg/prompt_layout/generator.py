@@ -9,19 +9,15 @@ from dotenv import load_dotenv
 from openai import OpenAI
 
 from .analysis import analyze_image_space
-from .engine import (
-    apply_design_revision,
-    apply_final_review_revision,
-    build_design_layout,
-)
+from .engine import apply_final_review_revision, build_design_layout
 from .io import image_to_data_url
 from .prompts import (
     DESIGN_SYSTEM_PROMPT,
+    FINAL_POLISH_SYSTEM_PROMPT,
     FINAL_REVIEW_SYSTEM_PROMPT,
-    REVISION_SYSTEM_PROMPT,
     build_design_request,
+    build_final_polish_request,
     build_final_review_request,
-    build_revision_request,
 )
 from .renderer import (
     ensure_layout_contrast,
@@ -29,8 +25,8 @@ from .renderer import (
     render_layout_image,
 )
 from .schemas import (
-    DESIGN_REVISION_SCHEMA,
     DESIGN_SPEC_SCHEMA,
+    FINAL_POLISH_SCHEMA,
     FINAL_REVIEW_FEATURES,
     FINAL_REVIEW_SCHEMA,
 )
@@ -559,6 +555,31 @@ def _enforce_final_review_revision(review: dict, layout: dict) -> dict:
     return review
 
 
+def _enforce_final_polish(polish: dict, layout: dict) -> dict:
+    """Validate a complete polish target without forcing a new redesign."""
+    polish["needs_revision"] = True
+    polish["feedback_normalizations"] = (
+        _normalize_feature_review_metadata(polish, layout)
+    )
+    consistency_issues = _review_consistency_issues(polish, layout)
+    if consistency_issues:
+        raise ValueError(
+            "Final polish target is inconsistent: "
+            + "; ".join(consistency_issues)
+        )
+    candidate = apply_final_review_revision(layout, polish)
+    summary = _material_revision_summary(
+        _layout_state(layout), _layout_state(candidate), layout["canvas"]
+    )
+    polish["requested_material_changes"] = summary
+    polish["material_feedback_warnings"] = _material_feedback_warnings(
+        polish, summary
+    )
+    polish["consistency_validated"] = True
+    polish["revision_mode"] = "rendered_redesign_polish"
+    return polish
+
+
 def _write_json(path: Path, document: dict) -> Path:
     path.write_text(
         json.dumps(document, ensure_ascii=False, indent=2),
@@ -646,39 +667,7 @@ def generate_prompt_layout(
         font_path=font_path,
     )
 
-    revision = _request_json(
-        client,
-        model=model,
-        instructions=REVISION_SYSTEM_PROMPT,
-        request_text=build_revision_request(
-            ad_copy,
-            design_spec,
-            draft_layout,
-        ),
-        image_path=draft_path,
-        detail=detail,
-        schema_name="single_ad_design_revision",
-        schema=DESIGN_REVISION_SCHEMA,
-        temperature=0,
-    )
-    revision_path = _write_json(
-        output_dir / "design_revision.json",
-        {"model": model, **revision},
-    )
-
-    revised_layout = apply_design_revision(draft_layout, revision)
-    revised_layout = fit_layout_typography(
-        revised_layout,
-        font_path=font_path,
-    )
-    revised_layout = ensure_layout_contrast(image_path, revised_layout)
-    final_review_input_path = render_layout_image(
-        image_path=image_path,
-        layout=revised_layout,
-        output_path=output_dir / "final_review_input.png",
-        font_path=font_path,
-    )
-
+    # Call 2: independently rebuild the first completed design.
     final_review = _request_json(
         client,
         model=model,
@@ -687,56 +676,99 @@ def generate_prompt_layout(
             ad_copy,
             computed_analysis,
         ),
-        image_path=[final_review_input_path, image_path],
+        image_path=[draft_path, image_path],
         detail=detail,
-        schema_name="completed_ad_final_layout_review",
+        schema_name="completed_ad_independent_redesign",
         schema=FINAL_REVIEW_SCHEMA,
         temperature=temperature,
     )
-    final_review = _enforce_final_review_revision(
-        final_review, revised_layout
-    )
+    final_review = _enforce_final_review_revision(final_review, draft_layout)
     final_review["review_attempts"] = 1
-    before_final_state = _layout_state(revised_layout)
-    final_layout = apply_final_review_revision(revised_layout, final_review)
-    final_layout = fit_layout_typography(
-        final_layout,
-        font_path=font_path,
+    before_redesign_state = _layout_state(draft_layout)
+    redesigned_layout = apply_final_review_revision(draft_layout, final_review)
+    redesigned_layout = fit_layout_typography(
+        redesigned_layout, font_path=font_path
     )
-    final_layout = ensure_layout_contrast(image_path, final_layout)
-    applied_final_state = _layout_state(final_layout)
-    applied_summary = _material_revision_summary(
-        before_final_state, applied_final_state, final_layout["canvas"]
+    redesigned_layout = ensure_layout_contrast(image_path, redesigned_layout)
+    redesigned_state = _layout_state(redesigned_layout)
+    redesign_summary = _material_revision_summary(
+        before_redesign_state, redesigned_state, redesigned_layout["canvas"]
     )
-    post_fit_issues = _material_revision_issues(applied_summary)
+    post_fit_issues = _material_revision_issues(redesign_summary)
     if post_fit_issues:
         raise ValueError(
-            "Final layout fitting erased the material redesign: "
+            "Independent redesign fitting erased material changes: "
             + "; ".join(post_fit_issues)
         )
     final_review["material_feedback_warnings"] = (
-        _material_feedback_warnings(final_review, applied_summary)
+        _material_feedback_warnings(final_review, redesign_summary)
     )
-    final_review["applied_target_layout"] = applied_final_state
-    final_review["applied_material_changes"] = applied_summary
+    final_review["applied_target_layout"] = redesigned_state
+    final_review["applied_material_changes"] = redesign_summary
     final_review["applied_changes"] = _applied_changes(
-        before_final_state, applied_final_state
+        before_redesign_state, redesigned_state
     )
-    final_review["constraints_applied"] = final_layout.get(
+    final_review["constraints_applied"] = redesigned_layout.get(
         "final_review_constraints", []
     )
     final_review_path = _write_json(
         output_dir / "final_review.json",
-        {"model": model, **final_review},
+        {"model": model, "stage": "independent_redesign", **final_review},
     )
+    final_review_input_path = render_layout_image(
+        image_path=image_path,
+        layout=redesigned_layout,
+        output_path=output_dir / "final_review_input.png",
+        font_path=font_path,
+    )
+
+    # Call 3: inspect the actual redesign pixels and polish every feature.
+    polish = _request_json(
+        client,
+        model=model,
+        instructions=FINAL_POLISH_SYSTEM_PROMPT,
+        request_text=build_final_polish_request(
+            ad_copy, computed_analysis, redesigned_state
+        ),
+        image_path=[final_review_input_path, image_path],
+        detail=detail,
+        schema_name="rendered_ad_final_visual_polish",
+        schema=FINAL_POLISH_SCHEMA,
+        temperature=temperature,
+    )
+    polish = _enforce_final_polish(polish, redesigned_layout)
+    before_polish_state = _layout_state(redesigned_layout)
+    final_layout = apply_final_review_revision(redesigned_layout, polish)
+    final_layout = fit_layout_typography(final_layout, font_path=font_path)
+    final_layout = ensure_layout_contrast(image_path, final_layout)
+    applied_final_state = _layout_state(final_layout)
+    polish_summary = _material_revision_summary(
+        before_polish_state, applied_final_state, final_layout["canvas"]
+    )
+    polish["material_feedback_warnings"] = _material_feedback_warnings(
+        polish, polish_summary
+    )
+    polish["applied_target_layout"] = applied_final_state
+    polish["applied_material_changes"] = polish_summary
+    polish["applied_changes"] = _applied_changes(
+        before_polish_state, applied_final_state
+    )
+    polish["constraints_applied"] = final_layout.get(
+        "final_review_constraints", []
+    )
+    revision_path = _write_json(
+        output_dir / "design_revision.json",
+        {"model": model, "stage": "final_visual_polish", **polish},
+    )
+
     layout_document = {
         "model": model,
         "source_image": str(image_path),
         "latency_sec": round(perf_counter() - started_at, 2),
         "copy": ad_copy,
         "design_rationale": design_spec["rationale"],
-        "revision_reason": revision["reason"],
         "final_review_reason": final_review["reason"],
+        "revision_reason": polish["reason"],
         **final_layout,
     }
     layout_path = _write_json(output_dir / "layout.json", layout_document)
