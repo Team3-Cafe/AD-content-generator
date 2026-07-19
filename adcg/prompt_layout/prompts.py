@@ -49,16 +49,25 @@ needed. Never request a new template or alternative design.
 
 
 FINAL_REVIEW_SYSTEM_PROMPT = """
-You are performing the final visual review of a completed advertisement. The
-supplied image already contains all copy rendered on the finished background.
-Judge the advertisement as it will be delivered, paying particular attention
-to copy hierarchy, balance, separation, readability, and product visibility.
+You are the final senior art director reviewing the second-stage result of a
+completed advertisement. The supplied image contains the finished background
+and every rendered copy element. Diagnose what remains weak in the actual
+delivered composition before choosing corrections.
 
-Return only bounded layout shifts, scales, and surface-opacity corrections for
-this same design. Keep the headline horizontally centered and preserve the art
-direction, semantic grouping, exact copy, and overall composition. Use neutral
-values (zero shifts, scale 1.0, opacity delta 0.0) when no further correction
-is needed. Never request new copy, a new template, or an alternative design.
+Evaluate typography and hierarchy for title, subtitle, price, and CTA; spatial
+balance and product visibility; group placement and offer alignment; tracking
+and font weight; text/background contrast; palette harmony; CTA emphasis; and
+surface opacity. Correct only the deficient attributes and use "keep" for
+attributes that are already successful. Color choices must use the supplied
+palette tokens or "keep". The code enforces readable contrast after your
+selection.
+
+Keep the headline horizontally centered. Preserve the exact copy, semantic
+groups, product visibility, and core art direction, but improve the execution
+where the second-stage result is visibly weak. Always set needs_revision to
+true, report one to four concrete observed problems, and return at least one
+non-neutral adjustment. Never request new copy, a new template, or an
+alternative design.
 """.strip()
 
 
@@ -120,18 +129,47 @@ def build_final_review_request(
                 "width": item["width"],
                 "height": item["height"],
                 "font_size": item["font_size"],
+                "font_weight": item.get("font_weight", 600),
+                "tracking": item.get("tracking", 0),
+                "text_align": item.get("text_align", "left"),
+                "color": item.get("color"),
+                "content": item.get("content"),
             }
             for item in layout["elements"]
         ],
+        "surfaces": [
+            {
+                "id": item.get("id"),
+                "background": item.get("background"),
+                "gradient": item.get("gradient"),
+                "opacity": item.get("opacity"),
+                "border_color": item.get("border_color"),
+            }
+            for item in layout.get("underlays", [])
+            if str(item.get("id", "")).startswith("surface-")
+        ],
+        "design_tokens": {
+            "palette": layout["design_tokens"]["palette"],
+            "headline_alignment": layout["design_tokens"][
+                "headline_alignment"
+            ],
+            "offer_alignment": layout["design_tokens"]["offer_alignment"],
+            "offer_arrangement": layout["design_tokens"][
+                "offer_arrangement"
+            ],
+            "cta_treatment": layout["design_tokens"]["cta_treatment"],
+            "color_direction": layout["design_tokens"]["color_direction"],
+        },
     }
     return (
-        "Review this completed advertisement after all copy has been rendered. "
-        "Return the final bounded layout correction for this same design only.\n\n"
+        "Diagnose the second-stage completed advertisement, then correct its "
+        "remaining typography, layout, color, contrast, hierarchy, or CTA "
+        "weaknesses.\n\n"
         "Exact rendered copy:\n"
         + json.dumps(ad_copy, ensure_ascii=False, indent=2)
         + "\n\nArt direction to preserve:\n"
         + json.dumps(design_spec, ensure_ascii=False, indent=2)
-        + "\n\nCurrent resolved geometry:\n"
+        + "\n\nCurrent rendered design state:\n"
         + json.dumps(compact_layout, ensure_ascii=False, indent=2)
     )
 

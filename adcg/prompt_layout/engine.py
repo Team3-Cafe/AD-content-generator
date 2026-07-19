@@ -853,4 +853,131 @@ def apply_design_revision(layout: dict, revision: dict) -> dict:
     return adjusted
 
 
-__all__ = ["apply_design_revision", "build_design_layout"]
+def apply_final_review_revision(layout: dict, revision: dict) -> dict:
+    """Apply the completed-ad VLM's geometry, typography, and color fixes."""
+    adjusted = apply_design_revision(layout, revision)
+    if not revision.get("needs_revision"):
+        return adjusted
+
+    changes = revision["adjustments"]
+    role_scales = {
+        role: float(changes[f"{role}_scale"])
+        for role in ("title", "subtitle", "price", "cta")
+    }
+    weight_steps = {
+        "keep": 0,
+        "lighter": -100,
+        "bolder": 100,
+    }
+    tracking_deltas = {
+        "headline": int(changes["headline_tracking_delta"]),
+        "offer": int(changes["offer_tracking_delta"]),
+    }
+    for item in adjusted["elements"]:
+        role = str(item.get("role", ""))
+        group = str(item.get("design_group", ""))
+        if role in role_scales:
+            item["font_size"] = max(
+                8,
+                round(int(item["font_size"]) * role_scales[role]),
+            )
+        weight_choice = str(changes.get(f"{group}_weight", "keep"))
+        item["font_weight"] = max(
+            300,
+            min(
+                900,
+                int(item.get("font_weight", 600))
+                + weight_steps.get(weight_choice, 0),
+            ),
+        )
+        item["tracking"] = max(
+            0,
+            int(item.get("tracking", 0)) + tracking_deltas.get(group, 0),
+        )
+
+    offer_alignment = str(changes["offer_alignment"])
+    if offer_alignment != "keep":
+        for item in adjusted["elements"]:
+            if item.get("design_group") == "offer":
+                item["text_align"] = offer_alignment
+        adjusted["design_tokens"]["offer_alignment"] = offer_alignment
+
+    tokens = adjusted["design_tokens"]
+    palette = tokens["palette"]
+    color_direction = tokens["color_direction"]
+
+    def selected_color(name: str) -> str | None:
+        token = str(changes[name])
+        if token == "keep":
+            return None
+        color_direction[name] = token
+        return _resolve_color_token(token, palette)
+
+    underlays = {
+        str(item.get("id")): item
+        for item in adjusted.get("underlays", [])
+    }
+    headline_surface = underlays.get("surface-headline")
+    offer_surface = underlays.get("surface-offer")
+    cta_surface = underlays.get("surface-cta")
+
+    for name, surface in (
+        ("headline_background", headline_surface),
+        ("offer_background", offer_surface),
+        ("cta_background", cta_surface),
+    ):
+        color = selected_color(name)
+        if color is not None and surface is not None:
+            surface["background"] = color
+            surface["gradient"] = color
+            if surface.get("border_color") is not None:
+                surface["border_color"] = color
+
+    headline_background = (
+        str(headline_surface["background"])
+        if headline_surface is not None
+        else palette["dark"]
+    )
+    offer_background = (
+        str(offer_surface["background"])
+        if offer_surface is not None
+        else palette["dark"]
+    )
+    cta_background = (
+        str(cta_surface["background"])
+        if cta_surface is not None
+        else offer_background
+    )
+    requested_text = {
+        "headline": selected_color("headline_text"),
+        "offer": selected_color("offer_text"),
+        "cta": selected_color("cta_text"),
+    }
+    for item in adjusted["elements"]:
+        role = str(item.get("role", ""))
+        group = str(item.get("design_group", ""))
+        key = "cta" if role == "cta" else group
+        requested = requested_text.get(key) or str(item.get("color", "#FFFFFF"))
+        background = (
+            cta_background
+            if key == "cta"
+            else headline_background
+            if group == "headline"
+            else offer_background
+        )
+        item["color"] = _safe_text_color(background, requested, palette)
+
+    if headline_surface is not None:
+        tokens["headline_band"]["background"] = headline_surface["background"]
+        tokens["headline_band"]["gradient"] = headline_surface["gradient"]
+    if offer_surface is not None:
+        tokens["offer_band"]["background"] = offer_surface["background"]
+        tokens["offer_band"]["gradient"] = offer_surface["gradient"]
+    return adjusted
+
+
+__all__ = [
+    "apply_design_revision",
+    "apply_final_review_revision",
+    "build_design_layout",
+]

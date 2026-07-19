@@ -9,7 +9,11 @@ from dotenv import load_dotenv
 from openai import OpenAI
 
 from .analysis import analyze_image_space
-from .engine import apply_design_revision, build_design_layout
+from .engine import (
+    apply_design_revision,
+    apply_final_review_revision,
+    build_design_layout,
+)
 from .io import image_to_data_url
 from .prompts import (
     DESIGN_SYSTEM_PROMPT,
@@ -24,7 +28,11 @@ from .renderer import (
     fit_layout_typography,
     render_layout_image,
 )
-from .schemas import DESIGN_REVISION_SCHEMA, DESIGN_SPEC_SCHEMA
+from .schemas import (
+    DESIGN_REVISION_SCHEMA,
+    DESIGN_SPEC_SCHEMA,
+    FINAL_REVIEW_SCHEMA,
+)
 
 
 ROOT_DIR = Path(__file__).resolve().parents[2]
@@ -99,6 +107,25 @@ def _request_json(
         },
     )
     return _parse_response_json(response, schema_name)
+
+def _enforce_final_review_revision(review: dict, layout: dict) -> dict:
+    """Guarantee that the completed-ad review produces a visible correction."""
+    revision_was_forced = not bool(review.get("needs_revision"))
+    review["needs_revision"] = True
+    candidate = apply_final_review_revision(layout, review)
+    visible_change = (
+        candidate["elements"] != layout["elements"]
+        or candidate.get("underlays", []) != layout.get("underlays", [])
+    )
+    if not visible_change:
+        review["adjustments"]["surface_opacity_delta"] = 0.05
+    review["revision_enforced"] = revision_was_forced or not visible_change
+    if review["revision_enforced"]:
+        review["enforcement_reason"] = (
+            "Final review must apply at least one visible correction; "
+            "a visually neutral response increases copy-surface opacity by 0.05."
+        )
+    return review
 
 
 def _write_json(path: Path, document: dict) -> Path:
@@ -233,15 +260,18 @@ def generate_prompt_layout(
         image_path=final_review_input_path,
         detail=detail,
         schema_name="completed_ad_final_layout_review",
-        schema=DESIGN_REVISION_SCHEMA,
+        schema=FINAL_REVIEW_SCHEMA,
         temperature=0,
+    )
+    final_review = _enforce_final_review_revision(
+        final_review, revised_layout
     )
     final_review_path = _write_json(
         output_dir / "final_review.json",
         {"model": model, **final_review},
     )
 
-    final_layout = apply_design_revision(revised_layout, final_review)
+    final_layout = apply_final_review_revision(revised_layout, final_review)
     final_layout = fit_layout_typography(
         final_layout,
         font_path=font_path,

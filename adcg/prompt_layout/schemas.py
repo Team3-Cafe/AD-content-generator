@@ -1,4 +1,5 @@
 from __future__ import annotations
+from copy import deepcopy
 
 
 COPY_ROLES = ("title", "subtitle", "price", "cta")
@@ -235,9 +236,121 @@ DESIGN_REVISION_SCHEMA = {
     "additionalProperties": False,
 }
 
+FINAL_COLOR_TOKENS = [
+    "keep",
+    "palette_dark",
+    "palette_light",
+    "palette_accent",
+    "neutral_dark",
+    "neutral_light",
+]
+
+
+FINAL_REVIEW_SCHEMA = deepcopy(DESIGN_REVISION_SCHEMA)
+FINAL_REVIEW_SCHEMA["properties"]["needs_revision"] = {
+    "type": "boolean",
+    "enum": [True],
+}
+FINAL_REVIEW_SCHEMA["properties"]["diagnosis"] = {
+    "type": "object",
+    "properties": {
+        "primary_issue": {
+            "type": "string",
+            "enum": [
+                "typography",
+                "hierarchy",
+                "spacing",
+                "placement",
+                "color",
+                "contrast",
+                "cta",
+                "product_visibility",
+            ],
+        },
+        "observed_problems": {
+            "type": "array",
+            "items": {"type": "string"},
+            "minItems": 1,
+            "maxItems": 4,
+        },
+        "correction_summary": {"type": "string"},
+    },
+    "required": [
+        "primary_issue",
+        "observed_problems",
+        "correction_summary",
+    ],
+    "additionalProperties": False,
+}
+FINAL_REVIEW_SCHEMA["required"].insert(1, "diagnosis")
+
+_final_adjustments = FINAL_REVIEW_SCHEMA["properties"]["adjustments"]
+_final_adjustments["properties"].update(
+    {
+        "title_scale": {"type": "number", "minimum": 0.80, "maximum": 1.20},
+        "subtitle_scale": {"type": "number", "minimum": 0.80, "maximum": 1.20},
+        "price_scale": {"type": "number", "minimum": 0.80, "maximum": 1.20},
+        "cta_scale": {"type": "number", "minimum": 0.80, "maximum": 1.20},
+        "headline_weight": {
+            "type": "string",
+            "enum": ["keep", "lighter", "bolder"],
+        },
+        "offer_weight": {
+            "type": "string",
+            "enum": ["keep", "lighter", "bolder"],
+        },
+        "headline_tracking_delta": {
+            "type": "integer",
+            "minimum": -2,
+            "maximum": 4,
+        },
+        "offer_tracking_delta": {
+            "type": "integer",
+            "minimum": -2,
+            "maximum": 4,
+        },
+        "offer_alignment": {
+            "type": "string",
+            "enum": ["keep", "left", "center", "right"],
+        },
+        **{
+            name: {"type": "string", "enum": FINAL_COLOR_TOKENS}
+            for name in (
+                "headline_background",
+                "headline_text",
+                "offer_background",
+                "offer_text",
+                "cta_background",
+                "cta_text",
+            )
+        },
+    }
+)
+_final_adjustments["required"].extend(
+    [
+        "title_scale",
+        "subtitle_scale",
+        "price_scale",
+        "cta_scale",
+        "headline_weight",
+        "offer_weight",
+        "headline_tracking_delta",
+        "offer_tracking_delta",
+        "offer_alignment",
+        "headline_background",
+        "headline_text",
+        "offer_background",
+        "offer_text",
+        "cta_background",
+        "cta_text",
+    ]
+)
+
+
 
 __all__ = [
     "COPY_ROLES",
     "DESIGN_REVISION_SCHEMA",
+    "FINAL_REVIEW_SCHEMA",
     "DESIGN_SPEC_SCHEMA",
 ]

@@ -28,8 +28,10 @@ rank alternatives, or measure aesthetic scores.
    and surface-opacity corrections. It never compares or selects candidates.
 8. The corrected design, including all copy, is rendered to
    `final_review_input.png`.
-9. GPT-4o reviews that completed advertisement once more and returns a final
-   bounded layout correction.
+9. GPT-4o diagnoses remaining weaknesses in the completed advertisement and
+   returns final corrections for placement, per-role type scale, font weight,
+   tracking, offer alignment, surface opacity, and palette-token colors. The
+   exact copy and core art direction remain fixed.
 10. The final correction is applied and rendered to `final_ad.png`.
 
 The renderer uses the configured Korean-capable font, fits the title to one
@@ -43,7 +45,8 @@ underlay only when neither light nor dark text is sufficiently readable.
 - `design_draft.png`: first rendering of that design
 - `design_revision.json`: one bounded critique of the same design
 - `final_review_input.png`: completed advertisement supplied to the final VLM review
-- `final_review.json`: final bounded critique after all copy has been rendered
+- `final_review.json`: final diagnosis and expanded design corrections after
+  all copy has been rendered
 - `layout.json`: final resolved pixels, typography, colors, and surfaces
 - `final_ad.png`: the completed advertisement image
 
