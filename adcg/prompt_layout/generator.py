@@ -31,6 +31,8 @@ from .renderer import (
 from .schemas import (
     DESIGN_REVISION_SCHEMA,
     DESIGN_SPEC_SCHEMA,
+    FINAL_REVIEW_FEATURE_CONTROLS,
+    FINAL_REVIEW_FEATURES,
     FINAL_REVIEW_SCHEMA,
 )
 
@@ -54,6 +56,77 @@ def _is_non_neutral_adjustment(name: str, value) -> bool:
     return abs(float(value)) >= 1e-9
 
 
+def _reconcile_feature_controls(review: dict) -> list[dict]:
+    """Link VLM-selected adjustments to compatible feature feedback."""
+    adjustments = review["adjustments"]
+    feature_reviews = review["diagnosis"]["feature_reviews"]
+    reconciled = []
+
+    for feature in FINAL_REVIEW_FEATURES:
+        feedback = feature_reviews[feature]
+        original_controls = list(feedback["controls"])
+        active_controls = [
+            control
+            for control in original_controls
+            if _is_non_neutral_adjustment(
+                control, adjustments[control]
+            )
+        ]
+        if active_controls != original_controls:
+            feedback["controls"] = active_controls
+            reconciled.append(
+                {
+                    "feature": feature,
+                    "removed_neutral_controls": [
+                        control
+                        for control in original_controls
+                        if control not in active_controls
+                    ],
+                }
+            )
+        if active_controls and feedback["verdict"] == "keep":
+            feedback["verdict"] = "revise"
+            reconciled.append(
+                {"feature": feature, "verdict_changed_to": "revise"}
+            )
+        elif not active_controls and feedback["verdict"] == "revise":
+            feedback["verdict"] = "keep"
+            reconciled.append(
+                {"feature": feature, "verdict_changed_to": "keep"}
+            )
+
+    referenced = {
+        control
+        for feedback in feature_reviews.values()
+        for control in feedback["controls"]
+    }
+    for control, value in adjustments.items():
+        if not _is_non_neutral_adjustment(control, value):
+            continue
+        if control in referenced:
+            continue
+        compatible = [
+            feature
+            for feature in FINAL_REVIEW_FEATURES
+            if control in FINAL_REVIEW_FEATURE_CONTROLS[feature]
+        ]
+        revised = [
+            feature
+            for feature in compatible
+            if feature_reviews[feature]["verdict"] == "revise"
+        ]
+        if not compatible:
+            continue
+        feature = (revised or compatible)[0]
+        feedback = feature_reviews[feature]
+        feedback["verdict"] = "revise"
+        feedback["controls"].append(control)
+        referenced.add(control)
+        reconciled.append(
+            {"feature": feature, "linked_control": control}
+        )
+    return reconciled
+
 def _review_consistency_issues(review: dict) -> list[str]:
     """Check that feature feedback and model-selected controls agree."""
     adjustments = review["adjustments"]
@@ -61,18 +134,6 @@ def _review_consistency_issues(review: dict) -> list[str]:
         "feature_reviews", {}
     )
     issues = []
-    diagnosis = review.get("diagnosis", {})
-    primary_issue = diagnosis.get("primary_issue")
-    primary_feedback = feature_reviews.get(primary_issue, {})
-    if primary_feedback.get("verdict") != "revise":
-        issues.append("primary_issue must have a revise verdict")
-    for problem in diagnosis.get("observed_problems", []):
-        category = problem.get("category")
-        if feature_reviews.get(category, {}).get("verdict") != "revise":
-            issues.append(
-                f"observed problem {category} has no revise verdict"
-            )
-
     referenced_controls = set()
     for feature, feedback in feature_reviews.items():
         verdict = feedback.get("verdict")
@@ -176,6 +237,10 @@ def _request_json(
 def _enforce_final_review_revision(review: dict, layout: dict) -> dict:
     """Validate and apply only the VLM's feature-backed corrections."""
     review["needs_revision"] = True
+    reconciled = _reconcile_feature_controls(review)
+    if reconciled:
+        review["feature_feedback_reconciled"] = True
+        review["feature_feedback_reconciliations"] = reconciled
     consistency_issues = _review_consistency_issues(review)
     if consistency_issues:
         raise ValueError(

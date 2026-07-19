@@ -381,8 +381,64 @@ class FinalReviewTests(unittest.TestCase):
             "adjustments": _neutral_adjustments(),
             "reason": "No changes.",
         }
-        with self.assertRaisesRegex(ValueError, "selects neutral control"):
-            _enforce_final_review_revision(review, _layout())
+        layout = _layout()
+        layout["underlays"] = [
+            item
+            for item in layout["underlays"]
+            if item["id"] != "surface-cta"
+        ]
+        layout["design_tokens"]["cta_treatment"] = "plain"
+        with self.assertRaisesRegex(ValueError, "no effective design revision"):
+            _enforce_final_review_revision(review, layout)
+
+    def test_unreferenced_vlm_controls_are_linked_to_features(self):
+        adjustments = _neutral_adjustments()
+        adjustments.update(
+            {
+                "title_scale": 1.10,
+                "surface_opacity_delta": 0.05,
+                "cta_scale": 1.05,
+                "headline_tracking_delta": 1,
+                "offer_tracking_delta": 1,
+            }
+        )
+        review = _enforce_final_review_revision(
+            {
+                "needs_revision": True,
+                "diagnosis": {
+                    "primary_issue": "hierarchy",
+                    "feature_reviews": _feature_reviews(
+                        {"hierarchy": ["title_scale"]}
+                    ),
+                    "observed_problems": [
+                        {
+                            "category": "hierarchy",
+                            "target": "title",
+                            "evidence": "The title dominates the composition.",
+                            "required_correction": "Rebalance the hierarchy.",
+                            "severity": "high",
+                        }
+                    ],
+                    "correction_summary": "Refine the selected features.",
+                },
+                "adjustments": adjustments,
+                "reason": "Apply the selected design corrections.",
+            },
+            _layout(),
+        )
+        linked = {
+            item.get("linked_control")
+            for item in review["feature_feedback_reconciliations"]
+        }
+        self.assertTrue(
+            {
+                "surface_opacity_delta",
+                "cta_scale",
+                "headline_tracking_delta",
+                "offer_tracking_delta",
+            }.issubset(linked)
+        )
+        self.assertTrue(review["consistency_validated"])
 
     def test_price_is_not_changed_without_price_feedback(self):
         adjustments = _neutral_adjustments()

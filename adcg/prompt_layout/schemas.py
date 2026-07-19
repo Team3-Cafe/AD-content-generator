@@ -438,7 +438,7 @@ _final_adjustments["required"].extend(
 
 
 
-_FINAL_REVIEW_FEATURES = (
+FINAL_REVIEW_FEATURES = (
     "typography",
     "hierarchy",
     "spacing",
@@ -451,7 +451,7 @@ _FINAL_REVIEW_FEATURES = (
     "cta",
     "product_visibility",
 )
-_FINAL_REVIEW_FEATURE_CONTROLS = {
+FINAL_REVIEW_FEATURE_CONTROLS = {
     "typography": [
         "title_scale", "subtitle_scale", "price_scale", "cta_scale",
         "price_number_scale", "price_unit_scale",
@@ -516,7 +516,7 @@ def _feature_feedback_schema(feature: str) -> dict:
                 "type": "array",
                 "items": {
                     "type": "string",
-                    "enum": _FINAL_REVIEW_FEATURE_CONTROLS[feature],
+                    "enum": FINAL_REVIEW_FEATURE_CONTROLS[feature],
                 },
                 "maxItems": 6,
             },
@@ -535,9 +535,9 @@ _diagnosis_schema["properties"]["feature_reviews"] = {
     "type": "object",
     "properties": {
         feature: _feature_feedback_schema(feature)
-        for feature in _FINAL_REVIEW_FEATURES
+        for feature in FINAL_REVIEW_FEATURES
     },
-    "required": list(_FINAL_REVIEW_FEATURES),
+    "required": list(FINAL_REVIEW_FEATURES),
     "additionalProperties": False,
 }
 _diagnosis_schema["required"].insert(1, "feature_reviews")
@@ -547,5 +547,7 @@ __all__ = [
     "COPY_ROLES",
     "DESIGN_REVISION_SCHEMA",
     "FINAL_REVIEW_SCHEMA",
+    "FINAL_REVIEW_FEATURES",
+    "FINAL_REVIEW_FEATURE_CONTROLS",
     "DESIGN_SPEC_SCHEMA",
 ]
