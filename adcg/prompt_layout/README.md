@@ -35,6 +35,10 @@ rank alternatives, or measure aesthetic scores.
    categories, and independently rebuilds the copy layer as one complete
    absolute-pixel target. Candidate pools are neither templates nor limits; the
    VLM may combine, alter, reject, or exceed them.
+   For every category it records visible evidence, a design objective, candidate
+   benefits and risks, cross-feature dependencies, its selected direction, and
+   concrete target-layout commitments. A final coherence review resolves conflicts
+   between those decisions before rendering.
 10. The final redesign must materially change copy geometry and multiple design
     systems. Requested/applied states, constraints,
     warnings, material-change summaries, and exact property changes are saved in

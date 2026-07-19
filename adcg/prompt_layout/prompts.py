@@ -96,11 +96,14 @@ reason to copy the existing layout. Prefer one coordinated composition over
 many small nudges. The result must be visibly distinguishable from the input;
 near-identical values and token 1-5% changes are invalid.
 
-Before committing to target_layout, use design_exploration to examine the broad
-candidate pool for EACH of the eleven feature categories. Record every meaningful,
-non-duplicative finalist you actually compare; do not stop at a fixed number. Then
-select the strongest direction for this particular image. Alternatives must be
-real visual choices, not paraphrases: consider different type scale/weight/
+Before committing to target_layout, complete design_exploration for EACH of the
+eleven feature categories in this order: cite visible_evidence from the completed
+pixels, state a design_objective, compare materially different candidates, identify
+the expected benefit and visual risk of each, test compatibility with the other
+features, select one direction, and name the exact target_layout commitments. Do
+not stop at a fixed number of candidates; include every meaningful, non-duplicative
+finalist. Alternatives must be real visual choices, not paraphrases: consider
+different type scale/weight/
 tracking systems, hierarchy models, dense versus open spacing, integrated versus
 split price construction, absent/content/full-width surfaces, absent/subtle/bold
 accent rules, asymmetric/edge/center placement, multiple image-derived color
@@ -109,6 +112,15 @@ presence and typographic treatment, and different ways to protect the product.
 The selected directions must form one coherent design and be expressed materially
 in target_layout. No alignment, color family, surface presence, or effect is the
 default merely because it appeared in the input.
+
+After the per-feature decisions, complete coherence_review before authoring the
+target. State one composition thesis, explicitly connect dependent feature choices,
+resolve tensions such as legibility versus product visibility or hierarchy versus
+open space, and verify that the combined decisions look like one advertisement.
+If a selected feature direction conflicts with another, resolve the conflict in
+the selected directions rather than merely describing it. Return concise,
+professional design rationale; do not provide private chain-of-thought or hidden
+reasoning.
 
 The supplied design_candidate_pool is a set of image-aware affordances computed
 from color clusters, quiet regions, copy roles, and renderer capabilities. It is

@@ -376,6 +376,59 @@ _ABSOLUTE_SURFACE_SCHEMA = {
 }
 
 
+def _feature_exploration_schema(feature: str) -> dict:
+    candidate_evaluation = {
+        "type": "object",
+        "properties": {
+            "direction": {"type": "string"},
+            "expected_benefit": {"type": "string"},
+            "visual_risk": {"type": "string"},
+            "cross_feature_compatibility": {"type": "string"},
+        },
+        "required": [
+            "direction", "expected_benefit", "visual_risk",
+            "cross_feature_compatibility",
+        ],
+        "additionalProperties": False,
+    }
+    return {
+        "type": "object",
+        "properties": {
+            "visible_evidence": {"type": "string"},
+            "design_objective": {"type": "string"},
+            "candidate_evaluations": {
+                "type": "array",
+                "items": candidate_evaluation,
+                "minItems": 2,
+            },
+            "selected_direction": {"type": "string"},
+            "selection_reason": {"type": "string"},
+            "interacts_with": {
+                "type": "array",
+                "items": {
+                    "type": "string", "enum": list(FINAL_REVIEW_FEATURES),
+                },
+                "minItems": 1,
+                "uniqueItems": True,
+            },
+            "target_layout_commitments": {
+                "type": "array",
+                "items": {
+                    "type": "string",
+                    "enum": FINAL_REVIEW_FEATURE_TARGETS[feature],
+                },
+                "uniqueItems": True,
+            },
+        },
+        "required": [
+            "visible_evidence", "design_objective", "candidate_evaluations",
+            "selected_direction", "selection_reason", "interacts_with",
+            "target_layout_commitments",
+        ],
+        "additionalProperties": False,
+    }
+
+
 FINAL_REVIEW_SCHEMA = {
     "type": "object",
     "properties": {
@@ -468,26 +521,47 @@ FINAL_REVIEW_SCHEMA = {
         "design_exploration": {
             "type": "object",
             "properties": {
-                feature: {
-                    "type": "object",
-                    "properties": {
-                        "options_considered": {
-                            "type": "array",
-                            "items": {"type": "string"},
-                            "minItems": 1,
-                        },
-                        "selected_direction": {"type": "string"},
-                        "selection_reason": {"type": "string"},
-                    },
-                    "required": [
-                        "options_considered", "selected_direction",
-                        "selection_reason",
-                    ],
-                    "additionalProperties": False,
-                }
+                feature: _feature_exploration_schema(feature)
                 for feature in FINAL_REVIEW_FEATURES
             },
             "required": list(FINAL_REVIEW_FEATURES),
+            "additionalProperties": False,
+        },
+        "coherence_review": {
+            "type": "object",
+            "properties": {
+                "composition_thesis": {"type": "string"},
+                "cross_feature_decisions": {
+                    "type": "array",
+                    "items": {
+                        "type": "object",
+                        "properties": {
+                            "features": {
+                                "type": "array",
+                                "items": {
+                                    "type": "string",
+                                    "enum": list(FINAL_REVIEW_FEATURES),
+                                },
+                                "minItems": 2,
+                                "uniqueItems": True,
+                            },
+                            "relationship": {"type": "string"},
+                        },
+                        "required": ["features", "relationship"],
+                        "additionalProperties": False,
+                    },
+                    "minItems": 1,
+                },
+                "tensions_resolved": {
+                    "type": "array", "items": {"type": "string"},
+                    "minItems": 1,
+                },
+                "final_coherence_check": {"type": "string"},
+            },
+            "required": [
+                "composition_thesis", "cross_feature_decisions",
+                "tensions_resolved", "final_coherence_check",
+            ],
             "additionalProperties": False,
         },
         "target_layout": {
@@ -548,7 +622,7 @@ FINAL_REVIEW_SCHEMA = {
     },
     "required": [
         "needs_revision", "diagnosis", "redesign_plan", "design_exploration",
-        "target_layout", "reason",
+        "coherence_review", "target_layout", "reason",
     ],
     "additionalProperties": False,
 }

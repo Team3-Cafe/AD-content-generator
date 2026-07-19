@@ -198,11 +198,13 @@ def _target_layout() -> dict:
 
 
 def _review() -> dict:
+    feature_reviews = _feature_reviews()
+    features = list(FINAL_REVIEW_FEATURES)
     return {
         "needs_revision": True,
         "diagnosis": {
             "primary_issue": "hierarchy",
-            "feature_reviews": _feature_reviews(),
+            "feature_reviews": feature_reviews,
             "design_observations": [
                 {
                     "assessment": (
@@ -240,6 +242,42 @@ def _review() -> dict:
             "surface_strategy": "Resize both editorial bands.",
             "color_strategy": "Use a light offer band with dark type.",
             "product_visibility_strategy": "Keep bands outside the product body.",
+        },
+        "design_exploration": {
+            feature: {
+                "visible_evidence": f"Visible rendered evidence for {feature}.",
+                "design_objective": f"Improve {feature} in the final composition.",
+                "candidate_evaluations": [
+                    {
+                        "direction": f"Preserve the current {feature} direction",
+                        "expected_benefit": "Maintains familiarity.",
+                        "visual_risk": "May preserve the visible weakness.",
+                        "cross_feature_compatibility": "Compatible but conservative.",
+                    },
+                    {
+                        "direction": f"Rebuild the {feature} direction",
+                        "expected_benefit": "Creates a clearer visual decision.",
+                        "visual_risk": "Requires coordination with adjacent features.",
+                        "cross_feature_compatibility": "Supports the selected composition.",
+                    },
+                ],
+                "selected_direction": f"Rebuild the {feature} direction",
+                "selection_reason": "It best resolves the visible issue.",
+                "interacts_with": [features[(index + 1) % len(features)]],
+                "target_layout_commitments": feature_reviews[feature]["affected_targets"],
+            }
+            for index, feature in enumerate(features)
+        },
+        "coherence_review": {
+            "composition_thesis": "Use two coordinated anchors around the product.",
+            "cross_feature_decisions": [{
+                "features": ["placement", "hierarchy", "product_visibility"],
+                "relationship": "Placement protects the product while hierarchy links the anchors.",
+            }],
+            "tensions_resolved": [
+                "Balance strong offer emphasis against open product space."
+            ],
+            "final_coherence_check": "All feature choices support one editorial composition.",
         },
         "target_layout": _target_layout(),
         "reason": "Resolve the visible hierarchy and spacing defects.",
@@ -546,12 +584,31 @@ class FinalReviewTests(unittest.TestCase):
             set(exploration["required"]), set(FINAL_REVIEW_FEATURES)
         )
         for feature in FINAL_REVIEW_FEATURES:
-            options = exploration["properties"][feature]["properties"][
-                "options_considered"
+            decision = exploration["properties"][feature]
+            candidates = decision["properties"][
+                "candidate_evaluations"
             ]
-            self.assertEqual(options["minItems"], 1)
-            self.assertNotIn("maxItems", options)
+            self.assertEqual(candidates["minItems"], 2)
+            self.assertNotIn("maxItems", candidates)
+            self.assertTrue({
+                "visible_evidence", "design_objective",
+                "candidate_evaluations", "interacts_with",
+                "target_layout_commitments",
+            }.issubset(decision["required"]))
         self.assertIn("design_exploration", FINAL_REVIEW_SCHEMA["required"])
+        self.assertIn("coherence_review", FINAL_REVIEW_SCHEMA["required"])
+
+    def test_feature_deliberation_is_audited_against_its_selection(self):
+        review = _review()
+        review["design_exploration"]["color"]["selected_direction"] = (
+            "An unevaluated palette direction"
+        )
+        result = _enforce_final_review_revision(review, _layout())
+        self.assertFalse(result["deliberation_validated"])
+        self.assertIn(
+            "color selected_direction does not match an evaluated candidate",
+            result["deliberation_warnings"],
+        )
 
     def test_candidate_pool_covers_every_design_feature(self):
         analysis = {

@@ -149,6 +149,37 @@ def _review_consistency_issues(review: dict, layout: dict) -> list[str]:
     return issues
 
 
+def _design_deliberation_warnings(review: dict) -> list[str]:
+    """Audit whether the structured feature deliberation supports its selection."""
+    warnings = []
+    exploration = review["design_exploration"]
+    feature_reviews = review["diagnosis"]["feature_reviews"]
+    for feature in FINAL_REVIEW_FEATURES:
+        decision = exploration[feature]
+        directions = [
+            str(item["direction"]).strip()
+            for item in decision["candidate_evaluations"]
+        ]
+        if len({direction.casefold() for direction in directions}) != len(directions):
+            warnings.append(f"{feature} compares duplicate candidate directions")
+        selected = str(decision["selected_direction"]).strip().casefold()
+        if selected not in {direction.casefold() for direction in directions}:
+            warnings.append(
+                f"{feature} selected_direction does not match an evaluated candidate"
+            )
+        if not any(
+            dependency != feature for dependency in decision["interacts_with"]
+        ):
+            warnings.append(f"{feature} names no cross-feature interaction")
+        commitments = decision["target_layout_commitments"]
+        verdict = feature_reviews[feature]["verdict"]
+        if verdict == "revise" and not commitments:
+            warnings.append(f"{feature} revision has no target-layout commitment")
+        if verdict == "keep" and commitments:
+            warnings.append(f"{feature} keep decision claims target-layout commitments")
+    return warnings
+
+
 def _layout_state(layout: dict) -> dict:
     """Serialize a canonical rendered state, including visual defaults."""
     elements = []
@@ -529,6 +560,7 @@ def _enforce_final_review_revision(review: dict, layout: dict) -> dict:
         _normalize_feature_review_metadata(review, layout)
     )
     review["audit_warnings"] = _review_audit_warnings(review)
+    review["deliberation_warnings"] = _design_deliberation_warnings(review)
     consistency_issues = _review_consistency_issues(review, layout)
     if consistency_issues:
         raise ValueError(
@@ -550,6 +582,7 @@ def _enforce_final_review_revision(review: dict, layout: dict) -> dict:
         review, requested_summary
     )
     review["consistency_validated"] = True
+    review["deliberation_validated"] = not review["deliberation_warnings"]
     review["revision_mode"] = "completed_ad_rebuild"
     review["requested_material_changes"] = requested_summary
     return review
