@@ -25,6 +25,7 @@ from adcg.prompt_layout.generator import (
 from adcg.prompt_layout.html_renderer import (
     HtmlRendererUnavailable,
     _build_ad_html,
+    _launch_chromium,
 )
 from adcg.prompt_layout.prompts import (
     build_final_polish_request,
@@ -926,6 +927,21 @@ class FinalReviewTests(unittest.TestCase):
             )
         self.assertEqual(result, output)
         pillow.assert_called_once()
+
+    def test_chromium_launch_failure_becomes_renderer_unavailable(self):
+        class FakePlaywrightError(Exception):
+            pass
+
+        chromium = SimpleNamespace(
+            launch=lambda **_kwargs: (_ for _ in ()).throw(
+                FakePlaywrightError("libnspr4.so: cannot open shared object file")
+            )
+        )
+        playwright = SimpleNamespace(chromium=chromium)
+        with self.assertRaisesRegex(
+            HtmlRendererUnavailable, "install --with-deps chromium"
+        ):
+            _launch_chromium(playwright, FakePlaywrightError)
 
 
 if __name__ == "__main__":

@@ -14,6 +14,18 @@ class HtmlRendererUnavailable(RuntimeError):
     """Raised when Playwright or its Chromium runtime is unavailable."""
 
 
+def _launch_chromium(playwright, playwright_error):
+    """Translate browser startup failures into the supported fallback signal."""
+    try:
+        return playwright.chromium.launch(headless=True)
+    except playwright_error as error:
+        raise HtmlRendererUnavailable(
+            "Playwright Chromium could not start. On Linux run "
+            "'uv run playwright install --with-deps chromium' to install "
+            "the browser and required shared libraries"
+        ) from error
+
+
 def _css_color_stops(item: dict) -> str:
     colors = list(item.get("fill_colors", ["#000000", "#000000"]))
     stops = list(item.get("fill_stops", [0.0, 1.0]))
@@ -226,27 +238,19 @@ def render_layout_image_html(
     document = _build_ad_html(image_path, layout, resolved_font)
     width = int(layout["canvas"]["width"])
     height = int(layout["canvas"]["height"])
-    try:
-        with sync_playwright() as playwright:
-            browser = playwright.chromium.launch(headless=True)
-            page = browser.new_page(
-                viewport={"width": width, "height": height},
-                device_scale_factor=1,
-            )
-            page.set_content(document, wait_until="load")
-            page.wait_for_function(
-                "document.documentElement.dataset.fontsReady === 'true'",
-                timeout=10_000,
-            )
-            page.locator("#ad").screenshot(path=str(output_path), type="png")
-            browser.close()
-    except PlaywrightError as error:
-        message = str(error)
-        if "Executable doesn't exist" in message or "browserType.launch" in message:
-            raise HtmlRendererUnavailable(
-                "Playwright Chromium is unavailable; run 'playwright install chromium'"
-            ) from error
-        raise
+    with sync_playwright() as playwright:
+        browser = _launch_chromium(playwright, PlaywrightError)
+        page = browser.new_page(
+            viewport={"width": width, "height": height},
+            device_scale_factor=1,
+        )
+        page.set_content(document, wait_until="load")
+        page.wait_for_function(
+            "document.documentElement.dataset.fontsReady === 'true'",
+            timeout=10_000,
+        )
+        page.locator("#ad").screenshot(path=str(output_path), type="png")
+        browser.close()
     return output_path
 
 

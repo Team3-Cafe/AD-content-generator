@@ -85,6 +85,10 @@ Install the browser runtime once after installing requirements:
 
     python -m playwright install chromium
 
+On Linux, install Chromium and its required shared libraries together:
+
+    uv run playwright install --with-deps chromium
+
 The renderer automatically discovers Korean-capable system fonts and exposes a
 browser fallback stack (`Noto Sans KR`, `Noto Sans CJK KR`, `Malgun Gothic`, and
 `Apple SD Gothic Neo`). `--font`/`--layout-font` and `ADCG_FONT_PATH` remain optional
