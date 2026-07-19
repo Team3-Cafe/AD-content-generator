@@ -46,8 +46,8 @@ def _layout() -> dict:
                 "y": 20,
                 "width": 400,
                 "height": 70,
-                "background": "#111111",
-                "gradient": "#111111",
+                "background_color": "#111111",
+                "gradient_color": "#111111",
                 "opacity": 0.78,
             },
             {
@@ -57,8 +57,8 @@ def _layout() -> dict:
                 "y": 310,
                 "width": 400,
                 "height": 70,
-                "background": "#222222",
-                "gradient": "#222222",
+                "background_color": "#222222",
+                "gradient_color": "#222222",
                 "opacity": 0.84,
             },
         ],
@@ -124,8 +124,8 @@ class FinalReviewTests(unittest.TestCase):
         self.assertEqual((cta["font_size"], cta["font_weight"]), (18, 600))
         self.assertEqual((title["tracking"], cta["tracking"]), (2, 1))
         self.assertEqual(cta["text_align"], "right")
-        self.assertEqual(result["underlays"][0]["background"], "#FF6600")
-        self.assertEqual(result["underlays"][1]["background"], "#F5F5F5")
+        self.assertEqual(result["underlays"][0]["background_color"], "#FF6600")
+        self.assertEqual(result["underlays"][1]["background_color"], "#F5F5F5")
 
     def test_neutral_response_gets_visible_fallback(self):
         adjustments = _adjustments()

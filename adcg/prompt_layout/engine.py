@@ -928,23 +928,23 @@ def apply_final_review_revision(layout: dict, revision: dict) -> dict:
     ):
         color = selected_color(name)
         if color is not None and surface is not None:
-            surface["background"] = color
-            surface["gradient"] = color
+            surface["background_color"] = color
+            surface["gradient_color"] = color
             if surface.get("border_color") is not None:
                 surface["border_color"] = color
 
     headline_background = (
-        str(headline_surface["background"])
+        str(headline_surface.get("background_color", palette["dark"]))
         if headline_surface is not None
         else palette["dark"]
     )
     offer_background = (
-        str(offer_surface["background"])
+        str(offer_surface.get("background_color", palette["dark"]))
         if offer_surface is not None
         else palette["dark"]
     )
     cta_background = (
-        str(cta_surface["background"])
+        str(cta_surface.get("background_color", offer_background))
         if cta_surface is not None
         else offer_background
     )
@@ -968,11 +968,19 @@ def apply_final_review_revision(layout: dict, revision: dict) -> dict:
         item["color"] = _safe_text_color(background, requested, palette)
 
     if headline_surface is not None:
-        tokens["headline_band"]["background"] = headline_surface["background"]
-        tokens["headline_band"]["gradient"] = headline_surface["gradient"]
+        tokens["headline_band"]["background"] = headline_surface.get(
+            "background_color", palette["dark"]
+        )
+        tokens["headline_band"]["gradient"] = headline_surface.get(
+            "gradient_color", tokens["headline_band"]["background"]
+        )
     if offer_surface is not None:
-        tokens["offer_band"]["background"] = offer_surface["background"]
-        tokens["offer_band"]["gradient"] = offer_surface["gradient"]
+        tokens["offer_band"]["background"] = offer_surface.get(
+            "background_color", palette["dark"]
+        )
+        tokens["offer_band"]["gradient"] = offer_surface.get(
+            "gradient_color", tokens["offer_band"]["background"]
+        )
     return adjusted
 
 

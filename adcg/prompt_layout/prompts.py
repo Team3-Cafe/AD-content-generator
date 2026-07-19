@@ -140,8 +140,8 @@ def build_final_review_request(
         "surfaces": [
             {
                 "id": item.get("id"),
-                "background": item.get("background"),
-                "gradient": item.get("gradient"),
+                "background_color": item.get("background_color"),
+                "gradient_color": item.get("gradient_color"),
                 "opacity": item.get("opacity"),
                 "border_color": item.get("border_color"),
             }
