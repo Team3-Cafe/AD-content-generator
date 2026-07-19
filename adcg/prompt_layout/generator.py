@@ -39,20 +39,59 @@ from .schemas import (
 ROOT_DIR = Path(__file__).resolve().parents[2]
 
 
-def _normalize_feature_review_metadata(review: dict) -> list[dict]:
+def _normalize_feature_review_metadata(
+    review: dict,
+    layout: dict,
+) -> list[dict]:
     """Repair harmless verdict/target contradictions from the VLM response."""
     normalizations = []
+    rendered_roles = {str(item["role"]) for item in layout["elements"]}
+    role_targets = {
+        role: {f"{role}_geometry", f"{role}_typography"}
+        for role in ("title", "subtitle", "price", "cta")
+    }
+    role_targets["price"].add("price_composition")
+    inactive_targets = set().union(*(
+        targets
+        for role, targets in role_targets.items()
+        if role not in rendered_roles
+    ))
+
     feature_reviews = review["diagnosis"]["feature_reviews"]
     for feature, feedback in feature_reviews.items():
-        targets = list(feedback.get("affected_targets", []))
-        if feedback.get("verdict") == "keep" and targets:
-            feedback["affected_targets"] = []
+        original_verdict = str(feedback.get("verdict"))
+        original_targets = list(feedback.get("affected_targets", []))
+        targets = [
+            target for target in original_targets
+            if target not in inactive_targets
+        ]
+        verdict = original_verdict
+        if verdict == "keep":
+            targets = []
+        elif not targets:
+            verdict = "keep"
+
+        if verdict != original_verdict or targets != original_targets:
+            feedback["verdict"] = verdict
+            feedback["affected_targets"] = targets
             normalizations.append({
                 "feature": feature,
-                "field": "affected_targets",
-                "before": targets,
-                "after": [],
-                "reason": "keep verdict cannot claim redesigned targets",
+                "before": {
+                    "verdict": original_verdict,
+                    "affected_targets": original_targets,
+                },
+                "after": {
+                    "verdict": verdict,
+                    "affected_targets": targets,
+                },
+                "reason": (
+                    "feedback referenced a copy role that is not rendered"
+                    if any(
+                        target in inactive_targets
+                        for target in original_targets
+                    )
+                    else "keep verdict cannot claim redesigned targets"
+                ),
             })
     return normalizations
 
@@ -455,7 +494,7 @@ def _enforce_final_review_revision(review: dict, layout: dict) -> dict:
     """Validate the VLM's complete absolute target before applying it."""
     review["needs_revision"] = True
     review["feedback_normalizations"] = (
-        _normalize_feature_review_metadata(review)
+        _normalize_feature_review_metadata(review, layout)
     )
     consistency_issues = _review_consistency_issues(review, layout)
     if consistency_issues:

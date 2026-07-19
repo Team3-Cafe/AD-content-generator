@@ -214,6 +214,35 @@ class FinalReviewTests(unittest.TestCase):
         )
         self.assertTrue(result["consistency_validated"])
 
+    def test_feedback_for_an_absent_cta_is_normalized_to_keep(self):
+        layout = _layout()
+        layout["elements"] = [
+            item for item in layout["elements"] if item["role"] != "cta"
+        ]
+        review = _review()
+        review["target_layout"]["elements"] = [
+            item
+            for item in review["target_layout"]["elements"]
+            if item["role"] != "cta"
+        ]
+        review["diagnosis"]["feature_reviews"]["cta"] = {
+            "verdict": "revise",
+            "evidence": "A CTA treatment issue was reported.",
+            "recommended_change": "Change the CTA treatment.",
+            "affected_targets": ["cta_typography"],
+        }
+
+        result = _enforce_final_review_revision(review, layout)
+
+        feedback = result["diagnosis"]["feature_reviews"]["cta"]
+        self.assertEqual(feedback["verdict"], "keep")
+        self.assertEqual(feedback["affected_targets"], [])
+        self.assertTrue(any(
+            item["feature"] == "cta"
+            and "not rendered" in item["reason"]
+            for item in result["feedback_normalizations"]
+        ))
+
     def test_initial_layout_respects_independent_alignment_and_no_surfaces(self):
         analysis = {
             "canvas": {"width": 400, "height": 600},
