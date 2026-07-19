@@ -38,67 +38,6 @@ from .schemas import (
 ROOT_DIR = Path(__file__).resolve().parents[2]
 
 
-_ISSUE_ADJUSTMENT_FIELDS = {
-    "typography": (
-        "title_scale", "subtitle_scale", "price_scale", "cta_scale",
-        "price_number_scale", "price_unit_scale",
-        "price_number_baseline_shift", "price_unit_baseline_shift",
-        "headline_weight", "offer_weight", "headline_tracking_delta",
-        "offer_tracking_delta",
-    ),
-    "hierarchy": (
-        "headline_scale", "offer_scale", "title_scale", "subtitle_scale",
-        "price_scale", "cta_scale", "headline_weight", "offer_weight",
-    ),
-    "spacing": (
-        "headline_y_shift", "offer_x_shift", "offer_y_shift",
-        "headline_subtitle_gap_delta", "price_cta_gap_delta",
-    ),
-    "price_composition": (
-        "price_scale", "price_number_scale", "price_unit_scale",
-        "price_number_baseline_shift", "price_unit_baseline_shift",
-    ),
-    "band_proportion": (
-        "headline_band_height_scale", "offer_band_height_scale",
-    ),
-    "accent_rule": ("accent_rule_width_scale", "accent_rule_y_shift"),
-    "placement": (
-        "headline_y_shift", "offer_x_shift", "offer_y_shift",
-        "offer_alignment",
-    ),
-    "color": (
-        "headline_background", "headline_text", "offer_background",
-        "offer_text", "cta_text",
-    ),
-    "contrast": (
-        "surface_opacity_delta", "headline_background", "headline_text",
-        "offer_background", "offer_text", "cta_text",
-    ),
-    "cta": (
-        "cta_scale", "price_cta_gap_delta", "offer_weight",
-        "offer_tracking_delta", "cta_text",
-    ),
-    "product_visibility": (
-        "headline_y_shift", "offer_x_shift", "offer_y_shift",
-        "headline_band_height_scale", "offer_band_height_scale",
-        "surface_opacity_delta",
-    ),
-}
-
-_ISSUE_FALLBACK_ADJUSTMENTS = {
-    "typography": ("headline_tracking_delta", 1),
-    "hierarchy": ("title_scale", 1.05),
-    "spacing": ("headline_subtitle_gap_delta", 0.01),
-    "price_composition": ("price_number_scale", 0.92),
-    "band_proportion": ("headline_band_height_scale", 0.95),
-    "accent_rule": ("accent_rule_width_scale", 1.10),
-    "placement": ("headline_y_shift", 0.01),
-    "color": ("headline_text", "neutral_light"),
-    "contrast": ("surface_opacity_delta", 0.05),
-    "cta": ("cta_scale", 1.05),
-    "product_visibility": ("surface_opacity_delta", -0.05),
-}
-
 _SCALE_ADJUSTMENTS = {
     "headline_scale", "offer_scale", "title_scale", "subtitle_scale",
     "price_scale", "cta_scale", "price_number_scale", "price_unit_scale",
@@ -115,31 +54,53 @@ def _is_non_neutral_adjustment(name: str, value) -> bool:
     return abs(float(value)) >= 1e-9
 
 
-def _enforce_diagnosis_adjustments(review: dict) -> list[str]:
-    """Make every diagnosed problem category affect a relevant control."""
-    diagnosis = review.get("diagnosis", {})
-    categories = [diagnosis.get("primary_issue")]
-    categories.extend(
-        problem.get("category")
-        for problem in diagnosis.get("observed_problems", [])
-        if isinstance(problem, dict)
-    )
-    enforced = []
+def _review_consistency_issues(review: dict) -> list[str]:
+    """Check that feature feedback and model-selected controls agree."""
     adjustments = review["adjustments"]
-    for category in dict.fromkeys(filter(None, categories)):
-        fields = _ISSUE_ADJUSTMENT_FIELDS.get(category, ())
-        if any(
-            _is_non_neutral_adjustment(name, adjustments[name])
-            for name in fields
+    feature_reviews = review.get("diagnosis", {}).get(
+        "feature_reviews", {}
+    )
+    issues = []
+    diagnosis = review.get("diagnosis", {})
+    primary_issue = diagnosis.get("primary_issue")
+    primary_feedback = feature_reviews.get(primary_issue, {})
+    if primary_feedback.get("verdict") != "revise":
+        issues.append("primary_issue must have a revise verdict")
+    for problem in diagnosis.get("observed_problems", []):
+        category = problem.get("category")
+        if feature_reviews.get(category, {}).get("verdict") != "revise":
+            issues.append(
+                f"observed problem {category} has no revise verdict"
+            )
+
+    referenced_controls = set()
+    for feature, feedback in feature_reviews.items():
+        verdict = feedback.get("verdict")
+        controls = feedback.get("controls", [])
+        if verdict == "revise" and not controls:
+            issues.append(f"{feature} needs revision but selects no controls")
+        if verdict == "keep" and controls:
+            issues.append(f"{feature} is keep but selects controls")
+        if verdict != "revise":
+            continue
+        for control in controls:
+            referenced_controls.add(control)
+            if not _is_non_neutral_adjustment(
+                control, adjustments[control]
+            ):
+                issues.append(
+                    f"{feature} selects neutral control {control}"
+                )
+
+    for control, value in adjustments.items():
+        if (
+            _is_non_neutral_adjustment(control, value)
+            and control not in referenced_controls
         ):
-            continue
-        fallback = _ISSUE_FALLBACK_ADJUSTMENTS.get(category)
-        if fallback is None:
-            continue
-        field, value = fallback
-        adjustments[field] = value
-        enforced.append(category)
-    return enforced
+            issues.append(
+                f"non-neutral control {control} has no feature feedback"
+            )
+    return issues
 
 
 @dataclass(frozen=True)
@@ -213,40 +174,26 @@ def _request_json(
     return _parse_response_json(response, schema_name)
 
 def _enforce_final_review_revision(review: dict, layout: dict) -> dict:
-    """Guarantee that the completed-ad review produces a visible correction."""
-    revision_was_forced = not bool(review.get("needs_revision"))
+    """Validate and apply only the VLM's feature-backed corrections."""
     review["needs_revision"] = True
-    enforced_categories = _enforce_diagnosis_adjustments(review)
+    consistency_issues = _review_consistency_issues(review)
+    if consistency_issues:
+        raise ValueError(
+            "Final review feedback is inconsistent with its adjustments: "
+            + "; ".join(consistency_issues)
+        )
+
     candidate = apply_final_review_revision(layout, review)
     visible_change = (
         candidate["elements"] != layout["elements"]
         or candidate.get("underlays", []) != layout.get("underlays", [])
     )
     if not visible_change:
-        review["adjustments"]["surface_opacity_delta"] = 0.05
-    review["diagnosis_adjustment_enforced"] = bool(enforced_categories)
-    if enforced_categories:
-        review["enforced_problem_categories"] = enforced_categories
-    review["revision_enforced"] = (
-        revision_was_forced or bool(enforced_categories) or not visible_change
-    )
-    if review["revision_enforced"]:
-        reasons = []
-        if enforced_categories:
-            reasons.append(
-                "Diagnosed categories without related changes received "
-                "bounded category-specific fallback adjustments: "
-                + ", ".join(enforced_categories)
-                + "."
-            )
-        if revision_was_forced:
-            reasons.append("Final review always requires a revision.")
-        if not visible_change:
-            reasons.append(
-                "A visually neutral response increases copy-surface opacity "
-                "by 0.05."
-            )
-        review["enforcement_reason"] = " ".join(reasons)
+        raise ValueError(
+            "Final review selected no effective design revision."
+        )
+    review["consistency_validated"] = True
+    review["revision_enforced"] = False
     return review
 
 

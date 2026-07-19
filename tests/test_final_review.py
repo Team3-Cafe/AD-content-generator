@@ -176,6 +176,48 @@ def _adjustments() -> dict:
     }
 
 
+_FINAL_FEATURES = (
+    "typography", "hierarchy", "spacing", "price_composition",
+    "band_proportion", "accent_rule", "placement", "color",
+    "contrast", "cta", "product_visibility",
+)
+
+
+def _neutral_adjustments() -> dict:
+    properties = FINAL_REVIEW_SCHEMA["properties"]["adjustments"][
+        "properties"
+    ]
+    return {
+        name: (
+            "keep"
+            if schema["type"] == "string"
+            else 1.0
+            if "scale" in name
+            else 0
+        )
+        for name, schema in properties.items()
+    }
+
+
+def _feature_reviews(
+    revised: dict[str, list[str]] | None = None,
+) -> dict:
+    revised = revised or {}
+    return {
+        feature: {
+            "verdict": "revise" if feature in revised else "keep",
+            "evidence": f"Visual evidence for {feature}.",
+            "recommended_change": (
+                f"Revise {feature}."
+                if feature in revised
+                else f"Keep {feature} unchanged."
+            ),
+            "controls": revised.get(feature, []),
+        }
+        for feature in _FINAL_FEATURES
+    }
+
+
 class FinalReviewTests(unittest.TestCase):
     def test_final_schema_requires_revision(self):
         needs_revision = FINAL_REVIEW_SCHEMA["properties"]["needs_revision"]
@@ -188,6 +230,11 @@ class FinalReviewTests(unittest.TestCase):
             "properties"
         ]["observed_problems"]
         self.assertEqual(observed["items"]["type"], "object")
+        self.assertEqual((observed["minItems"], observed["maxItems"]), (1, 6))
+        feature_reviews = FINAL_REVIEW_SCHEMA["properties"]["diagnosis"][
+            "properties"
+        ]["feature_reviews"]
+        self.assertEqual(set(feature_reviews["required"]), set(_FINAL_FEATURES))
         self.assertEqual(
             set(observed["items"]["required"]),
             {
@@ -312,110 +359,65 @@ class FinalReviewTests(unittest.TestCase):
         self.assertIsNotNone(difference.getbbox())
 
 
-    def test_neutral_response_gets_visible_fallback(self):
-        adjustments = _adjustments()
-        adjustments.update(
-            {
-                "headline_y_shift": 0.0,
-                "offer_y_shift": 0.0,
-                "surface_opacity_delta": 0.0,
-                "title_scale": 1.0,
-                "cta_scale": 1.0,
-                "price_number_scale": 1.0,
-                "price_unit_scale": 1.0,
-                "price_number_baseline_shift": 0.0,
-                "price_unit_baseline_shift": 0.0,
-                "headline_subtitle_gap_delta": 0.0,
-                "price_cta_gap_delta": 0.0,
-                "headline_band_height_scale": 1.0,
-                "offer_band_height_scale": 1.0,
-                "accent_rule_width_scale": 1.0,
-                "accent_rule_y_shift": 0.0,
-                "headline_weight": "keep",
-                "offer_weight": "keep",
-                "headline_tracking_delta": 0,
-                "offer_tracking_delta": 0,
-                "offer_alignment": "keep",
-                "headline_background": "keep",
-                "headline_text": "keep",
-                "offer_background": "keep",
-                "offer_text": "keep",
-                "cta_text": "keep",
-            }
-        )
-        layout = _layout()
-        layout["underlays"] = [
-            item
-            for item in layout["underlays"]
-            if item["id"] != "surface-cta"
-        ]
-        review = _enforce_final_review_revision(
-            {
-                "needs_revision": False,
-                "diagnosis": {
-                    "primary_issue": "contrast",
-                    "observed_problems": [
-                        {
-                            "category": "contrast",
-                            "target": "headline_band",
-                            "evidence": "The headline lacks sufficient contrast.",
-                            "required_correction": "Increase surface contrast.",
-                            "severity": "high",
-                        }
-                    ],
-                    "correction_summary": "Improve headline contrast.",
-                },
-                "adjustments": adjustments,
-                "reason": "No changes.",
+    def test_neutral_response_is_rejected_without_hardcoded_fallback(self):
+        review = {
+            "needs_revision": True,
+            "diagnosis": {
+                "primary_issue": "hierarchy",
+                "feature_reviews": _feature_reviews(
+                    {"hierarchy": ["title_scale"]}
+                ),
+                "observed_problems": [
+                    {
+                        "category": "hierarchy",
+                        "target": "title",
+                        "evidence": "The title hierarchy needs correction.",
+                        "required_correction": "Adjust the title scale.",
+                        "severity": "medium",
+                    }
+                ],
+                "correction_summary": "Correct the title hierarchy.",
             },
-            layout,
-        )
-        self.assertTrue(review["needs_revision"])
-        self.assertTrue(review["revision_enforced"])
-        self.assertEqual(review["adjustments"]["surface_opacity_delta"], 0.05)
+            "adjustments": _neutral_adjustments(),
+            "reason": "No changes.",
+        }
+        with self.assertRaisesRegex(ValueError, "selects neutral control"):
+            _enforce_final_review_revision(review, _layout())
 
-    def test_price_diagnosis_forces_price_specific_adjustment(self):
-        adjustments = _adjustments()
-        for field in (
-            "price_scale",
-            "price_number_scale",
-            "price_unit_scale",
-        ):
-            adjustments[field] = 1.0
-        adjustments["price_number_baseline_shift"] = 0.0
-        adjustments["price_unit_baseline_shift"] = 0.0
+    def test_price_is_not_changed_without_price_feedback(self):
+        adjustments = _neutral_adjustments()
+        adjustments["title_scale"] = 1.10
         review = _enforce_final_review_revision(
             {
                 "needs_revision": True,
                 "diagnosis": {
                     "primary_issue": "hierarchy",
+                    "feature_reviews": _feature_reviews(
+                        {"hierarchy": ["title_scale"]}
+                    ),
                     "observed_problems": [
                         {
-                            "category": "price_composition",
-                            "target": "price_number",
-                            "evidence": (
-                                "The number is disproportionately large relative "
-                                "to the surrounding price units."
-                            ),
-                            "required_correction": (
-                                "Reduce the number scale to restore one price line."
-                            ),
+                            "category": "hierarchy",
+                            "target": "title",
+                            "evidence": "The title dominates the headline group.",
+                            "required_correction": "Reduce title dominance.",
                             "severity": "high",
                         }
                     ],
-                    "correction_summary": "Balance the price typography.",
+                    "correction_summary": "Correct headline hierarchy.",
                 },
                 "adjustments": adjustments,
                 "reason": "Improve hierarchy.",
             },
             _layout(),
         )
-        self.assertEqual(review["adjustments"]["price_number_scale"], 0.92)
-        self.assertTrue(review["diagnosis_adjustment_enforced"])
-        self.assertIn(
-            "price_composition", review["enforced_problem_categories"]
+        self.assertEqual(review["adjustments"]["price_number_scale"], 1.0)
+        self.assertEqual(review["adjustments"]["price_unit_scale"], 1.0)
+        self.assertEqual(
+            review["adjustments"]["price_unit_baseline_shift"], 0
         )
-
+        self.assertTrue(review["consistency_validated"])
+        self.assertFalse(review["revision_enforced"])
 
 if __name__ == "__main__":
     unittest.main()

@@ -327,7 +327,7 @@ FINAL_REVIEW_SCHEMA["properties"]["diagnosis"] = {
                 "additionalProperties": False,
             },
             "minItems": 1,
-            "maxItems": 4,
+            "maxItems": 6,
         },
         "correction_summary": {"type": "string"},
     },
@@ -436,6 +436,111 @@ _final_adjustments["required"].extend(
     ]
 )
 
+
+
+_FINAL_REVIEW_FEATURES = (
+    "typography",
+    "hierarchy",
+    "spacing",
+    "price_composition",
+    "band_proportion",
+    "accent_rule",
+    "placement",
+    "color",
+    "contrast",
+    "cta",
+    "product_visibility",
+)
+_FINAL_REVIEW_FEATURE_CONTROLS = {
+    "typography": [
+        "title_scale", "subtitle_scale", "price_scale", "cta_scale",
+        "price_number_scale", "price_unit_scale",
+        "price_number_baseline_shift", "price_unit_baseline_shift",
+        "headline_weight", "offer_weight", "headline_tracking_delta",
+        "offer_tracking_delta",
+    ],
+    "hierarchy": [
+        "headline_scale", "offer_scale", "title_scale",
+        "subtitle_scale", "price_scale", "cta_scale",
+        "headline_weight", "offer_weight",
+    ],
+    "spacing": [
+        "headline_y_shift", "offer_x_shift", "offer_y_shift",
+        "headline_subtitle_gap_delta", "price_cta_gap_delta",
+    ],
+    "price_composition": [
+        "price_scale", "price_number_scale", "price_unit_scale",
+        "price_number_baseline_shift", "price_unit_baseline_shift",
+    ],
+    "band_proportion": [
+        "headline_band_height_scale", "offer_band_height_scale",
+    ],
+    "accent_rule": [
+        "accent_rule_width_scale", "accent_rule_y_shift",
+    ],
+    "placement": [
+        "headline_y_shift", "offer_x_shift", "offer_y_shift",
+        "offer_alignment",
+    ],
+    "color": [
+        "headline_background", "headline_text", "offer_background",
+        "offer_text", "cta_text",
+    ],
+    "contrast": [
+        "surface_opacity_delta", "headline_background", "headline_text",
+        "offer_background", "offer_text", "cta_text",
+    ],
+    "cta": [
+        "cta_scale", "price_cta_gap_delta", "offer_weight",
+        "offer_tracking_delta", "cta_text",
+    ],
+    "product_visibility": [
+        "headline_y_shift", "offer_x_shift", "offer_y_shift",
+        "headline_band_height_scale", "offer_band_height_scale",
+        "surface_opacity_delta",
+    ],
+}
+
+
+def _feature_feedback_schema(feature: str) -> dict:
+    return {
+        "type": "object",
+        "properties": {
+            "verdict": {
+                "type": "string",
+                "enum": ["keep", "revise"],
+            },
+            "evidence": {"type": "string"},
+            "recommended_change": {"type": "string"},
+            "controls": {
+                "type": "array",
+                "items": {
+                    "type": "string",
+                    "enum": _FINAL_REVIEW_FEATURE_CONTROLS[feature],
+                },
+                "maxItems": 6,
+            },
+        },
+        "required": [
+            "verdict",
+            "evidence",
+            "recommended_change",
+            "controls",
+        ],
+        "additionalProperties": False,
+    }
+
+_diagnosis_schema = FINAL_REVIEW_SCHEMA["properties"]["diagnosis"]
+_diagnosis_schema["properties"]["feature_reviews"] = {
+    "type": "object",
+    "properties": {
+        feature: _feature_feedback_schema(feature)
+        for feature in _FINAL_REVIEW_FEATURES
+    },
+    "required": list(_FINAL_REVIEW_FEATURES),
+    "additionalProperties": False,
+}
+_diagnosis_schema["required"].insert(1, "feature_reviews")
 
 
 __all__ = [

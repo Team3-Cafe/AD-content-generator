@@ -55,41 +55,34 @@ completed advertisement. The supplied image contains the finished background
 and every rendered copy element. Diagnose what remains weak in the actual
 delivered composition before choosing corrections.
 
-Evaluate typography and hierarchy for title, subtitle, price, and CTA; spatial
-balance and product visibility; group placement and offer alignment; tracking
-and font weight; the relative size and baseline of price numbers versus units;
-title/subtitle and price/CTA spacing; band height; accent-rule placement; text
-and background contrast; and palette harmony. The CTA is plain typography in a
-static image, never a button or interactive control. Correct only deficient
-attributes and use neutral values or "keep" for attributes that are already
-successful. Color choices must use the supplied palette tokens or "keep". The
-code enforces readable contrast after your selection.
+Evaluate every design feature listed in feature_reviews: typography, hierarchy,
+spacing, price composition, band proportion, accent rule, placement, color,
+contrast, CTA treatment, and product visibility. Return an explicit keep or
+revise verdict for every feature, even when it is already successful. Ground
+each verdict in visible evidence from the supplied completed image and describe
+the appropriate correction without inventing a defect.
 
-Treat every scale field as a multiplier where 1.0 means keep. Treat group,
-gap, and accent-rule shifts as normalized canvas ratios where 0.0 means keep.
-Treat price number/unit baseline shifts as fractions of the base price font
-size. Use price_number_scale and price_unit_scale to correct disproportionate
-number and unit sizing instead of shrinking the entire price line. Prefer the
-smallest coherent set of changes that resolves every diagnosed problem.
+The CTA is plain typography in a static image, never a button or interactive
+control. Treat every scale field as a multiplier where 1.0 means keep. Treat
+group, gap, and accent-rule shifts as normalized canvas ratios where 0.0 means
+keep. Treat price number/unit baseline shifts as fractions of the base price
+font size. Color choices must use the supplied palette tokens or "keep".
 
-Keep the headline horizontally centered. Preserve the exact copy, semantic
-groups, product visibility, and core art direction, but improve the execution
-where the second-stage result is visibly weak. Always set needs_revision to
-true and report one to four concrete observed problems. For every problem,
-identify its category and exact target, describe visible evidence as a complete
-specific sentence, state the required correction as a complete actionable
-sentence, and assign severity. Do not use vague diagnoses such as "improve
-hierarchy" or "adjust spacing" without naming the visual relationship that is
-wrong and its consequence.
+For each feature marked revise, list the exact adjustment controls that implement
+its recommended change and set those controls to meaningful non-neutral values.
+For each feature marked keep, return an empty controls list. Every non-neutral
+adjustment must be justified by at least one revise feature, and every selected
+control must be non-neutral. Shared controls may support multiple features.
+Choose direction and magnitude from the actual image rather than fixed rules.
 
-Every observed problem category must be represented by at least one related
-non-neutral adjustment. In particular, a price_composition problem must change
-price scale, number/unit scale, or number/unit baseline; generic group movement
-does not resolve it. A spacing problem must change a relevant group position or
-gap. A typography or hierarchy problem must change a relevant role scale,
-weight, or tracking. A band, accent, color, contrast, CTA, placement, or product
-visibility problem must likewise change its corresponding controls. Never
-request new copy, a new template, or an alternative design.
+Preserve the exact copy, semantic groups, product visibility, and core art
+direction. Keep the headline horizontally centered. Report one to six
+distinct observed problems using concrete evidence, exact targets, actionable
+corrections, and severity. Do not use vague statements such as "improve
+hierarchy" or "adjust spacing" without identifying the broken relationship
+and its consequence. Always set needs_revision to true and make every correction
+supported by the feature-by-feature review. Never request new copy, a new
+template, or an alternative design.
 """.strip()
 
 
