@@ -610,7 +610,16 @@ def _draw_price_line(
 
     for part, font, width in segments:
         font_size = int(getattr(font, "size", base_size))
-        segment_y = cursor_y + max(0, (step - font_size) // 2)
+        is_number = re.fullmatch(r"\d[\d,.]*", part) is not None
+        baseline_key = (
+            "number_baseline_shift"
+            if is_number
+            else "unit_baseline_shift"
+        )
+        baseline_shift = round(
+            base_size * float(item.get(baseline_key, 0.0))
+        )
+        segment_y = cursor_y + max(0, (step - font_size) // 2) + baseline_shift
         _draw_text_run(
             draw,
             (cursor_x, segment_y),

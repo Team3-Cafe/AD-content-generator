@@ -19,8 +19,9 @@ Center the headline by default, including the one-line title. Treat price as
 the primary offer and CTA as the secondary action; they must not look like two
 unrelated phrases squeezed onto one line. Prefer a vertically stacked,
 centered offer on portrait and square canvases. Use a horizontal offer only
-when a wide canvas and short copy provide generous separation. Choose whether
-the CTA is a restrained accent pill, outline action, or plain secondary line.
+when a wide canvas and short copy provide generous separation. Render the CTA
+as a plain typographic secondary line. This is a static image advertisement,
+so never draw the CTA as a button, pill, outline control, or interactive UI.
 
 Select every background and text color from the supplied palette-token enum.
 Choose harmonious combinations based on the actual image palette, mood, and
@@ -56,11 +57,20 @@ delivered composition before choosing corrections.
 
 Evaluate typography and hierarchy for title, subtitle, price, and CTA; spatial
 balance and product visibility; group placement and offer alignment; tracking
-and font weight; text/background contrast; palette harmony; CTA emphasis; and
-surface opacity. Correct only the deficient attributes and use "keep" for
-attributes that are already successful. Color choices must use the supplied
-palette tokens or "keep". The code enforces readable contrast after your
-selection.
+and font weight; the relative size and baseline of price numbers versus units;
+title/subtitle and price/CTA spacing; band height; accent-rule placement; text
+and background contrast; and palette harmony. The CTA is plain typography in a
+static image, never a button or interactive control. Correct only deficient
+attributes and use neutral values or "keep" for attributes that are already
+successful. Color choices must use the supplied palette tokens or "keep". The
+code enforces readable contrast after your selection.
+
+Treat every scale field as a multiplier where 1.0 means keep. Treat group,
+gap, and accent-rule shifts as normalized canvas ratios where 0.0 means keep.
+Treat price number/unit baseline shifts as fractions of the base price font
+size. Use price_number_scale and price_unit_scale to correct disproportionate
+number and unit sizing instead of shrinking the entire price line. Prefer the
+smallest coherent set of changes that resolves every diagnosed problem.
 
 Keep the headline horizontally centered. Preserve the exact copy, semantic
 groups, product visibility, and core art direction, but improve the execution
@@ -134,6 +144,14 @@ def build_final_review_request(
                 "text_align": item.get("text_align", "left"),
                 "color": item.get("color"),
                 "content": item.get("content"),
+                "number_scale": item.get("number_scale"),
+                "unit_scale": item.get("unit_scale"),
+                "number_baseline_shift": item.get(
+                    "number_baseline_shift", 0
+                ),
+                "unit_baseline_shift": item.get(
+                    "unit_baseline_shift", 0
+                ),
             }
             for item in layout["elements"]
         ],
@@ -143,11 +161,23 @@ def build_final_review_request(
                 "background_color": item.get("background_color"),
                 "gradient_color": item.get("gradient_color"),
                 "opacity": item.get("opacity"),
+                "x": item.get("x"),
+                "y": item.get("y"),
+                "width": item.get("width"),
+                "height": item.get("height"),
                 "border_color": item.get("border_color"),
             }
             for item in layout.get("underlays", [])
             if str(item.get("id", "")).startswith("surface-")
         ],
+        "accent_rule": next(
+            (
+                item
+                for item in layout.get("underlays", [])
+                if item.get("id") == "accent-rule"
+            ),
+            None,
+        ),
         "design_tokens": {
             "palette": layout["design_tokens"]["palette"],
             "headline_alignment": layout["design_tokens"][

@@ -19,7 +19,8 @@ rank alternatives, or measure aesthetic scores.
    safe width. The title remains centered by default.
 4. Portrait and square canvases stack price above CTA with clear hierarchy;
    horizontal lockups are allowed only when a wide canvas and short copy leave
-   enough room. CTA can be rendered as an accent pill, outline, or plain line.
+   enough room. CTA is always rendered as a plain typographic line, never as a
+   button, pill, outline control, or other interactive UI.
 5. Selected palette colors are resolved to exact values and checked for WCAG
    text contrast. Unsafe foreground colors are replaced automatically while
    preserving the VLM's background-color direction.
@@ -30,8 +31,9 @@ rank alternatives, or measure aesthetic scores.
    `final_review_input.png`.
 9. GPT-4o diagnoses remaining weaknesses in the completed advertisement and
    returns final corrections for placement, per-role type scale, font weight,
-   tracking, offer alignment, surface opacity, and palette-token colors. The
-   exact copy and core art direction remain fixed.
+   tracking, offer alignment, price number/unit proportions and baselines,
+   copy-group gaps, band height, accent-rule geometry, surface opacity, and
+   palette-token colors. The exact copy and core art direction remain fixed.
 10. The final correction is applied and rendered to `final_ad.png`.
 
 The renderer uses the configured Korean-capable font, fits the title to one

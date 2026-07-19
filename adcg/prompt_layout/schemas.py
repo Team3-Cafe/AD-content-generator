@@ -92,7 +92,7 @@ DESIGN_SPEC_SCHEMA = {
                 },
                 "cta_treatment": {
                     "type": "string",
-                    "enum": ["accent_pill", "outline", "plain"],
+                    "enum": ["plain"],
                 },
             },
             "required": [
@@ -260,6 +260,9 @@ FINAL_REVIEW_SCHEMA["properties"]["diagnosis"] = {
                 "typography",
                 "hierarchy",
                 "spacing",
+                "price_composition",
+                "band_proportion",
+                "accent_rule",
                 "placement",
                 "color",
                 "contrast",
@@ -291,6 +294,32 @@ _final_adjustments["properties"].update(
         "subtitle_scale": {"type": "number", "minimum": 0.80, "maximum": 1.20},
         "price_scale": {"type": "number", "minimum": 0.80, "maximum": 1.20},
         "cta_scale": {"type": "number", "minimum": 0.80, "maximum": 1.20},
+        "price_number_scale": {"type": "number", "minimum": 0.70, "maximum": 1.20},
+        "price_unit_scale": {"type": "number", "minimum": 0.80, "maximum": 1.30},
+        "price_number_baseline_shift": {
+            "type": "number", "minimum": -0.30, "maximum": 0.30,
+        },
+        "price_unit_baseline_shift": {
+            "type": "number", "minimum": -0.30, "maximum": 0.30,
+        },
+        "headline_subtitle_gap_delta": {
+            "type": "number", "minimum": -0.04, "maximum": 0.08,
+        },
+        "price_cta_gap_delta": {
+            "type": "number", "minimum": -0.04, "maximum": 0.08,
+        },
+        "headline_band_height_scale": {
+            "type": "number", "minimum": 0.80, "maximum": 1.20,
+        },
+        "offer_band_height_scale": {
+            "type": "number", "minimum": 0.80, "maximum": 1.20,
+        },
+        "accent_rule_width_scale": {
+            "type": "number", "minimum": 0.50, "maximum": 1.50,
+        },
+        "accent_rule_y_shift": {
+            "type": "number", "minimum": -0.04, "maximum": 0.04,
+        },
         "headline_weight": {
             "type": "string",
             "enum": ["keep", "lighter", "bolder"],
@@ -320,7 +349,6 @@ _final_adjustments["properties"].update(
                 "headline_text",
                 "offer_background",
                 "offer_text",
-                "cta_background",
                 "cta_text",
             )
         },
@@ -332,6 +360,16 @@ _final_adjustments["required"].extend(
         "subtitle_scale",
         "price_scale",
         "cta_scale",
+        "price_number_scale",
+        "price_unit_scale",
+        "price_number_baseline_shift",
+        "price_unit_baseline_shift",
+        "headline_subtitle_gap_delta",
+        "price_cta_gap_delta",
+        "headline_band_height_scale",
+        "offer_band_height_scale",
+        "accent_rule_width_scale",
+        "accent_rule_y_shift",
         "headline_weight",
         "offer_weight",
         "headline_tracking_delta",
@@ -341,7 +379,6 @@ _final_adjustments["required"].extend(
         "headline_text",
         "offer_background",
         "offer_text",
-        "cta_background",
         "cta_text",
     ]
 )

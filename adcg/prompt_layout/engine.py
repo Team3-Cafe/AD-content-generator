@@ -469,13 +469,13 @@ def build_design_layout(
     if arrangement == "horizontal" and has_price and has_cta:
         offer_height = max(
             round(price_size * 1.55),
-            round(cta_size * 2.5),
+            round(cta_size * 1.6),
         )
     else:
         offer_height = (
             (round(price_size * 1.45) if has_price else 0)
             + (inner_gap if has_price and has_cta else 0)
-            + (round(cta_size * 2.35) if has_cta else 0)
+            + (round(cta_size * 1.6) if has_cta else 0)
         )
     offer_group = _place_centered_group(
         {
@@ -579,9 +579,8 @@ def build_design_layout(
             cta_width = min(
                 offer_group["width"],
                 max(
-                    round(offer_group["width"] * 0.52),
-                    round(len(ad_copy["cta"]) * cta_size * 0.72)
-                    + band_padding * 2,
+                    round(offer_group["width"] * 0.25),
+                    round(len(ad_copy["cta"]) * cta_size * 0.72),
                 ),
             )
             offer_boxes["cta"] = {
@@ -589,11 +588,11 @@ def build_design_layout(
                 + (offer_group["width"] - cta_width) // 2,
                 "y": cursor_y,
                 "width": cta_width,
-                "height": round(cta_size * 2.35),
+                "height": round(cta_size * 1.6),
             }
 
     accent_role = direction["accent_role"]
-    cta_treatment = direction["cta_treatment"]
+    cta_treatment = "plain"
     requested_cta_background = _resolve_color_token(
         color_direction["cta_background"],
         palette,
@@ -860,6 +859,8 @@ def apply_final_review_revision(layout: dict, revision: dict) -> dict:
         return adjusted
 
     changes = revision["adjustments"]
+    width = int(adjusted["canvas"]["width"])
+    height = int(adjusted["canvas"]["height"])
     role_scales = {
         role: float(changes[f"{role}_scale"])
         for role in ("title", "subtitle", "price", "cta")
@@ -895,6 +896,78 @@ def apply_final_review_revision(layout: dict, revision: dict) -> dict:
             int(item.get("tracking", 0)) + tracking_deltas.get(group, 0),
         )
 
+    elements_by_role = {
+        str(item.get("role")): item
+        for item in adjusted["elements"]
+    }
+    price = elements_by_role.get("price")
+    if price is not None:
+        price["number_scale"] = round(
+            float(price.get("number_scale", 1.22))
+            * float(changes["price_number_scale"]),
+            4,
+        )
+        price["unit_scale"] = round(
+            float(price.get("unit_scale", 0.80))
+            * float(changes["price_unit_scale"]),
+            4,
+        )
+        for prefix in ("number", "unit"):
+            key = f"{prefix}_baseline_shift"
+            shift = round(
+                float(price.get(key, 0.0))
+                + float(changes[f"price_{key}"]),
+                4,
+            )
+            if key in price or abs(shift) >= 1e-9:
+                price[key] = shift
+
+    def shift_element(item: dict | None, dx: int = 0, dy: int = 0) -> None:
+        if item is None:
+            return
+        item["x"] = _clamp(
+            int(item["x"]) + dx,
+            0,
+            max(0, width - int(item["width"])),
+        )
+        item["y"] = _clamp(
+            int(item["y"]) + dy,
+            0,
+            max(0, height - int(item["height"])),
+        )
+
+    subtitle_gap = round(
+        float(changes["headline_subtitle_gap_delta"]) * height
+    )
+    shift_element(elements_by_role.get("subtitle"), dy=subtitle_gap)
+
+    offer_gap = float(changes["price_cta_gap_delta"])
+    if adjusted["design_tokens"].get("offer_arrangement") == "horizontal":
+        shift_element(elements_by_role.get("cta"), dx=round(offer_gap * width))
+    else:
+        shift_element(elements_by_role.get("cta"), dy=round(offer_gap * height))
+
+    for group in ("headline", "offer"):
+        group_items = [
+            item
+            for item in adjusted["elements"]
+            if item.get("design_group") == group
+        ]
+        if not group_items:
+            continue
+        left = min(int(item["x"]) for item in group_items)
+        top = min(int(item["y"]) for item in group_items)
+        right = max(
+            int(item["x"]) + int(item["width"])
+            for item in group_items
+        )
+        bottom = max(
+            int(item["y"]) + int(item["height"])
+            for item in group_items
+        )
+        adjusted["design_groups"][group].update(
+            {"x": left, "y": top, "width": right - left, "height": bottom - top}
+        )
     offer_alignment = str(changes["offer_alignment"])
     if offer_alignment != "keep":
         for item in adjusted["elements"]:
@@ -903,6 +976,7 @@ def apply_final_review_revision(layout: dict, revision: dict) -> dict:
         adjusted["design_tokens"]["offer_alignment"] = offer_alignment
 
     tokens = adjusted["design_tokens"]
+    tokens["cta_treatment"] = "plain"
     palette = tokens["palette"]
     color_direction = tokens["color_direction"]
 
@@ -913,18 +987,74 @@ def apply_final_review_revision(layout: dict, revision: dict) -> dict:
         color_direction[name] = token
         return _resolve_color_token(token, palette)
 
+    adjusted["underlays"] = [
+        item
+        for item in adjusted.get("underlays", [])
+        if str(item.get("id")) != "surface-cta"
+    ]
     underlays = {
         str(item.get("id")): item
         for item in adjusted.get("underlays", [])
     }
     headline_surface = underlays.get("surface-headline")
     offer_surface = underlays.get("surface-offer")
-    cta_surface = underlays.get("surface-cta")
+
+    def scale_band(surface: dict | None, group: str, scale: float) -> None:
+        if surface is None:
+            return
+        current_height = int(surface["height"])
+        group_box = adjusted["design_groups"][group]
+        padding = max(4, round(min(width, height) * 0.01))
+        minimum_height = int(group_box["height"]) + padding * 2
+        new_height = max(
+            minimum_height,
+            min(height, round(current_height * scale)),
+        )
+        center_y = int(group_box["y"]) + int(group_box["height"]) / 2
+        surface["height"] = new_height
+        surface["y"] = _clamp(
+            round(center_y - new_height / 2),
+            0,
+            height - new_height,
+        )
+
+    scale_band(
+        headline_surface,
+        "headline",
+        float(changes["headline_band_height_scale"]),
+    )
+    scale_band(
+        offer_surface,
+        "offer",
+        float(changes["offer_band_height_scale"]),
+    )
+
+    accent_rule = underlays.get("accent-rule")
+    if accent_rule is not None:
+        rule_center = int(accent_rule["x"]) + int(accent_rule["width"]) / 2
+        accent_rule["width"] = max(
+            3,
+            min(
+                width,
+                round(
+                    int(accent_rule["width"])
+                    * float(changes["accent_rule_width_scale"])
+                ),
+            ),
+        )
+        accent_rule["x"] = _clamp(
+            round(rule_center - int(accent_rule["width"]) / 2),
+            0,
+            width - int(accent_rule["width"]),
+        )
+        shift_element(
+            accent_rule,
+            dy=round(float(changes["accent_rule_y_shift"]) * height),
+        )
 
     for name, surface in (
         ("headline_background", headline_surface),
         ("offer_background", offer_surface),
-        ("cta_background", cta_surface),
     ):
         color = selected_color(name)
         if color is not None and surface is not None:
@@ -943,11 +1073,7 @@ def apply_final_review_revision(layout: dict, revision: dict) -> dict:
         if offer_surface is not None
         else palette["dark"]
     )
-    cta_background = (
-        str(cta_surface.get("background_color", offer_background))
-        if cta_surface is not None
-        else offer_background
-    )
+    cta_background = offer_background
     requested_text = {
         "headline": selected_color("headline_text"),
         "offer": selected_color("offer_text"),
