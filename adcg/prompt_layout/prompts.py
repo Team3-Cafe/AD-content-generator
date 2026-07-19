@@ -15,12 +15,20 @@ group. Their background surfaces always extend from the left canvas edge to
 the right canvas edge, creating intentional editorial bands instead of small
 floating cards.
 
-Center the headline by default, including the one-line title. The offer may
-use left, center, or right alignment when it supports the image flow. Select
-solid, gradient, scrim, or accent band treatment according to the brightness
-and visual detail at the chosen vertical position. The code will derive the
-actual band colors from the local background and image palette. Establish
-hierarchy with scale, weight, spacing, and one restrained accent.
+Center the headline by default, including the one-line title. Treat price as
+the primary offer and CTA as the secondary action; they must not look like two
+unrelated phrases squeezed onto one line. Prefer a vertically stacked,
+centered offer on portrait and square canvases. Use a horizontal offer only
+when a wide canvas and short copy provide generous separation. Choose whether
+the CTA is a restrained accent pill, outline action, or plain secondary line.
+
+Select every background and text color from the supplied palette-token enum.
+Choose harmonious combinations based on the actual image palette, mood, and
+placement. Headline and offer bands may use different palette colors, but the
+result should feel like one color system. Maintain strong text/background
+contrast. Use palette_accent selectively rather than filling every surface
+with it. The code resolves the chosen tokens to exact colors and corrects any
+unsafe text contrast.
 
 Return exactly one structured design specification. Do not provide horizontal
 coordinates for the headline; its content remains centered inside the band.

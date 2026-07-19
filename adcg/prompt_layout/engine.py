@@ -210,13 +210,66 @@ def _hex_luminance(color: str) -> float:
     return (0.2126 * red + 0.7152 * green + 0.0722 * blue) / 255.0
 
 
+def _resolve_color_token(token: str, palette: dict[str, str]) -> str:
+    return {
+        "palette_dark": palette["dark"],
+        "palette_light": palette["light"],
+        "palette_accent": palette["accent"],
+        "neutral_dark": "#101820",
+        "neutral_light": "#FFFFFF",
+    }.get(token, palette["dark"])
+
+
+def _contrast_ratio(first: str, second: str) -> float:
+    def relative_luminance(color: str) -> float:
+        channels = [
+            int(color[index:index + 2], 16) / 255.0
+            for index in (1, 3, 5)
+        ]
+        linear = [
+            value / 12.92
+            if value <= 0.04045
+            else ((value + 0.055) / 1.055) ** 2.4
+            for value in channels
+        ]
+        return 0.2126 * linear[0] + 0.7152 * linear[1] + 0.0722 * linear[2]
+
+    first_luminance = relative_luminance(first)
+    second_luminance = relative_luminance(second)
+    lighter = max(first_luminance, second_luminance)
+    darker = min(first_luminance, second_luminance)
+    return (lighter + 0.05) / (darker + 0.05)
+
+
+def _safe_text_color(
+    background: str,
+    requested: str,
+    palette: dict[str, str],
+) -> str:
+    candidates = [
+        requested,
+        palette["light"],
+        palette["dark"],
+        "#FFFFFF",
+        "#101820",
+    ]
+    if _contrast_ratio(background, requested) >= 4.5:
+        return requested
+    return max(
+        candidates,
+        key=lambda color: _contrast_ratio(background, color),
+    )
+
+
 def _band_style(
     image_analysis: dict,
     *,
     center_y: int,
     surface: str,
+    background_token: str,
+    text_token: str,
 ) -> dict:
-    """Derive band and text colors from the actual placement region."""
+    """Resolve VLM palette choices and enforce readable contrast."""
     height = max(1, int(image_analysis["canvas"]["height"]))
     ratio = center_y / height
     bands = image_analysis.get("horizontal_bands", [])
@@ -231,33 +284,24 @@ def _band_style(
         "edge_density": 0.0,
     }
     palette = image_analysis["palette"]
-    if surface == "accent_band":
-        return {
-            "background": palette["accent"],
-            "gradient": _mix_hex(palette["accent"], palette["light"], 0.16),
-            "text": (
-                "#101820"
-                if _hex_luminance(palette["accent"]) >= 0.52
-                else "#FFFFFF"
-            ),
-            "opacity": 0.96,
-            "local_region": band,
-        }
-
     busy = float(band["contrast"]) + float(band["edge_density"]) > 0.42
-    use_dark_band = float(band["luminance"]) >= 0.48 or busy
-    if use_dark_band:
-        background = _mix_hex(palette["dark"], "#000000", 0.18)
-        gradient = _mix_hex(background, palette["accent"], 0.12)
-        text = "#FFFFFF"
+    background = _resolve_color_token(background_token, palette)
+    requested_text = _resolve_color_token(text_token, palette)
+    text = _safe_text_color(background, requested_text, palette)
+    if surface == "full_width_gradient":
+        gradient_target = (
+            palette["dark"]
+            if _hex_luminance(background) >= 0.55
+            else palette["accent"]
+        )
+        gradient = _mix_hex(background, gradient_target, 0.18)
     else:
-        background = _mix_hex(palette["light"], "#FFFFFF", 0.14)
-        gradient = _mix_hex(background, palette["accent"], 0.14)
-        text = "#101820"
+        gradient = background
     opacity = {
         "full_width_solid": 0.90,
         "full_width_gradient": 0.84,
         "full_width_scrim": 0.78,
+        "accent_band": 0.94,
     }.get(surface, 0.84)
     if busy:
         opacity = min(0.92, opacity + 0.08)
@@ -265,6 +309,9 @@ def _band_style(
         "background": background,
         "gradient": gradient,
         "text": text,
+        "requested_text": requested_text,
+        "background_token": background_token,
+        "text_token": text_token,
         "opacity": opacity,
         "local_region": band,
     }
@@ -279,6 +326,8 @@ def _panel(
     opacity: float,
     radius: int,
     gradient: str | None = None,
+    border_color: str | None = None,
+    border_width: int = 0,
     z_index: int = 0,
 ) -> dict:
     item = {
@@ -293,6 +342,9 @@ def _panel(
     }
     if gradient is not None:
         item["gradient_color"] = gradient
+    if border_color is not None and border_width > 0:
+        item["border_color"] = border_color
+        item["border_width"] = border_width
     return item
 
 
@@ -345,6 +397,7 @@ def build_design_layout(
     margin = max(12, round(short_side * 0.045))
     palette = image_analysis["palette"]
     direction = design_spec["art_direction"]
+    color_direction = design_spec["color_direction"]
     composition = design_spec["composition"]
     offer_alignment = direction["alignment"]
     density = direction["spacing_density"]
@@ -398,7 +451,21 @@ def build_design_layout(
 
     has_price = bool(ad_copy.get("price"))
     has_cta = bool(ad_copy.get("cta"))
-    arrangement = composition["offer_arrangement"]
+    requested_arrangement = composition["offer_arrangement"]
+    estimated_horizontal_width = round(
+        len(ad_copy.get("price", "")) * price_size * 0.72
+        + len(ad_copy.get("cta", "")) * cta_size * 0.66
+        + inner_gap * 3
+    )
+    horizontal_has_room = (
+        width / max(1, height) >= 1.15
+        and estimated_horizontal_width <= offer_width
+    )
+    arrangement = (
+        "horizontal"
+        if requested_arrangement == "horizontal" and horizontal_has_room
+        else "vertical"
+    )
     if arrangement == "horizontal" and has_price and has_cta:
         offer_height = max(
             round(price_size * 1.55),
@@ -427,11 +494,15 @@ def build_design_layout(
         image_analysis,
         center_y=headline_group["y"] + headline_group["height"] // 2,
         surface=direction["headline_surface"],
+        background_token=color_direction["headline_background"],
+        text_token=color_direction["headline_text"],
     )
     offer_band = _band_style(
         image_analysis,
         center_y=offer_group["y"] + offer_group["height"] // 2,
         surface=direction["offer_surface"],
+        background_token=color_direction["offer_background"],
+        text_token=color_direction["offer_text"],
     )
 
     elements = []
@@ -505,14 +576,44 @@ def build_design_layout(
             }
             cursor_y += price_height + (inner_gap if has_cta else 0)
         if has_cta:
+            cta_width = min(
+                offer_group["width"],
+                max(
+                    round(offer_group["width"] * 0.52),
+                    round(len(ad_copy["cta"]) * cta_size * 0.72)
+                    + band_padding * 2,
+                ),
+            )
             offer_boxes["cta"] = {
-                "x": offer_group["x"],
+                "x": offer_group["x"]
+                + (offer_group["width"] - cta_width) // 2,
                 "y": cursor_y,
-                "width": offer_group["width"],
+                "width": cta_width,
                 "height": round(cta_size * 2.35),
             }
 
     accent_role = direction["accent_role"]
+    cta_treatment = direction["cta_treatment"]
+    requested_cta_background = _resolve_color_token(
+        color_direction["cta_background"],
+        palette,
+    )
+    requested_cta_text = _resolve_color_token(
+        color_direction["cta_text"],
+        palette,
+    )
+    if cta_treatment == "accent_pill":
+        cta_text_color = _safe_text_color(
+            requested_cta_background,
+            requested_cta_text,
+            palette,
+        )
+    else:
+        cta_text_color = _safe_text_color(
+            offer_band["background"],
+            requested_cta_text,
+            palette,
+        )
     if has_price:
         price_color = offer_band["text"]
         if (
@@ -520,6 +621,11 @@ def build_design_layout(
             and direction["offer_surface"] != "accent_band"
         ):
             price_color = palette["accent"]
+        price_color = _safe_text_color(
+            offer_band["background"],
+            price_color,
+            palette,
+        )
         price_item = _element(
             "price",
             ad_copy["price"],
@@ -528,7 +634,7 @@ def build_design_layout(
             font_size=price_size,
             font_weight=800,
             color=price_color,
-            align=offer_alignment,
+            align=("center" if arrangement == "vertical" else offer_alignment),
             max_lines=1,
             line_height=1.0,
         )
@@ -544,10 +650,15 @@ def build_design_layout(
                 offer_boxes["cta"],
                 font_size=cta_size,
                 font_weight=720,
-                color=offer_band["text"],
+                color=(
+                    offer_band["text"]
+                    if cta_treatment == "plain"
+                    else cta_text_color
+                ),
                 align=(
                     "center"
-                    if accent_role in {"cta", "price_and_cta"}
+                    if arrangement == "vertical"
+                    or accent_role in {"cta", "price_and_cta"}
                     else offer_alignment
                 ),
                 max_lines=1,
@@ -598,6 +709,30 @@ def build_design_layout(
                 radius=0,
             )
         )
+    if has_cta and cta_treatment in {"accent_pill", "outline"}:
+        cta_box = offer_boxes["cta"]
+        underlays.append(
+            _panel(
+                "surface-cta",
+                "offer",
+                cta_box,
+                background=requested_cta_background,
+                gradient=requested_cta_background,
+                opacity=(0.96 if cta_treatment == "accent_pill" else 0.10),
+                radius=max(8, round(cta_box["height"] * 0.48)),
+                border_color=(
+                    requested_cta_background
+                    if cta_treatment == "outline"
+                    else None
+                ),
+                border_width=(
+                    max(1, round(short_side * 0.004))
+                    if cta_treatment == "outline"
+                    else 0
+                ),
+                z_index=1,
+            )
+        )
 
     rule_width = max(3, round(short_side * 0.008))
     rule_length = max(
@@ -638,6 +773,10 @@ def build_design_layout(
             "palette": palette,
             "headline_alignment": "center",
             "offer_alignment": offer_alignment,
+            "offer_arrangement": arrangement,
+            "requested_offer_arrangement": requested_arrangement,
+            "cta_treatment": cta_treatment,
+            "color_direction": color_direction,
             "mood": direction["mood"],
             "spacing_density": density,
             "headline_band": headline_band,

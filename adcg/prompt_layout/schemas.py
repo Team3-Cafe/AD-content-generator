@@ -4,6 +4,18 @@ from __future__ import annotations
 COPY_ROLES = ("title", "subtitle", "price", "cta")
 
 
+COLOR_TOKEN_SCHEMA = {
+    "type": "string",
+    "enum": [
+        "palette_dark",
+        "palette_light",
+        "palette_accent",
+        "neutral_dark",
+        "neutral_light",
+    ],
+}
+
+
 NORMALIZED_BOX_SCHEMA = {
     "type": "object",
     "properties": {
@@ -77,6 +89,10 @@ DESIGN_SPEC_SCHEMA = {
                     "type": "string",
                     "enum": ["rule", "price", "cta", "price_and_cta"],
                 },
+                "cta_treatment": {
+                    "type": "string",
+                    "enum": ["accent_pill", "outline", "plain"],
+                },
             },
             "required": [
                 "mood",
@@ -85,6 +101,27 @@ DESIGN_SPEC_SCHEMA = {
                 "headline_surface",
                 "offer_surface",
                 "accent_role",
+                "cta_treatment",
+            ],
+            "additionalProperties": False,
+        },
+        "color_direction": {
+            "type": "object",
+            "properties": {
+                "headline_background": COLOR_TOKEN_SCHEMA,
+                "headline_text": COLOR_TOKEN_SCHEMA,
+                "offer_background": COLOR_TOKEN_SCHEMA,
+                "offer_text": COLOR_TOKEN_SCHEMA,
+                "cta_background": COLOR_TOKEN_SCHEMA,
+                "cta_text": COLOR_TOKEN_SCHEMA,
+            },
+            "required": [
+                "headline_background",
+                "headline_text",
+                "offer_background",
+                "offer_text",
+                "cta_background",
+                "cta_text",
             ],
             "additionalProperties": False,
         },
@@ -136,6 +173,7 @@ DESIGN_SPEC_SCHEMA = {
     "required": [
         "scene_analysis",
         "art_direction",
+        "color_direction",
         "composition",
         "rationale",
     ],

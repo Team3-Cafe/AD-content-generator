@@ -11,18 +11,22 @@ rank alternatives, or measure aesthetic scores.
    metric.
 2. GPT-4o studies the actual image and copy roles, then authors one structured
    art direction. Title/subtitle form a headline group and price/CTA form an
-   offer group.
+   offer group. It also selects semantic color tokens from the extracted image
+   palette for each band, text group, and CTA.
 3. A relational layout engine converts the two vertical positions and design tokens
    into responsive pixel geometry. Headline and offer backgrounds extend from
    the left edge to the right edge, while their content stays inside a centered
    safe width. The title remains centered by default.
-4. Each horizontal band's local luminance, contrast, and edge density selects
-   a dark, light, gradient, scrim, or accent treatment from the image palette.
-   This avoids detached floating cards and preserves readable contrast.
-5. The first design is rendered to `design_draft.png`.
-6. GPT-4o reviews that same render once and returns bounded position, scale,
+4. Portrait and square canvases stack price above CTA with clear hierarchy;
+   horizontal lockups are allowed only when a wide canvas and short copy leave
+   enough room. CTA can be rendered as an accent pill, outline, or plain line.
+5. Selected palette colors are resolved to exact values and checked for WCAG
+   text contrast. Unsafe foreground colors are replaced automatically while
+   preserving the VLM's background-color direction.
+6. The first design is rendered to `design_draft.png`.
+7. GPT-4o reviews that same render once and returns bounded position, scale,
    and surface-opacity corrections. It never compares or selects candidates.
-7. The corrected design is rendered to `final_ad.png`.
+8. The corrected design is rendered to `final_ad.png`.
 
 The renderer uses the configured Korean-capable font, fits the title to one
 line, adapts text colors to local background contrast, and adds a contrast
