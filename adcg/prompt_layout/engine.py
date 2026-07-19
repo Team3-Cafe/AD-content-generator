@@ -893,278 +893,178 @@ def apply_design_revision(layout: dict, revision: dict) -> dict:
 
 
 def apply_final_review_revision(layout: dict, revision: dict) -> dict:
-    """Apply the completed-ad VLM's geometry, typography, and color fixes."""
-    adjusted = apply_design_revision(layout, revision)
+    """Apply the final VLM's absolute target state without multiplier stacking."""
+    adjusted = deepcopy(layout)
     if not revision.get("needs_revision"):
         return adjusted
 
-    changes = revision["adjustments"]
+    target = revision["target_layout"]
     width = int(adjusted["canvas"]["width"])
     height = int(adjusted["canvas"]["height"])
-    role_scales = {
-        role: float(changes[f"{role}_scale"])
-        for role in ("title", "subtitle", "price", "cta")
-    }
-    weight_steps = {
-        "keep": 0,
-        "lighter": -100,
-        "bolder": 100,
-    }
-    tracking_deltas = {
-        "headline": int(changes["headline_tracking_delta"]),
-        "offer": int(changes["offer_tracking_delta"]),
-    }
-    for item in adjusted["elements"]:
-        role = str(item.get("role", ""))
-        group = str(item.get("design_group", ""))
-        if role in role_scales:
-            role_scale = role_scales[role]
-            _scale_element_box(
-                item,
-                role_scale,
-                canvas_width=width,
-                canvas_height=height,
-            )
-            item["font_size"] = max(
-                8,
-                round(int(item["font_size"]) * role_scale),
-            )
-        weight_choice = str(changes.get(f"{group}_weight", "keep"))
-        item["font_weight"] = max(
-            300,
-            min(
-                900,
-                int(item.get("font_weight", 600))
-                + weight_steps.get(weight_choice, 0),
-            ),
-        )
-        item["tracking"] = max(
-            0,
-            int(item.get("tracking", 0)) + tracking_deltas.get(group, 0),
-        )
+    palette = adjusted["design_tokens"]["palette"]
+    constraints = []
+
+    def bounded_box(source: dict, label: str) -> dict[str, int]:
+        box_width = _clamp(int(source["width"]), 1, width)
+        box_height = _clamp(int(source["height"]), 1, height)
+        x = _clamp(int(source["x"]), 0, width - box_width)
+        y = _clamp(int(source["y"]), 0, height - box_height)
+        requested = {
+            "x": int(source["x"]), "y": int(source["y"]),
+            "width": int(source["width"]), "height": int(source["height"]),
+        }
+        applied = {"x": x, "y": y, "width": box_width, "height": box_height}
+        if requested != applied:
+            constraints.append({
+                "target": label, "reason": "clamped_to_canvas",
+                "requested": requested, "applied": applied,
+            })
+        return applied
+
+    def resolve(token: str, current: str) -> str:
+        return current if token == "keep" else _resolve_color_token(token, palette)
 
     elements_by_role = {
-        str(item.get("role")): item
-        for item in adjusted["elements"]
+        str(item.get("role")): item for item in adjusted["elements"]
     }
+    for element_target in target["elements"]:
+        role = str(element_target["role"])
+        item = elements_by_role.get(role)
+        if item is None:
+            continue
+        item.update(bounded_box(element_target, role))
+        item["font_size"] = max(8, int(element_target["font_size"]))
+        item["font_weight"] = int(element_target["font_weight"])
+        item["tracking"] = int(element_target["tracking"])
+        item["text_align"] = str(element_target["text_align"])
+        requested_lines = int(element_target["max_lines"])
+        item["max_lines"] = 1 if role in {"title", "price", "cta"} else requested_lines
+        if item["max_lines"] != requested_lines:
+            constraints.append({
+                "target": role, "reason": "single_line_role",
+                "requested": requested_lines, "applied": item["max_lines"],
+            })
+        item["color"] = resolve(
+            str(element_target["color"]), str(item.get("color", "#FFFFFF"))
+        )
+
+    adjusted["underlays"] = [
+        item for item in adjusted.get("underlays", [])
+        if str(item.get("id")) != "surface-cta"
+    ]
+    underlays = {
+        str(item.get("id")): item for item in adjusted.get("underlays", [])
+    }
+    for surface_target in target["surfaces"]:
+        group = str(surface_target["group"])
+        surface = underlays.get(f"surface-{group}")
+        if surface is None:
+            continue
+        surface.update(bounded_box(surface_target, f"{group}_surface"))
+        surface["opacity"] = round(float(surface_target["opacity"]), 3)
+        surface["background_color"] = resolve(
+            str(surface_target["background"]),
+            str(surface.get("background_color", palette["dark"])),
+        )
+        surface["gradient_color"] = resolve(
+            str(surface_target["gradient"]),
+            str(surface.get("gradient_color", surface["background_color"])),
+        )
+        if surface.get("border_color") is not None:
+            surface["border_color"] = surface["background_color"]
+
+    accent_target = target["accent_rule"]
+    accent_rule = underlays.get("accent-rule")
+    if not accent_target["present"]:
+        adjusted["underlays"] = [
+            item for item in adjusted["underlays"]
+            if str(item.get("id")) != "accent-rule"
+        ]
+    else:
+        if accent_rule is None:
+            accent_rule = {
+                "id": "accent-rule", "design_group": "headline",
+                "opacity": 1.0, "border_radius": 0, "z_index": 1,
+                "background_color": palette["accent"],
+            }
+            adjusted["underlays"].append(accent_rule)
+            underlays["accent-rule"] = accent_rule
+        accent_rule.update(bounded_box(accent_target, "accent_rule"))
+        accent_rule["background_color"] = resolve(
+            str(accent_target["color"]),
+            str(accent_rule.get("background_color", palette["accent"])),
+        )
+
     price = elements_by_role.get("price")
     if price is not None:
-        segment_box_scale = max(
-            1.0,
-            float(changes["price_number_scale"]),
-            float(changes["price_unit_scale"]),
-        )
-        _scale_element_box(
-            price,
-            segment_box_scale,
-            canvas_width=width,
-            canvas_height=height,
-        )
-        price["number_scale"] = round(
-            float(price.get("number_scale", 1.22))
-            * float(changes["price_number_scale"]),
-            4,
-        )
-        price["unit_scale"] = round(
-            float(price.get("unit_scale", 0.80))
-            * float(changes["price_unit_scale"]),
-            4,
-        )
-        for prefix in ("number", "unit"):
-            key = f"{prefix}_baseline_shift"
-            shift = round(
-                float(price.get(key, 0.0))
-                + float(changes[f"price_{key}"]),
-                4,
-            )
-            if key in price or abs(shift) >= 1e-9:
-                price[key] = shift
-
-    def shift_element(item: dict | None, dx: int = 0, dy: int = 0) -> None:
-        if item is None:
-            return
-        item["x"] = _clamp(
-            int(item["x"]) + dx,
-            0,
-            max(0, width - int(item["width"])),
-        )
-        item["y"] = _clamp(
-            int(item["y"]) + dy,
-            0,
-            max(0, height - int(item["height"])),
-        )
-
-    subtitle_gap = round(
-        float(changes["headline_subtitle_gap_delta"]) * height
-    )
-    shift_element(elements_by_role.get("subtitle"), dy=subtitle_gap)
-
-    offer_gap = float(changes["price_cta_gap_delta"])
-    if adjusted["design_tokens"].get("offer_arrangement") == "horizontal":
-        shift_element(elements_by_role.get("cta"), dx=round(offer_gap * width))
-    else:
-        shift_element(elements_by_role.get("cta"), dy=round(offer_gap * height))
+        composition = target["price_composition"]
+        for name in (
+            "number_scale", "unit_scale", "number_baseline_shift",
+            "unit_baseline_shift",
+        ):
+            price[name] = round(float(composition[name]), 4)
 
     for group in ("headline", "offer"):
         group_items = [
-            item
-            for item in adjusted["elements"]
+            item for item in adjusted["elements"]
             if item.get("design_group") == group
         ]
         if not group_items:
             continue
         left = min(int(item["x"]) for item in group_items)
         top = min(int(item["y"]) for item in group_items)
+        right = max(int(item["x"]) + int(item["width"]) for item in group_items)
+        bottom = max(int(item["y"]) + int(item["height"]) for item in group_items)
+        adjusted["design_groups"][group].update({
+            "x": left, "y": top, "width": right - left, "height": bottom - top,
+        })
+
+    padding = max(4, round(min(width, height) * 0.012))
+    for group in ("headline", "offer"):
+        surface = underlays.get(f"surface-{group}")
+        group_box = adjusted["design_groups"].get(group)
+        if surface is None or group_box is None:
+            continue
+        left = min(int(surface["x"]), max(0, int(group_box["x"]) - padding))
+        top = min(int(surface["y"]), max(0, int(group_box["y"]) - padding))
         right = max(
-            int(item["x"]) + int(item["width"])
-            for item in group_items
+            int(surface["x"]) + int(surface["width"]),
+            min(width, int(group_box["x"]) + int(group_box["width"]) + padding),
         )
         bottom = max(
-            int(item["y"]) + int(item["height"])
-            for item in group_items
+            int(surface["y"]) + int(surface["height"]),
+            min(height, int(group_box["y"]) + int(group_box["height"]) + padding),
         )
-        adjusted["design_groups"][group].update(
-            {"x": left, "y": top, "width": right - left, "height": bottom - top}
-        )
-    offer_alignment = str(changes["offer_alignment"])
-    if offer_alignment != "keep":
-        for item in adjusted["elements"]:
-            if item.get("design_group") == "offer":
-                item["text_align"] = offer_alignment
-        adjusted["design_tokens"]["offer_alignment"] = offer_alignment
+        contained = {
+            "x": left, "y": top, "width": right - left, "height": bottom - top,
+        }
+        current = {key: int(surface[key]) for key in ("x", "y", "width", "height")}
+        if contained != current:
+            surface.update(contained)
+            constraints.append({
+                "target": f"{group}_surface",
+                "reason": "expanded_to_contain_text",
+                "requested": current, "applied": contained,
+            })
 
     tokens = adjusted["design_tokens"]
     tokens["cta_treatment"] = "plain"
-    palette = tokens["palette"]
-    color_direction = tokens["color_direction"]
-
-    def selected_color(name: str) -> str | None:
-        token = str(changes[name])
-        if token == "keep":
-            return None
-        color_direction[name] = token
-        return _resolve_color_token(token, palette)
-
-    adjusted["underlays"] = [
-        item
-        for item in adjusted.get("underlays", [])
-        if str(item.get("id")) != "surface-cta"
-    ]
-    underlays = {
-        str(item.get("id")): item
-        for item in adjusted.get("underlays", [])
-    }
-    headline_surface = underlays.get("surface-headline")
-    offer_surface = underlays.get("surface-offer")
-
-    def scale_band(surface: dict | None, group: str, scale: float) -> None:
-        if surface is None:
-            return
-        current_height = int(surface["height"])
-        group_box = adjusted["design_groups"][group]
-        padding = max(4, round(min(width, height) * 0.01))
-        minimum_height = int(group_box["height"]) + padding * 2
-        new_height = max(
-            minimum_height,
-            min(height, round(current_height * scale)),
-        )
-        center_y = int(group_box["y"]) + int(group_box["height"]) / 2
-        surface["height"] = new_height
-        surface["y"] = _clamp(
-            round(center_y - new_height / 2),
-            0,
-            height - new_height,
-        )
-
-    scale_band(
-        headline_surface,
-        "headline",
-        float(changes["headline_band_height_scale"]),
+    tokens["headline_alignment"] = elements_by_role["title"].get(
+        "text_align", tokens.get("headline_alignment", "center")
     )
-    scale_band(
-        offer_surface,
-        "offer",
-        float(changes["offer_band_height_scale"]),
-    )
+    offer_roles = [role for role in ("price", "cta") if role in elements_by_role]
+    if offer_roles:
+        tokens["offer_alignment"] = elements_by_role[offer_roles[0]].get(
+            "text_align", tokens.get("offer_alignment", "center")
+        )
+    for group in ("headline", "offer"):
+        surface = underlays.get(f"surface-{group}")
+        band = tokens.get(f"{group}_band")
+        if surface is not None and isinstance(band, dict):
+            band["background"] = surface["background_color"]
+            band["gradient"] = surface["gradient_color"]
 
-    accent_rule = underlays.get("accent-rule")
-    if accent_rule is not None:
-        rule_center = int(accent_rule["x"]) + int(accent_rule["width"]) / 2
-        accent_rule["width"] = max(
-            3,
-            min(
-                width,
-                round(
-                    int(accent_rule["width"])
-                    * float(changes["accent_rule_width_scale"])
-                ),
-            ),
-        )
-        accent_rule["x"] = _clamp(
-            round(rule_center - int(accent_rule["width"]) / 2),
-            0,
-            width - int(accent_rule["width"]),
-        )
-        shift_element(
-            accent_rule,
-            dy=round(float(changes["accent_rule_y_shift"]) * height),
-        )
-
-    for name, surface in (
-        ("headline_background", headline_surface),
-        ("offer_background", offer_surface),
-    ):
-        color = selected_color(name)
-        if color is not None and surface is not None:
-            surface["background_color"] = color
-            surface["gradient_color"] = color
-            if surface.get("border_color") is not None:
-                surface["border_color"] = color
-
-    headline_background = (
-        str(headline_surface.get("background_color", palette["dark"]))
-        if headline_surface is not None
-        else palette["dark"]
-    )
-    offer_background = (
-        str(offer_surface.get("background_color", palette["dark"]))
-        if offer_surface is not None
-        else palette["dark"]
-    )
-    cta_background = offer_background
-    requested_text = {
-        "headline": selected_color("headline_text"),
-        "offer": selected_color("offer_text"),
-        "cta": selected_color("cta_text"),
-    }
-    for item in adjusted["elements"]:
-        role = str(item.get("role", ""))
-        group = str(item.get("design_group", ""))
-        key = "cta" if role == "cta" else group
-        requested = requested_text.get(key) or str(item.get("color", "#FFFFFF"))
-        background = (
-            cta_background
-            if key == "cta"
-            else headline_background
-            if group == "headline"
-            else offer_background
-        )
-        item["color"] = _safe_text_color(background, requested, palette)
-
-    if headline_surface is not None:
-        tokens["headline_band"]["background"] = headline_surface.get(
-            "background_color", palette["dark"]
-        )
-        tokens["headline_band"]["gradient"] = headline_surface.get(
-            "gradient_color", tokens["headline_band"]["background"]
-        )
-    if offer_surface is not None:
-        tokens["offer_band"]["background"] = offer_surface.get(
-            "background_color", palette["dark"]
-        )
-        tokens["offer_band"]["gradient"] = offer_surface.get(
-            "gradient_color", tokens["offer_band"]["background"]
-        )
+    adjusted["final_review_constraints"] = constraints
     return adjusted
 
 

@@ -29,12 +29,14 @@ rank alternatives, or measure aesthetic scores.
    and surface-opacity corrections. It never compares or selects candidates.
 8. The corrected design, including all copy, is rendered to
    `final_review_input.png`.
-9. GPT-4o diagnoses remaining weaknesses in the completed advertisement and
-   returns final corrections for placement, per-role type scale, font weight,
-   tracking, offer alignment, price number/unit proportions and baselines,
-   copy-group gaps, band height, accent-rule geometry, surface opacity, and
-   palette-token colors. The exact copy and core art direction remain fixed.
-10. The final correction is applied and rendered to `final_ad.png`.
+9. GPT-4o diagnoses every remaining design feature in the completed
+   advertisement and returns one complete absolute-pixel target state for all
+   rendered copy, both bands, the accent rule, colors, and price number/unit
+   composition. It does not stack another set of relative multipliers.
+10. Canvas and single-line constraints are applied, typography is fitted, and
+    the requested target, actual applied state, constraints, and before/after
+    property changes are saved to `final_review.json` before `final_ad.png` is
+    rendered. The exact copy remains fixed.
 
 The renderer uses the configured Korean-capable font, fits the title to one
 line, adapts text colors to local background contrast, and adds a contrast
@@ -47,8 +49,8 @@ underlay only when neither light nor dark text is sufficiently readable.
 - `design_draft.png`: first rendering of that design
 - `design_revision.json`: one bounded critique of the same design
 - `final_review_input.png`: completed advertisement supplied to the final VLM review
-- `final_review.json`: final diagnosis and expanded design corrections after
-  all copy has been rendered
+- `final_review.json`: final diagnosis, requested absolute target, actual
+  post-fit state, applied constraints, and changed properties
 - `layout.json`: final resolved pixels, typography, colors, and surfaces
 - `final_ad.png`: the completed advertisement image
 

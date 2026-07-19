@@ -31,171 +31,124 @@ from .renderer import (
 from .schemas import (
     DESIGN_REVISION_SCHEMA,
     DESIGN_SPEC_SCHEMA,
-    FINAL_REVIEW_FEATURE_CONTROLS,
     FINAL_REVIEW_FEATURES,
     FINAL_REVIEW_SCHEMA,
 )
 
 
 ROOT_DIR = Path(__file__).resolve().parents[2]
-MIN_FINAL_REVISED_FEATURES = 6
-MIN_FINAL_NON_NEUTRAL_CONTROLS = 10
 
 
-_SCALE_ADJUSTMENTS = {
-    "headline_scale", "offer_scale", "title_scale", "subtitle_scale",
-    "price_scale", "cta_scale", "price_number_scale", "price_unit_scale",
-    "headline_band_height_scale", "offer_band_height_scale",
-    "accent_rule_width_scale",
-}
-
-
-def _is_non_neutral_adjustment(name: str, value) -> bool:
-    if name in _SCALE_ADJUSTMENTS:
-        return abs(float(value) - 1.0) >= 1e-9
-    if isinstance(value, str):
-        return value != "keep"
-    return abs(float(value)) >= 1e-9
-
-
-def _reconcile_feature_controls(review: dict) -> list[dict]:
-    """Link VLM-selected adjustments to compatible feature feedback."""
-    adjustments = review["adjustments"]
+def _review_consistency_issues(review: dict, layout: dict) -> list[str]:
+    """Validate target completeness and feature-to-target accountability."""
+    issues = []
     feature_reviews = review["diagnosis"]["feature_reviews"]
-    reconciled = []
-
     for feature in FINAL_REVIEW_FEATURES:
         feedback = feature_reviews[feature]
-        original_controls = list(feedback["controls"])
-        active_controls = [
-            control
-            for control in original_controls
-            if _is_non_neutral_adjustment(
-                control, adjustments[control]
-            )
-        ]
-        if active_controls != original_controls:
-            feedback["controls"] = active_controls
-            reconciled.append(
-                {
-                    "feature": feature,
-                    "removed_neutral_controls": [
-                        control
-                        for control in original_controls
-                        if control not in active_controls
-                    ],
-                }
-            )
-        if active_controls and feedback["verdict"] == "keep":
-            feedback["verdict"] = "revise"
-            reconciled.append(
-                {"feature": feature, "verdict_changed_to": "revise"}
-            )
-        elif not active_controls and feedback["verdict"] == "revise":
-            feedback["verdict"] = "keep"
-            reconciled.append(
-                {"feature": feature, "verdict_changed_to": "keep"}
-            )
+        targets = feedback["affected_targets"]
+        if feedback["verdict"] == "revise" and not targets:
+            issues.append(f"{feature} needs revision but names no affected targets")
+        if feedback["verdict"] == "keep" and targets:
+            issues.append(f"{feature} is keep but names affected targets")
 
-    referenced = {
-        control
-        for feedback in feature_reviews.values()
-        for control in feedback["controls"]
-    }
-    for control, value in adjustments.items():
-        if not _is_non_neutral_adjustment(control, value):
-            continue
-        if control in referenced:
-            continue
-        compatible = [
-            feature
-            for feature in FINAL_REVIEW_FEATURES
-            if control in FINAL_REVIEW_FEATURE_CONTROLS[feature]
-        ]
-        revised = [
-            feature
-            for feature in compatible
-            if feature_reviews[feature]["verdict"] == "revise"
-        ]
-        if not compatible:
-            continue
-        feature = (revised or compatible)[0]
-        feedback = feature_reviews[feature]
-        feedback["verdict"] = "revise"
-        feedback["controls"].append(control)
-        referenced.add(control)
-        reconciled.append(
-            {"feature": feature, "linked_control": control}
+    expected_roles = {str(item["role"]) for item in layout["elements"]}
+    target_roles = [str(item["role"]) for item in review["target_layout"]["elements"]]
+    if len(target_roles) != len(set(target_roles)):
+        issues.append("target_layout contains duplicate element roles")
+    if set(target_roles) != expected_roles:
+        issues.append(
+            "target_layout element roles must exactly match the rendered roles: "
+            f"expected {sorted(expected_roles)}, received {sorted(set(target_roles))}"
         )
-    return reconciled
 
-def _review_consistency_issues(review: dict) -> list[str]:
-    """Check that feature feedback and model-selected controls agree."""
-    adjustments = review["adjustments"]
-    feature_reviews = review.get("diagnosis", {}).get(
-        "feature_reviews", {}
-    )
-    issues = []
-    referenced_controls = set()
-    for feature, feedback in feature_reviews.items():
-        verdict = feedback.get("verdict")
-        controls = feedback.get("controls", [])
-        if verdict == "revise" and not controls:
-            issues.append(f"{feature} needs revision but selects no controls")
-        if verdict == "keep" and controls:
-            issues.append(f"{feature} is keep but selects controls")
-        if verdict != "revise":
-            continue
-        for control in controls:
-            referenced_controls.add(control)
-            if not _is_non_neutral_adjustment(
-                control, adjustments[control]
-            ):
-                issues.append(
-                    f"{feature} selects neutral control {control}"
-                )
-
-    for control, value in adjustments.items():
-        if (
-            _is_non_neutral_adjustment(control, value)
-            and control not in referenced_controls
-        ):
-            issues.append(
-                f"non-neutral control {control} has no feature feedback"
-            )
-    return issues
-
-
-def _review_scope_issues(review: dict) -> list[str]:
-    """Require a substantial, model-selected final design revision."""
-    feature_reviews = review["diagnosis"]["feature_reviews"]
-    revised_features = [
-        feature
-        for feature, feedback in feature_reviews.items()
-        if feedback["verdict"] == "revise" and feedback["controls"]
+    surface_groups = [
+        str(item["group"]) for item in review["target_layout"]["surfaces"]
     ]
-    active_controls = {
-        control
-        for feature in revised_features
-        for control in feature_reviews[feature]["controls"]
-        if _is_non_neutral_adjustment(
-            control, review["adjustments"][control]
-        )
-    }
-    issues = []
-    if len(revised_features) < MIN_FINAL_REVISED_FEATURES:
-        issues.append(
-            "broad revision requires at least "
-            f"{MIN_FINAL_REVISED_FEATURES} revised features; "
-            f"received {len(revised_features)}"
-        )
-    if len(active_controls) < MIN_FINAL_NON_NEUTRAL_CONTROLS:
-        issues.append(
-            "broad revision requires at least "
-            f"{MIN_FINAL_NON_NEUTRAL_CONTROLS} non-neutral controls; "
-            f"received {len(active_controls)}"
-        )
+    if sorted(surface_groups) != ["headline", "offer"]:
+        issues.append("target_layout must contain one headline and one offer surface")
     return issues
+
+
+def _layout_state(layout: dict) -> dict:
+    """Serialize the actual post-constraint/post-fit state for audit output."""
+    return {
+        "elements": [
+            {
+                key: item.get(key)
+                for key in (
+                    "role", "x", "y", "width", "height", "font_size",
+                    "font_weight", "tracking", "text_align", "max_lines",
+                    "color", "number_scale", "unit_scale",
+                    "number_baseline_shift", "unit_baseline_shift",
+                )
+                if item.get(key) is not None
+            }
+            for item in layout["elements"]
+        ],
+        "surfaces": [
+            {
+                "group": str(item["id"]).removeprefix("surface-"),
+                "x": item.get("x"), "y": item.get("y"),
+                "width": item.get("width"), "height": item.get("height"),
+                "opacity": item.get("opacity"),
+                "background_color": item.get("background_color"),
+                "gradient_color": item.get("gradient_color"),
+            }
+            for item in layout.get("underlays", [])
+            if str(item.get("id", "")).startswith("surface-")
+            and item.get("id") != "surface-cta"
+        ],
+        "accent_rule": next(
+            (
+                {
+                    key: item.get(key)
+                    for key in (
+                        "x", "y", "width", "height", "background_color"
+                    )
+                }
+                for item in layout.get("underlays", [])
+                if item.get("id") == "accent-rule"
+            ),
+            {"present": False},
+        ),
+    }
+
+
+def _applied_changes(before: dict, after: dict) -> list[dict]:
+    changes = []
+    before_elements = {item["role"]: item for item in before["elements"]}
+    for item in after["elements"]:
+        previous = before_elements.get(item["role"], {})
+        changed = {
+            key: {"before": previous.get(key), "after": value}
+            for key, value in item.items()
+            if key != "role" and previous.get(key) != value
+        }
+        if changed:
+            changes.append({"target": item["role"], "changes": changed})
+    before_surfaces = {item["group"]: item for item in before["surfaces"]}
+    for item in after["surfaces"]:
+        previous = before_surfaces.get(item["group"], {})
+        changed = {
+            key: {"before": previous.get(key), "after": value}
+            for key, value in item.items()
+            if key != "group" and previous.get(key) != value
+        }
+        if changed:
+            changes.append({
+                "target": f"{item['group']}_surface", "changes": changed,
+            })
+    if before["accent_rule"] != after["accent_rule"]:
+        changes.append({
+            "target": "accent_rule",
+            "changes": {
+                "state": {
+                    "before": before["accent_rule"],
+                    "after": after["accent_rule"],
+                }
+            },
+        })
+    return changes
 
 
 @dataclass(frozen=True)
@@ -269,23 +222,14 @@ def _request_json(
     return _parse_response_json(response, schema_name)
 
 def _enforce_final_review_revision(review: dict, layout: dict) -> dict:
-    """Validate and apply only the VLM's feature-backed corrections."""
+    """Validate the VLM's complete absolute target before applying it."""
     review["needs_revision"] = True
-    reconciled = _reconcile_feature_controls(review)
-    if reconciled:
-        review["feature_feedback_reconciled"] = True
-        review["feature_feedback_reconciliations"] = reconciled
-    consistency_issues = _review_consistency_issues(review)
+    consistency_issues = _review_consistency_issues(review, layout)
     if consistency_issues:
         raise ValueError(
-            "Final review feedback is inconsistent with its adjustments: "
+            "Final review target is inconsistent: "
             + "; ".join(consistency_issues)
         )
-
-    scope_issues = _review_scope_issues(review)
-    review["scope_target_met"] = not scope_issues
-    if scope_issues:
-        review["scope_issues"] = scope_issues
 
     candidate = apply_final_review_revision(layout, review)
     visible_change = (
@@ -297,7 +241,7 @@ def _enforce_final_review_revision(review: dict, layout: dict) -> dict:
             "Final review selected no effective design revision."
         )
     review["consistency_validated"] = True
-    review["revision_enforced"] = False
+    review["revision_mode"] = "absolute_target"
     return review
 
 
@@ -440,17 +384,25 @@ def generate_prompt_layout(
         final_review, revised_layout
     )
     final_review["review_attempts"] = 1
-    final_review_path = _write_json(
-        output_dir / "final_review.json",
-        {"model": model, **final_review},
-    )
-
+    before_final_state = _layout_state(revised_layout)
     final_layout = apply_final_review_revision(revised_layout, final_review)
     final_layout = fit_layout_typography(
         final_layout,
         font_path=font_path,
     )
     final_layout = ensure_layout_contrast(image_path, final_layout)
+    applied_final_state = _layout_state(final_layout)
+    final_review["applied_target_layout"] = applied_final_state
+    final_review["applied_changes"] = _applied_changes(
+        before_final_state, applied_final_state
+    )
+    final_review["constraints_applied"] = final_layout.get(
+        "final_review_constraints", []
+    )
+    final_review_path = _write_json(
+        output_dir / "final_review.json",
+        {"model": model, **final_review},
+    )
     layout_document = {
         "model": model,
         "source_image": str(image_path),

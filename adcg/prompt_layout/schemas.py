@@ -1,6 +1,4 @@
 from __future__ import annotations
-from copy import deepcopy
-
 
 COPY_ROLES = ("title", "subtitle", "price", "cta")
 
@@ -246,301 +244,214 @@ FINAL_COLOR_TOKENS = [
 ]
 
 
-FINAL_REVIEW_SCHEMA = deepcopy(DESIGN_REVISION_SCHEMA)
-FINAL_REVIEW_SCHEMA["properties"]["needs_revision"] = {
-    "type": "boolean",
-    "enum": [True],
-}
-FINAL_REVIEW_SCHEMA["properties"]["diagnosis"] = {
-    "type": "object",
-    "properties": {
-        "primary_issue": {
-            "type": "string",
-            "enum": [
-                "typography",
-                "hierarchy",
-                "spacing",
-                "price_composition",
-                "band_proportion",
-                "accent_rule",
-                "placement",
-                "color",
-                "contrast",
-                "cta",
-                "product_visibility",
-            ],
-        },
-        "observed_problems": {
-            "type": "array",
-            "items": {
-                "type": "object",
-                "properties": {
-                    "category": {
-                        "type": "string",
-                        "enum": [
-                            "typography",
-                            "hierarchy",
-                            "spacing",
-                            "price_composition",
-                            "band_proportion",
-                            "accent_rule",
-                            "placement",
-                            "color",
-                            "contrast",
-                            "cta",
-                            "product_visibility",
-                        ],
-                    },
-                    "target": {
-                        "type": "string",
-                        "enum": [
-                            "title",
-                            "subtitle",
-                            "price_line",
-                            "price_number",
-                            "price_unit",
-                            "cta",
-                            "headline_group",
-                            "offer_group",
-                            "headline_band",
-                            "offer_band",
-                            "accent_rule",
-                            "product",
-                            "background",
-                            "overall",
-                        ],
-                    },
-                    "evidence": {"type": "string"},
-                    "required_correction": {"type": "string"},
-                    "severity": {
-                        "type": "string",
-                        "enum": ["low", "medium", "high"],
-                    },
-                },
-                "required": [
-                    "category",
-                    "target",
-                    "evidence",
-                    "required_correction",
-                    "severity",
-                ],
-                "additionalProperties": False,
-            },
-            "minItems": 1,
-            "maxItems": 6,
-        },
-        "correction_summary": {"type": "string"},
-    },
-    "required": [
-        "primary_issue",
-        "observed_problems",
-        "correction_summary",
-    ],
-    "additionalProperties": False,
-}
-FINAL_REVIEW_SCHEMA["required"].insert(1, "diagnosis")
-
-_final_adjustments = FINAL_REVIEW_SCHEMA["properties"]["adjustments"]
-_final_adjustments["properties"].update(
-    {
-        "title_scale": {"type": "number", "minimum": 0.80, "maximum": 1.20},
-        "subtitle_scale": {"type": "number", "minimum": 0.80, "maximum": 1.20},
-        "price_scale": {"type": "number", "minimum": 0.80, "maximum": 1.20},
-        "cta_scale": {"type": "number", "minimum": 0.80, "maximum": 1.20},
-        "price_number_scale": {"type": "number", "minimum": 0.70, "maximum": 1.20},
-        "price_unit_scale": {"type": "number", "minimum": 0.80, "maximum": 1.30},
-        "price_number_baseline_shift": {
-            "type": "number", "minimum": -0.30, "maximum": 0.30,
-        },
-        "price_unit_baseline_shift": {
-            "type": "number", "minimum": -0.30, "maximum": 0.30,
-        },
-        "headline_subtitle_gap_delta": {
-            "type": "number", "minimum": -0.04, "maximum": 0.08,
-        },
-        "price_cta_gap_delta": {
-            "type": "number", "minimum": -0.04, "maximum": 0.08,
-        },
-        "headline_band_height_scale": {
-            "type": "number", "minimum": 0.80, "maximum": 1.20,
-        },
-        "offer_band_height_scale": {
-            "type": "number", "minimum": 0.80, "maximum": 1.20,
-        },
-        "accent_rule_width_scale": {
-            "type": "number", "minimum": 0.50, "maximum": 1.50,
-        },
-        "accent_rule_y_shift": {
-            "type": "number", "minimum": -0.04, "maximum": 0.04,
-        },
-        "headline_weight": {
-            "type": "string",
-            "enum": ["keep", "lighter", "bolder"],
-        },
-        "offer_weight": {
-            "type": "string",
-            "enum": ["keep", "lighter", "bolder"],
-        },
-        "headline_tracking_delta": {
-            "type": "integer",
-            "minimum": -2,
-            "maximum": 4,
-        },
-        "offer_tracking_delta": {
-            "type": "integer",
-            "minimum": -2,
-            "maximum": 4,
-        },
-        "offer_alignment": {
-            "type": "string",
-            "enum": ["keep", "left", "center", "right"],
-        },
-        **{
-            name: {"type": "string", "enum": FINAL_COLOR_TOKENS}
-            for name in (
-                "headline_background",
-                "headline_text",
-                "offer_background",
-                "offer_text",
-                "cta_text",
-            )
-        },
-    }
-)
-_final_adjustments["required"].extend(
-    [
-        "title_scale",
-        "subtitle_scale",
-        "price_scale",
-        "cta_scale",
-        "price_number_scale",
-        "price_unit_scale",
-        "price_number_baseline_shift",
-        "price_unit_baseline_shift",
-        "headline_subtitle_gap_delta",
-        "price_cta_gap_delta",
-        "headline_band_height_scale",
-        "offer_band_height_scale",
-        "accent_rule_width_scale",
-        "accent_rule_y_shift",
-        "headline_weight",
-        "offer_weight",
-        "headline_tracking_delta",
-        "offer_tracking_delta",
-        "offer_alignment",
-        "headline_background",
-        "headline_text",
-        "offer_background",
-        "offer_text",
-        "cta_text",
-    ]
-)
-
-
-
 FINAL_REVIEW_FEATURES = (
-    "typography",
-    "hierarchy",
-    "spacing",
-    "price_composition",
-    "band_proportion",
-    "accent_rule",
-    "placement",
-    "color",
-    "contrast",
-    "cta",
-    "product_visibility",
+    "typography", "hierarchy", "spacing", "price_composition",
+    "band_proportion", "accent_rule", "placement", "color",
+    "contrast", "cta", "product_visibility",
 )
-FINAL_REVIEW_FEATURE_CONTROLS = {
-    "typography": [
-        "title_scale", "subtitle_scale", "price_scale", "cta_scale",
-        "price_number_scale", "price_unit_scale",
-        "price_number_baseline_shift", "price_unit_baseline_shift",
-        "headline_weight", "offer_weight", "headline_tracking_delta",
-        "offer_tracking_delta",
-    ],
-    "hierarchy": [
-        "headline_scale", "offer_scale", "title_scale",
-        "subtitle_scale", "price_scale", "cta_scale",
-        "headline_weight", "offer_weight",
-    ],
-    "spacing": [
-        "headline_y_shift", "offer_x_shift", "offer_y_shift",
-        "headline_subtitle_gap_delta", "price_cta_gap_delta",
-    ],
-    "price_composition": [
-        "price_scale", "price_number_scale", "price_unit_scale",
-        "price_number_baseline_shift", "price_unit_baseline_shift",
-    ],
-    "band_proportion": [
-        "headline_band_height_scale", "offer_band_height_scale",
-    ],
-    "accent_rule": [
-        "accent_rule_width_scale", "accent_rule_y_shift",
-    ],
-    "placement": [
-        "headline_y_shift", "offer_x_shift", "offer_y_shift",
-        "offer_alignment",
-    ],
-    "color": [
-        "headline_background", "headline_text", "offer_background",
-        "offer_text", "cta_text",
-    ],
-    "contrast": [
-        "surface_opacity_delta", "headline_background", "headline_text",
-        "offer_background", "offer_text", "cta_text",
-    ],
-    "cta": [
-        "cta_scale", "price_cta_gap_delta", "offer_weight",
-        "offer_tracking_delta", "cta_text",
-    ],
-    "product_visibility": [
-        "headline_y_shift", "offer_x_shift", "offer_y_shift",
-        "headline_band_height_scale", "offer_band_height_scale",
-        "surface_opacity_delta",
-    ],
-}
+
+FINAL_REVIEW_TARGETS = (
+    "title_geometry", "title_typography",
+    "subtitle_geometry", "subtitle_typography",
+    "price_geometry", "price_typography",
+    "cta_geometry", "cta_typography",
+    "headline_surface", "offer_surface", "accent_rule",
+    "price_composition", "color_palette", "overall_composition",
+)
 
 
-def _feature_feedback_schema(feature: str) -> dict:
+def _feature_feedback_schema() -> dict:
     return {
         "type": "object",
         "properties": {
-            "verdict": {
-                "type": "string",
-                "enum": ["keep", "revise"],
-            },
+            "verdict": {"type": "string", "enum": ["keep", "revise"]},
             "evidence": {"type": "string"},
             "recommended_change": {"type": "string"},
-            "controls": {
+            "affected_targets": {
                 "type": "array",
                 "items": {
                     "type": "string",
-                    "enum": FINAL_REVIEW_FEATURE_CONTROLS[feature],
+                    "enum": list(FINAL_REVIEW_TARGETS),
                 },
-                "maxItems": 6,
+                "maxItems": 8,
             },
         },
         "required": [
-            "verdict",
-            "evidence",
-            "recommended_change",
-            "controls",
+            "verdict", "evidence", "recommended_change",
+            "affected_targets",
         ],
         "additionalProperties": False,
     }
 
-_diagnosis_schema = FINAL_REVIEW_SCHEMA["properties"]["diagnosis"]
-_diagnosis_schema["properties"]["feature_reviews"] = {
+
+_ABSOLUTE_ELEMENT_SCHEMA = {
     "type": "object",
     "properties": {
-        feature: _feature_feedback_schema(feature)
-        for feature in FINAL_REVIEW_FEATURES
+        "role": {"type": "string", "enum": list(COPY_ROLES)},
+        "x": {"type": "integer", "minimum": 0, "maximum": 4096},
+        "y": {"type": "integer", "minimum": 0, "maximum": 4096},
+        "width": {"type": "integer", "minimum": 1, "maximum": 4096},
+        "height": {"type": "integer", "minimum": 1, "maximum": 4096},
+        "font_size": {"type": "integer", "minimum": 8, "maximum": 256},
+        "font_weight": {
+            "type": "integer",
+            "enum": [300, 400, 500, 600, 700, 800, 900],
+        },
+        "tracking": {"type": "integer", "minimum": 0, "maximum": 12},
+        "text_align": {
+            "type": "string", "enum": ["left", "center", "right"],
+        },
+        "max_lines": {"type": "integer", "minimum": 1, "maximum": 3},
+        "color": {"type": "string", "enum": FINAL_COLOR_TOKENS},
     },
-    "required": list(FINAL_REVIEW_FEATURES),
+    "required": [
+        "role", "x", "y", "width", "height", "font_size",
+        "font_weight", "tracking", "text_align", "max_lines", "color",
+    ],
     "additionalProperties": False,
 }
-_diagnosis_schema["required"].insert(1, "feature_reviews")
+
+_ABSOLUTE_SURFACE_SCHEMA = {
+    "type": "object",
+    "properties": {
+        "group": {"type": "string", "enum": ["headline", "offer"]},
+        "x": {"type": "integer", "minimum": 0, "maximum": 4096},
+        "y": {"type": "integer", "minimum": 0, "maximum": 4096},
+        "width": {"type": "integer", "minimum": 1, "maximum": 4096},
+        "height": {"type": "integer", "minimum": 1, "maximum": 4096},
+        "opacity": {"type": "number", "minimum": 0.25, "maximum": 0.95},
+        "background": {"type": "string", "enum": FINAL_COLOR_TOKENS},
+        "gradient": {"type": "string", "enum": FINAL_COLOR_TOKENS},
+    },
+    "required": [
+        "group", "x", "y", "width", "height", "opacity",
+        "background", "gradient",
+    ],
+    "additionalProperties": False,
+}
+
+FINAL_REVIEW_SCHEMA = {
+    "type": "object",
+    "properties": {
+        "needs_revision": {"type": "boolean", "enum": [True]},
+        "diagnosis": {
+            "type": "object",
+            "properties": {
+                "primary_issue": {
+                    "type": "string", "enum": list(FINAL_REVIEW_FEATURES),
+                },
+                "feature_reviews": {
+                    "type": "object",
+                    "properties": {
+                        feature: _feature_feedback_schema()
+                        for feature in FINAL_REVIEW_FEATURES
+                    },
+                    "required": list(FINAL_REVIEW_FEATURES),
+                    "additionalProperties": False,
+                },
+                "observed_problems": {
+                    "type": "array",
+                    "items": {
+                        "type": "object",
+                        "properties": {
+                            "category": {
+                                "type": "string",
+                                "enum": list(FINAL_REVIEW_FEATURES),
+                            },
+                            "target": {
+                                "type": "string",
+                                "enum": [
+                                    "title", "subtitle", "price_line",
+                                    "price_number", "price_unit", "cta",
+                                    "headline_group", "offer_group",
+                                    "headline_band", "offer_band",
+                                    "accent_rule", "product", "background",
+                                    "overall",
+                                ],
+                            },
+                            "evidence": {"type": "string"},
+                            "required_correction": {"type": "string"},
+                            "severity": {
+                                "type": "string",
+                                "enum": ["low", "medium", "high"],
+                            },
+                        },
+                        "required": [
+                            "category", "target", "evidence",
+                            "required_correction", "severity",
+                        ],
+                        "additionalProperties": False,
+                    },
+                    "minItems": 1,
+                    "maxItems": 8,
+                },
+                "correction_summary": {"type": "string"},
+            },
+            "required": [
+                "primary_issue", "feature_reviews", "observed_problems",
+                "correction_summary",
+            ],
+            "additionalProperties": False,
+        },
+        "target_layout": {
+            "type": "object",
+            "properties": {
+                "elements": {
+                    "type": "array", "items": _ABSOLUTE_ELEMENT_SCHEMA,
+                    "minItems": 1, "maxItems": 4,
+                },
+                "surfaces": {
+                    "type": "array", "items": _ABSOLUTE_SURFACE_SCHEMA,
+                    "minItems": 2, "maxItems": 2,
+                },
+                "accent_rule": {
+                    "type": "object",
+                    "properties": {
+                        "present": {"type": "boolean"},
+                        "x": {"type": "integer", "minimum": 0, "maximum": 4096},
+                        "y": {"type": "integer", "minimum": 0, "maximum": 4096},
+                        "width": {"type": "integer", "minimum": 1, "maximum": 4096},
+                        "height": {"type": "integer", "minimum": 1, "maximum": 64},
+                        "color": {"type": "string", "enum": FINAL_COLOR_TOKENS},
+                    },
+                    "required": [
+                        "present", "x", "y", "width", "height", "color",
+                    ],
+                    "additionalProperties": False,
+                },
+                "price_composition": {
+                    "type": "object",
+                    "properties": {
+                        "number_scale": {
+                            "type": "number", "minimum": 0.7, "maximum": 1.8,
+                        },
+                        "unit_scale": {
+                            "type": "number", "minimum": 0.7, "maximum": 1.4,
+                        },
+                        "number_baseline_shift": {
+                            "type": "number", "minimum": -0.3, "maximum": 0.3,
+                        },
+                        "unit_baseline_shift": {
+                            "type": "number", "minimum": -0.3, "maximum": 0.3,
+                        },
+                    },
+                    "required": [
+                        "number_scale", "unit_scale",
+                        "number_baseline_shift", "unit_baseline_shift",
+                    ],
+                    "additionalProperties": False,
+                },
+            },
+            "required": [
+                "elements", "surfaces", "accent_rule", "price_composition",
+            ],
+            "additionalProperties": False,
+        },
+        "reason": {"type": "string"},
+    },
+    "required": ["needs_revision", "diagnosis", "target_layout", "reason"],
+    "additionalProperties": False,
+}
 
 
 __all__ = [
@@ -548,6 +459,6 @@ __all__ = [
     "DESIGN_REVISION_SCHEMA",
     "FINAL_REVIEW_SCHEMA",
     "FINAL_REVIEW_FEATURES",
-    "FINAL_REVIEW_FEATURE_CONTROLS",
+    "FINAL_REVIEW_TARGETS",
     "DESIGN_SPEC_SCHEMA",
 ]

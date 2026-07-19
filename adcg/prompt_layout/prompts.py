@@ -50,46 +50,43 @@ needed. Never request a new template or alternative design.
 
 
 FINAL_REVIEW_SYSTEM_PROMPT = """
-You are the final senior art director reviewing the second-stage result of a
-completed advertisement. The supplied image contains the finished background
-and every rendered copy element. Diagnose what remains weak in the actual
-delivered composition before choosing corrections.
+You are the final senior art director reviewing the second-stage completed
+advertisement. The supplied image already contains the finished background and
+all rendered Korean copy. Diagnose the actual delivered composition, then
+return a complete ABSOLUTE target layout in canvas pixels. This is not a list
+of deltas, shifts, or scale multipliers.
 
-Evaluate every design feature listed in feature_reviews: typography, hierarchy,
-spacing, price composition, band proportion, accent rule, placement, color,
-contrast, CTA treatment, and product visibility. Return an explicit keep or
-revise verdict for every feature, even when it is already successful. Ground
-each verdict in visible evidence from the supplied completed image and describe
-the appropriate correction without inventing a defect.
+Evaluate every feature in feature_reviews: typography, hierarchy, spacing,
+price composition, band proportion, accent rule, placement, color, contrast,
+CTA treatment, and product visibility. Give each one a concrete keep/revise
+verdict based on visible evidence. A revised feature must name every affected
+target; a kept feature must have an empty affected_targets list. Do not invent
+problems merely to increase a count, but make a decisive redesign wherever the
+finished image is visibly weak. Avoid token 5% changes that preserve the same
+composition without resolving the diagnosed relationship.
 
-The CTA is plain typography in a static image, never a button or interactive
-control. Treat every scale field as a multiplier where 1.0 means keep. Treat
-group, gap, and accent-rule shifts as normalized canvas ratios where 0.0 means
-keep. Treat price number/unit baseline shifts as fractions of the base price
-font size. Color choices must use the supplied palette tokens or "keep".
+The target_layout is the complete desired final state, not just changed fields.
+Return every currently rendered copy role exactly once and return exactly one
+headline and one offer surface. Coordinates, boxes, font sizes, band geometry,
+and accent-rule geometry are absolute pixels within the supplied canvas.
+Choose enough text-box width and height for the requested font size and line
+count. Keep the title, price, and CTA on one line. Preserve the exact copy.
 
-This is a substantial redesign pass, not a conservative polish pass. Mark at
-least six features as revise and select at least ten distinct non-neutral
-adjustment controls across them. Distribute changes across typography, geometry,
-spacing, surfaces, color/contrast, accents, CTA, and product visibility whenever
-the image supports them. Do not satisfy the scope with duplicate controls.
+Judge Korean typography as a composed system. In particular, when the price
+contains a large number plus surrounding qualifier/unit text, balance the
+number scale, unit scale, and baselines so the number is emphasized without
+looking detached or oversized. Review clipping, wrapping, optical centering,
+line gaps, band padding, and hierarchy together instead of changing each value
+independently. Do not issue mutually cancelling movements.
 
-For each feature marked revise, list the exact adjustment controls that implement
-its recommended change and set those controls to meaningful non-neutral values.
-For each feature marked keep, return an empty controls list. Every non-neutral
-adjustment must be justified by at least one revise feature, and every selected
-control must be non-neutral. Shared controls may support multiple features.
-Choose direction and magnitude from the actual image rather than fixed rules.
-
-Preserve the exact copy, semantic groups, product visibility, and core art
-direction. Keep the headline horizontally centered. Report one to six
-distinct observed problems using concrete evidence, exact targets, actionable
-corrections, and severity. Do not use vague statements such as "improve
-hierarchy" or "adjust spacing" without identifying the broken relationship
-and its consequence. Always set needs_revision to true and make every correction
-supported by the feature-by-feature review. Never request new copy, a new
-template, or an alternative design.
+The CTA is plain typography in a static image, never a button, pill, outline,
+or interactive control. Maintain product visibility. Color fields use palette
+tokens or "keep"; use the current-state colors when a field is kept. Always set
+needs_revision to true. Report concrete observed problems with exact targets,
+visible evidence, actionable corrections, and severity. Never request new copy,
+a new template, an alternative image, or another VLM review.
 """.strip()
+
 
 
 def build_design_request(ad_copy: dict, image_analysis: dict) -> str:
@@ -153,6 +150,7 @@ def build_final_review_request(
                 "font_weight": item.get("font_weight", 600),
                 "tracking": item.get("tracking", 0),
                 "text_align": item.get("text_align", "left"),
+                "max_lines": item.get("max_lines", 2),
                 "color": item.get("color"),
                 "content": item.get("content"),
                 "number_scale": item.get("number_scale"),
@@ -169,6 +167,7 @@ def build_final_review_request(
         "surfaces": [
             {
                 "id": item.get("id"),
+                "group": item.get("design_group"),
                 "background_color": item.get("background_color"),
                 "gradient_color": item.get("gradient_color"),
                 "opacity": item.get("opacity"),
@@ -189,6 +188,9 @@ def build_final_review_request(
             ),
             None,
         ),
+        "protected_subject": layout.get("design_groups", {}).get(
+            "protected_subject"
+        ),
         "design_tokens": {
             "palette": layout["design_tokens"]["palette"],
             "headline_alignment": layout["design_tokens"][
@@ -203,9 +205,8 @@ def build_final_review_request(
         },
     }
     return (
-        "Diagnose the second-stage completed advertisement, then correct its "
-        "remaining typography, layout, color, contrast, hierarchy, or CTA "
-        "weaknesses.\n\n"
+        "Return a complete absolute-pixel target layout for the second-stage "
+        "completed advertisement after diagnosing every design feature.\n\n"
         "Exact rendered copy:\n"
         + json.dumps(ad_copy, ensure_ascii=False, indent=2)
         + "\n\nArt direction to preserve:\n"
