@@ -4,17 +4,6 @@ from __future__ import annotations
 COPY_ROLES = ("title", "subtitle", "price", "cta")
 
 
-NORMALIZED_POINT_SCHEMA = {
-    "type": "object",
-    "properties": {
-        "x": {"type": "number", "minimum": 0.04, "maximum": 0.90},
-        "y": {"type": "number", "minimum": 0.04, "maximum": 0.90},
-    },
-    "required": ["x", "y"],
-    "additionalProperties": False,
-}
-
-
 NORMALIZED_BOX_SCHEMA = {
     "type": "object",
     "properties": {
@@ -68,17 +57,21 @@ DESIGN_SPEC_SCHEMA = {
                     "type": "string",
                     "enum": ["compact", "balanced", "airy"],
                 },
-                "contrast_mode": {
-                    "type": "string",
-                    "enum": ["auto", "light", "dark"],
-                },
                 "headline_surface": {
                     "type": "string",
-                    "enum": ["none", "gradient_scrim", "soft_panel"],
+                    "enum": [
+                        "full_width_solid",
+                        "full_width_gradient",
+                        "full_width_scrim",
+                    ],
                 },
                 "offer_surface": {
                     "type": "string",
-                    "enum": ["none", "gradient_scrim", "solid_lockup"],
+                    "enum": [
+                        "full_width_solid",
+                        "full_width_gradient",
+                        "accent_band",
+                    ],
                 },
                 "accent_role": {
                     "type": "string",
@@ -89,7 +82,6 @@ DESIGN_SPEC_SCHEMA = {
                 "mood",
                 "alignment",
                 "spacing_density",
-                "contrast_mode",
                 "headline_surface",
                 "offer_surface",
                 "accent_role",
@@ -99,17 +91,25 @@ DESIGN_SPEC_SCHEMA = {
         "composition": {
             "type": "object",
             "properties": {
-                "headline_anchor": NORMALIZED_POINT_SCHEMA,
-                "offer_anchor": NORMALIZED_POINT_SCHEMA,
-                "headline_width_ratio": {
+                "headline_y_ratio": {
                     "type": "number",
-                    "minimum": 0.30,
-                    "maximum": 0.70,
+                    "minimum": 0.03,
+                    "maximum": 0.72,
                 },
-                "offer_width_ratio": {
+                "offer_y_ratio": {
                     "type": "number",
-                    "minimum": 0.24,
-                    "maximum": 0.62,
+                    "minimum": 0.18,
+                    "maximum": 0.90,
+                },
+                "headline_content_width_ratio": {
+                    "type": "number",
+                    "minimum": 0.56,
+                    "maximum": 0.92,
+                },
+                "offer_content_width_ratio": {
+                    "type": "number",
+                    "minimum": 0.52,
+                    "maximum": 0.92,
                 },
                 "offer_arrangement": {
                     "type": "string",
@@ -122,10 +122,10 @@ DESIGN_SPEC_SCHEMA = {
                 },
             },
             "required": [
-                "headline_anchor",
-                "offer_anchor",
-                "headline_width_ratio",
-                "offer_width_ratio",
+                "headline_y_ratio",
+                "offer_y_ratio",
+                "headline_content_width_ratio",
+                "offer_content_width_ratio",
                 "offer_arrangement",
                 "title_scale",
             ],
@@ -150,11 +150,6 @@ DESIGN_REVISION_SCHEMA = {
         "adjustments": {
             "type": "object",
             "properties": {
-                "headline_x_shift": {
-                    "type": "number",
-                    "minimum": -0.08,
-                    "maximum": 0.08,
-                },
                 "headline_y_shift": {
                     "type": "number",
                     "minimum": -0.08,
@@ -187,7 +182,6 @@ DESIGN_REVISION_SCHEMA = {
                 },
             },
             "required": [
-                "headline_x_shift",
                 "headline_y_shift",
                 "headline_scale",
                 "offer_x_shift",

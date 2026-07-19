@@ -10,17 +10,20 @@ alternatives, template names, candidate rankings, or aesthetic scores.
 
 Treat title/subtitle as one headline group and price/CTA as one offer group.
 Study the actual product position, negative space, brightness, texture, and
-visual flow. Place the two groups in continuous image space so they remain
-clearly separated, preserve the subject, and feel intentionally composed.
+visual flow. Choose only the vertical position and content width of each
+group. Their background surfaces always extend from the left canvas edge to
+the right canvas edge, creating intentional editorial bands instead of small
+floating cards.
 
-Use surfaces sparingly. Prefer text directly on calm high-contrast space; use
-a unified gradient scrim or soft panel only when the background is visually
-busy. Price and CTA may form one commercial lockup. Establish hierarchy with
-scale, weight, alignment, spacing, and one restrained accent drawn from the
-image. The title must remain one line, so allocate sufficient width.
+Center the headline by default, including the one-line title. The offer may
+use left, center, or right alignment when it supports the image flow. Select
+solid, gradient, scrim, or accent band treatment according to the brightness
+and visual detail at the chosen vertical position. The code will derive the
+actual band colors from the local background and image palette. Establish
+hierarchy with scale, weight, spacing, and one restrained accent.
 
-Return exactly one structured design specification. Anchors are normalized
-top-left positions for the two semantic groups, not independent copy boxes.
+Return exactly one structured design specification. Do not provide horizontal
+coordinates for the headline; its content remains centered inside the band.
 """.strip()
 
 
@@ -29,7 +32,8 @@ You are reviewing the first render of one advertisement design. Do not compare
 candidates and do not assign scores. Decide whether this same design needs one
 small correction for hierarchy, balance, separation, or readability.
 
-Return bounded shifts and scales only. Preserve the art direction, semantic
+Return bounded shifts and scales only. Keep the headline horizontally centered
+and only adjust its vertical position or scale. Preserve the art direction, semantic
 grouping, copy, product visibility, and overall composition. Use neutral
 values (zero shifts, scale 1.0, opacity delta 0.0) when no correction is
 needed. Never request a new template or alternative design.

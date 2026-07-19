@@ -120,6 +120,156 @@ def _place_group(
     )
 
 
+def _place_centered_group(
+    desired: dict,
+    *,
+    canvas_width: int,
+    canvas_height: int,
+    margin: int,
+    avoid: list[dict],
+) -> dict:
+    """Keep content centered and resolve collisions only on the y-axis."""
+    width = min(desired["width"], canvas_width - margin * 2)
+    height = min(desired["height"], canvas_height - margin * 2)
+    x = (canvas_width - width) // 2
+    requested_y = _clamp(
+        desired["y"],
+        margin,
+        canvas_height - margin - height,
+    )
+    y_positions = [requested_y, margin, canvas_height - margin - height]
+    for obstacle in avoid:
+        y_positions.extend(
+            [
+                obstacle["y"] - margin - height,
+                obstacle["y"] + obstacle["height"] + margin,
+            ]
+        )
+    positions = []
+    for y in y_positions:
+        position = {
+            "x": x,
+            "y": _clamp(y, margin, canvas_height - margin - height),
+            "width": width,
+            "height": height,
+        }
+        if position not in positions:
+            positions.append(position)
+    valid = [
+        position
+        for position in positions
+        if not any(_overlap(position, obstacle) for obstacle in avoid)
+    ]
+    if valid:
+        return min(
+            valid,
+            key=lambda position: abs(position["y"] - requested_y),
+        )
+
+    def overlap_area(position: dict) -> int:
+        total = 0
+        for obstacle in avoid:
+            overlap_width = max(
+                0,
+                min(position["x"] + width, obstacle["x"] + obstacle["width"])
+                - max(position["x"], obstacle["x"]),
+            )
+            overlap_height = max(
+                0,
+                min(position["y"] + height, obstacle["y"] + obstacle["height"])
+                - max(position["y"], obstacle["y"]),
+            )
+            total += overlap_width * overlap_height
+        return total
+
+    return min(
+        positions,
+        key=lambda position: (
+            overlap_area(position),
+            abs(position["y"] - requested_y),
+        ),
+    )
+
+
+def _mix_hex(first: str, second: str, ratio: float) -> str:
+    ratio = max(0.0, min(1.0, ratio))
+    first_rgb = tuple(int(first[index:index + 2], 16) for index in (1, 3, 5))
+    second_rgb = tuple(int(second[index:index + 2], 16) for index in (1, 3, 5))
+    mixed = tuple(
+        round(start + (end - start) * ratio)
+        for start, end in zip(first_rgb, second_rgb)
+    )
+    return "#{:02X}{:02X}{:02X}".format(*mixed)
+
+
+def _hex_luminance(color: str) -> float:
+    red, green, blue = (
+        int(color[index:index + 2], 16)
+        for index in (1, 3, 5)
+    )
+    return (0.2126 * red + 0.7152 * green + 0.0722 * blue) / 255.0
+
+
+def _band_style(
+    image_analysis: dict,
+    *,
+    center_y: int,
+    surface: str,
+) -> dict:
+    """Derive band and text colors from the actual placement region."""
+    height = max(1, int(image_analysis["canvas"]["height"]))
+    ratio = center_y / height
+    bands = image_analysis.get("horizontal_bands", [])
+    band = min(
+        bands,
+        key=lambda item: abs(
+            float(item["y"]) + float(item["height"]) / 2 - ratio
+        ),
+    ) if bands else {
+        "luminance": image_analysis["overall_luminance"],
+        "contrast": 0.0,
+        "edge_density": 0.0,
+    }
+    palette = image_analysis["palette"]
+    if surface == "accent_band":
+        return {
+            "background": palette["accent"],
+            "gradient": _mix_hex(palette["accent"], palette["light"], 0.16),
+            "text": (
+                "#101820"
+                if _hex_luminance(palette["accent"]) >= 0.52
+                else "#FFFFFF"
+            ),
+            "opacity": 0.96,
+            "local_region": band,
+        }
+
+    busy = float(band["contrast"]) + float(band["edge_density"]) > 0.42
+    use_dark_band = float(band["luminance"]) >= 0.48 or busy
+    if use_dark_band:
+        background = _mix_hex(palette["dark"], "#000000", 0.18)
+        gradient = _mix_hex(background, palette["accent"], 0.12)
+        text = "#FFFFFF"
+    else:
+        background = _mix_hex(palette["light"], "#FFFFFF", 0.14)
+        gradient = _mix_hex(background, palette["accent"], 0.14)
+        text = "#101820"
+    opacity = {
+        "full_width_solid": 0.90,
+        "full_width_gradient": 0.84,
+        "full_width_scrim": 0.78,
+    }.get(surface, 0.84)
+    if busy:
+        opacity = min(0.92, opacity + 0.08)
+    return {
+        "background": background,
+        "gradient": gradient,
+        "text": text,
+        "opacity": opacity,
+        "local_region": band,
+    }
+
+
 def _panel(
     panel_id: str,
     group: str,
@@ -187,7 +337,7 @@ def build_design_layout(
     ad_copy: dict[str, str],
     design_spec: dict,
 ) -> dict:
-    """Compile one VLM art direction into a relational pixel layout."""
+    """Compile one VLM direction into two adaptive full-width bands."""
     canvas = image_analysis["canvas"]
     width = int(canvas["width"])
     height = int(canvas["height"])
@@ -196,29 +346,15 @@ def build_design_layout(
     palette = image_analysis["palette"]
     direction = design_spec["art_direction"]
     composition = design_spec["composition"]
-    alignment = direction["alignment"]
+    offer_alignment = direction["alignment"]
     density = direction["spacing_density"]
-    gap_ratio = {"compact": 0.012, "balanced": 0.020, "airy": 0.030}[
-        density
-    ]
+    gap_ratio = {
+        "compact": 0.012,
+        "balanced": 0.020,
+        "airy": 0.030,
+    }[density]
     inner_gap = max(6, round(short_side * gap_ratio))
-
-    contrast_mode = direction["contrast_mode"]
-    if contrast_mode == "light":
-        text_color = palette["light"]
-    elif contrast_mode == "dark":
-        text_color = palette["dark"]
-    else:
-        text_color = (
-            palette["dark"]
-            if image_analysis["overall_luminance"] >= 0.58
-            else palette["light"]
-        )
-    opposite = (
-        palette["light"]
-        if text_color == palette["dark"]
-        else palette["dark"]
-    )
+    band_padding = max(12, round(short_side * 0.028))
 
     title_size = max(
         22,
@@ -227,26 +363,33 @@ def build_design_layout(
     subtitle_size = max(14, round(title_size * 0.47))
     price_size = max(20, round(title_size * 0.84))
     cta_size = max(14, round(title_size * 0.44))
-    headline_width = round(width * float(composition["headline_width_ratio"]))
+    headline_width = round(
+        width * float(composition["headline_content_width_ratio"])
+    )
+    offer_width = round(
+        width * float(composition["offer_content_width_ratio"])
+    )
     title_height = round(title_size * 1.35)
-    subtitle_height = round(subtitle_size * 2.8) if ad_copy.get("subtitle") else 0
+    subtitle_height = (
+        round(subtitle_size * 2.8)
+        if ad_copy.get("subtitle")
+        else 0
+    )
     headline_height = title_height + (
         inner_gap + subtitle_height if subtitle_height else 0
     )
-    headline_anchor = composition["headline_anchor"]
-    desired_headline = {
-        "x": round(float(headline_anchor["x"]) * width),
-        "y": round(float(headline_anchor["y"]) * height),
-        "width": headline_width,
-        "height": headline_height,
-    }
     protected = _normalized_box(
         design_spec["scene_analysis"]["subject_region"],
         width,
         height,
     )
-    headline_group = _place_group(
-        desired_headline,
+    headline_group = _place_centered_group(
+        {
+            "x": 0,
+            "y": round(float(composition["headline_y_ratio"]) * height),
+            "width": headline_width,
+            "height": headline_height,
+        },
         canvas_width=width,
         canvas_height=height,
         margin=margin,
@@ -255,69 +398,78 @@ def build_design_layout(
 
     has_price = bool(ad_copy.get("price"))
     has_cta = bool(ad_copy.get("cta"))
-    offer_width = round(width * float(composition["offer_width_ratio"]))
     arrangement = composition["offer_arrangement"]
     if arrangement == "horizontal" and has_price and has_cta:
-        offer_height = max(round(price_size * 1.55), round(cta_size * 2.5))
+        offer_height = max(
+            round(price_size * 1.55),
+            round(cta_size * 2.5),
+        )
     else:
         offer_height = (
             (round(price_size * 1.45) if has_price else 0)
             + (inner_gap if has_price and has_cta else 0)
             + (round(cta_size * 2.35) if has_cta else 0)
         )
-    offer_anchor = composition["offer_anchor"]
-    desired_offer = {
-        "x": round(float(offer_anchor["x"]) * width),
-        "y": round(float(offer_anchor["y"]) * height),
-        "width": offer_width,
-        "height": max(1, offer_height),
-    }
-    offer_group = _place_group(
-        desired_offer,
+    offer_group = _place_centered_group(
+        {
+            "x": 0,
+            "y": round(float(composition["offer_y_ratio"]) * height),
+            "width": offer_width,
+            "height": max(1, offer_height),
+        },
         canvas_width=width,
         canvas_height=height,
         margin=margin,
         avoid=[protected, headline_group],
     )
 
+    headline_band = _band_style(
+        image_analysis,
+        center_y=headline_group["y"] + headline_group["height"] // 2,
+        surface=direction["headline_surface"],
+    )
+    offer_band = _band_style(
+        image_analysis,
+        center_y=offer_group["y"] + offer_group["height"] // 2,
+        surface=direction["offer_surface"],
+    )
+
     elements = []
-    title_box = {
-        "x": headline_group["x"],
-        "y": headline_group["y"],
-        "width": headline_group["width"],
-        "height": title_height,
-    }
     elements.append(
         _element(
             "title",
             ad_copy["title"],
             "headline",
-            title_box,
+            {
+                "x": headline_group["x"],
+                "y": headline_group["y"],
+                "width": headline_group["width"],
+                "height": title_height,
+            },
             font_size=title_size,
             font_weight=820,
-            color=text_color,
-            align=alignment,
+            color=headline_band["text"],
+            align="center",
             max_lines=1,
             line_height=1.1,
         )
     )
     if ad_copy.get("subtitle"):
-        subtitle_box = {
-            "x": headline_group["x"],
-            "y": headline_group["y"] + title_height + inner_gap,
-            "width": headline_group["width"],
-            "height": subtitle_height,
-        }
         elements.append(
             _element(
                 "subtitle",
                 ad_copy["subtitle"],
                 "headline",
-                subtitle_box,
+                {
+                    "x": headline_group["x"],
+                    "y": headline_group["y"] + title_height + inner_gap,
+                    "width": headline_group["width"],
+                    "height": subtitle_height,
+                },
                 font_size=subtitle_size,
                 font_weight=480,
-                color=text_color,
-                align=alignment,
+                color=headline_band["text"],
+                align="center",
                 max_lines=2,
                 line_height=1.25,
             )
@@ -335,7 +487,10 @@ def build_design_layout(
         offer_boxes["cta"] = {
             "x": offer_group["x"] + price_width + inner_gap,
             "y": offer_group["y"],
-            "width": max(1, offer_group["width"] - price_width - inner_gap),
+            "width": max(
+                1,
+                offer_group["width"] - price_width - inner_gap,
+            ),
             "height": offer_group["height"],
         }
     else:
@@ -359,11 +514,12 @@ def build_design_layout(
 
     accent_role = direction["accent_role"]
     if has_price:
-        price_color = (
-            palette["accent"]
-            if accent_role in {"price", "price_and_cta"}
-            else text_color
-        )
+        price_color = offer_band["text"]
+        if (
+            accent_role in {"price", "price_and_cta"}
+            and direction["offer_surface"] != "accent_band"
+        ):
+            price_color = palette["accent"]
         price_item = _element(
             "price",
             ad_copy["price"],
@@ -372,7 +528,7 @@ def build_design_layout(
             font_size=price_size,
             font_weight=800,
             color=price_color,
-            align=alignment,
+            align=offer_alignment,
             max_lines=1,
             line_height=1.0,
         )
@@ -388,144 +544,85 @@ def build_design_layout(
                 offer_boxes["cta"],
                 font_size=cta_size,
                 font_weight=720,
-                color=(
-                    palette["dark"]
+                color=offer_band["text"],
+                align=(
+                    "center"
                     if accent_role in {"cta", "price_and_cta"}
-                    else text_color
+                    else offer_alignment
                 ),
-                align="center" if accent_role in {"cta", "price_and_cta"} else alignment,
                 max_lines=1,
                 line_height=1.0,
             )
         )
 
-    underlays = []
-    panel_padding = max(8, round(short_side * 0.018))
-    radius = max(8, round(short_side * 0.022))
-    headline_surface = direction["headline_surface"]
-    if headline_surface != "none":
-        box = {
-            "x": max(0, headline_group["x"] - panel_padding),
-            "y": max(0, headline_group["y"] - panel_padding),
-            "width": min(
-                width - max(0, headline_group["x"] - panel_padding),
-                headline_group["width"] + panel_padding * 2,
-            ),
-            "height": min(
-                height - max(0, headline_group["y"] - panel_padding),
-                headline_group["height"] + panel_padding * 2,
-            ),
-        }
-        panel_color = opposite
+    headline_band_y = max(0, headline_group["y"] - band_padding)
+    headline_band_height = min(
+        height - headline_band_y,
+        headline_group["height"] + band_padding * 2,
+    )
+    offer_band_y = max(0, offer_group["y"] - band_padding)
+    offer_band_height = min(
+        height - offer_band_y,
+        offer_group["height"] + band_padding * 2,
+    )
+    underlays = [
+        _panel(
+            "surface-headline",
+            "headline",
+            {
+                "x": 0,
+                "y": headline_band_y,
+                "width": width,
+                "height": headline_band_height,
+            },
+            background=headline_band["background"],
+            gradient=headline_band["gradient"],
+            opacity=headline_band["opacity"],
+            radius=0,
+        )
+    ]
+    if has_price or has_cta:
         underlays.append(
             _panel(
-                "surface-headline",
-                "headline",
-                box,
-                background=panel_color,
-                gradient=(
-                    panel_color
-                    if headline_surface == "soft_panel"
-                    else palette["dark"]
-                ),
-                opacity=0.68 if headline_surface == "soft_panel" else 0.58,
-                radius=radius,
+                "surface-offer",
+                "offer",
+                {
+                    "x": 0,
+                    "y": offer_band_y,
+                    "width": width,
+                    "height": offer_band_height,
+                },
+                background=offer_band["background"],
+                gradient=offer_band["gradient"],
+                opacity=offer_band["opacity"],
+                radius=0,
             )
         )
-        for item in elements:
-            if item["design_group"] == "headline":
-                item["color"] = text_color
 
-    rule_width = max(3, round(short_side * 0.009))
-    if alignment == "center":
-        rule_length = max(rule_width * 6, round(headline_group["width"] * 0.18))
-        rule_box = {
-            "x": headline_group["x"] + (headline_group["width"] - rule_length) // 2,
-            "y": headline_group["y"] + title_height + max(2, inner_gap // 3),
-            "width": rule_length,
-            "height": rule_width,
-        }
-    else:
-        rule_box = {
-            "x": (
-                headline_group["x"] + headline_group["width"] + panel_padding - rule_width
-                if alignment == "right"
-                else max(0, headline_group["x"] - panel_padding)
-            ),
-            "y": headline_group["y"],
-            "width": rule_width,
-            "height": min(
-                headline_group["height"],
-                round(short_side * 0.14),
-            ),
-        }
+    rule_width = max(3, round(short_side * 0.008))
+    rule_length = max(
+        rule_width * 8,
+        round(headline_group["width"] * 0.16),
+    )
     underlays.append(
         _panel(
             "accent-rule",
             "headline",
-            rule_box,
+            {
+                "x": (width - rule_length) // 2,
+                "y": min(
+                    headline_band_y + headline_band_height - rule_width * 2,
+                    headline_group["y"] + title_height + max(2, inner_gap // 3),
+                ),
+                "width": rule_length,
+                "height": rule_width,
+            },
             background=palette["accent"],
             opacity=1.0,
             radius=max(1, rule_width // 2),
             z_index=1,
         )
     )
-
-    offer_surface = direction["offer_surface"]
-    if offer_surface != "none" and (has_price or has_cta):
-        box = {
-            "x": max(0, offer_group["x"] - panel_padding),
-            "y": max(0, offer_group["y"] - panel_padding),
-            "width": min(
-                width - max(0, offer_group["x"] - panel_padding),
-                offer_group["width"] + panel_padding * 2,
-            ),
-            "height": min(
-                height - max(0, offer_group["y"] - panel_padding),
-                offer_group["height"] + panel_padding * 2,
-            ),
-        }
-        underlays.append(
-            _panel(
-                "surface-offer",
-                "offer",
-                box,
-                background=(
-                    palette["accent"]
-                    if offer_surface == "solid_lockup"
-                    else palette["dark"]
-                ),
-                gradient=(
-                    None
-                    if offer_surface == "solid_lockup"
-                    else palette["dark"]
-                ),
-                opacity=0.92 if offer_surface == "solid_lockup" else 0.62,
-                radius=radius,
-            )
-        )
-        if offer_surface == "solid_lockup":
-            for item in elements:
-                if item["design_group"] == "offer":
-                    item["color"] = palette["dark"]
-
-    if (
-        has_cta
-        and accent_role in {"cta", "price_and_cta"}
-        and offer_surface != "solid_lockup"
-    ):
-        cta_box = offer_boxes["cta"]
-        underlays.append(
-            _panel(
-                "surface-cta",
-                "offer",
-                cta_box,
-                background=palette["accent"],
-                opacity=0.94,
-                radius=max(6, round(cta_box["height"] * 0.22)),
-                z_index=1,
-            )
-        )
 
     return {
         "canvas": {"width": width, "height": height},
@@ -539,9 +636,12 @@ def build_design_layout(
         },
         "design_tokens": {
             "palette": palette,
-            "alignment": alignment,
+            "headline_alignment": "center",
+            "offer_alignment": offer_alignment,
             "mood": direction["mood"],
             "spacing_density": density,
+            "headline_band": headline_band,
+            "offer_band": offer_band,
         },
     }
 
@@ -557,30 +657,52 @@ def apply_design_revision(layout: dict, revision: dict) -> dict:
     margin = max(8, round(min(width, height) * 0.025))
 
     for group, prefix in (("headline", "headline"), ("offer", "offer")):
-        dx = round(float(changes[f"{prefix}_x_shift"]) * width)
+        dx = (
+            0
+            if group == "headline"
+            else round(float(changes["offer_x_shift"]) * width)
+        )
         dy = round(float(changes[f"{prefix}_y_shift"]) * height)
         scale = float(changes[f"{prefix}_scale"])
-        group_items = [
+        element_items = [
             item
-            for item in adjusted["elements"] + adjusted.get("underlays", [])
+            for item in adjusted["elements"]
             if item.get("design_group") == group
         ]
-        if not group_items:
+        surface_items = [
+            item
+            for item in adjusted.get("underlays", [])
+            if item.get("design_group") == group
+        ]
+        group_items = element_items + surface_items
+        if not element_items:
             continue
-        left = min(int(item["x"]) for item in group_items)
+        left = min(int(item["x"]) for item in element_items)
+        right = max(
+            int(item["x"]) + int(item["width"])
+            for item in element_items
+        )
         top = min(int(item["y"]) for item in group_items)
-        right = max(int(item["x"]) + int(item["width"]) for item in group_items)
-        bottom = max(int(item["y"]) + int(item["height"]) for item in group_items)
+        bottom = max(
+            int(item["y"]) + int(item["height"])
+            for item in group_items
+        )
         dx = _clamp(dx, margin - left, width - margin - right)
-        dy = _clamp(dy, margin - top, height - margin - bottom)
-        for item in group_items:
+        dy = _clamp(dy, -top, height - bottom)
+        for item in element_items:
             item["x"] = int(item["x"]) + dx
             item["y"] = int(item["y"]) + dy
-            if item in adjusted["elements"]:
-                item["font_size"] = max(
-                    10,
-                    round(int(item["font_size"]) * scale),
-                )
+            item["font_size"] = max(
+                10,
+                round(int(item["font_size"]) * scale),
+            )
+        for item in surface_items:
+            if int(item["width"]) < width:
+                item["x"] = int(item["x"]) + dx
+            item["y"] = int(item["y"]) + dy
+        if group in adjusted.get("design_groups", {}):
+            adjusted["design_groups"][group]["x"] += dx
+            adjusted["design_groups"][group]["y"] += dy
 
     opacity_delta = float(changes["surface_opacity_delta"])
     for underlay in adjusted.get("underlays", []):

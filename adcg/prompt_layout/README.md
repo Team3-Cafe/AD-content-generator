@@ -12,14 +12,17 @@ rank alternatives, or measure aesthetic scores.
 2. GPT-4o studies the actual image and copy roles, then authors one structured
    art direction. Title/subtitle form a headline group and price/CTA form an
    offer group.
-3. A relational layout engine converts the two group anchors and design tokens
-   into responsive pixel geometry. It protects the subject, keeps semantic
-   groups separate, derives typography from canvas size, and creates unified
-   scrims or offer lockups only when requested.
-4. The first design is rendered to `design_draft.png`.
-5. GPT-4o reviews that same render once and returns bounded position, scale,
+3. A relational layout engine converts the two vertical positions and design tokens
+   into responsive pixel geometry. Headline and offer backgrounds extend from
+   the left edge to the right edge, while their content stays inside a centered
+   safe width. The title remains centered by default.
+4. Each horizontal band's local luminance, contrast, and edge density selects
+   a dark, light, gradient, scrim, or accent treatment from the image palette.
+   This avoids detached floating cards and preserves readable contrast.
+5. The first design is rendered to `design_draft.png`.
+6. GPT-4o reviews that same render once and returns bounded position, scale,
    and surface-opacity corrections. It never compares or selects candidates.
-6. The corrected design is rendered to `final_ad.png`.
+7. The corrected design is rendered to `final_ad.png`.
 
 The renderer uses the configured Korean-capable font, fits the title to one
 line, adapts text colors to local background contrast, and adds a contrast

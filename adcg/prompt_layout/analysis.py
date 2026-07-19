@@ -68,6 +68,7 @@ def analyze_image_space(
     image_path: str | Path,
     *,
     grid_size: int = 6,
+    band_count: int = 12,
 ) -> dict:
     """Describe color, brightness, and low-detail space without scoring art."""
     image_path = Path(image_path)
@@ -118,6 +119,27 @@ def analyze_image_space(
         key=lambda item: item["quietness"],
         reverse=True,
     )[:8]
+    horizontal_bands = []
+    for index in range(band_count):
+        top = round(index * height / band_count)
+        bottom = round((index + 1) * height / band_count)
+        gray_crop = gray.crop((0, top, width, bottom))
+        edge_crop = edges.crop((0, top, width, bottom))
+        gray_stats = ImageStat.Stat(gray_crop)
+        edge_stats = ImageStat.Stat(edge_crop)
+        horizontal_bands.append(
+            {
+                "index": index,
+                "y": round(top / height, 4),
+                "height": round((bottom - top) / height, 4),
+                "luminance": round(float(gray_stats.mean[0]) / 255.0, 4),
+                "contrast": round(float(gray_stats.stddev[0]) / 128.0, 4),
+                "edge_density": round(
+                    float(edge_stats.mean[0]) / 255.0,
+                    4,
+                ),
+            }
+        )
     overall_luminance = float(ImageStat.Stat(gray).mean[0]) / 255.0
     return {
         "image": str(image_path.resolve()),
@@ -129,6 +151,7 @@ def analyze_image_space(
         "palette": _palette(image),
         "overall_luminance": round(overall_luminance, 4),
         "quiet_regions": quiet_regions,
+        "horizontal_bands": horizontal_bands,
     }
 
 
