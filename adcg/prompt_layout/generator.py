@@ -38,6 +38,110 @@ from .schemas import (
 ROOT_DIR = Path(__file__).resolve().parents[2]
 
 
+_ISSUE_ADJUSTMENT_FIELDS = {
+    "typography": (
+        "title_scale", "subtitle_scale", "price_scale", "cta_scale",
+        "price_number_scale", "price_unit_scale",
+        "price_number_baseline_shift", "price_unit_baseline_shift",
+        "headline_weight", "offer_weight", "headline_tracking_delta",
+        "offer_tracking_delta",
+    ),
+    "hierarchy": (
+        "headline_scale", "offer_scale", "title_scale", "subtitle_scale",
+        "price_scale", "cta_scale", "headline_weight", "offer_weight",
+    ),
+    "spacing": (
+        "headline_y_shift", "offer_x_shift", "offer_y_shift",
+        "headline_subtitle_gap_delta", "price_cta_gap_delta",
+    ),
+    "price_composition": (
+        "price_scale", "price_number_scale", "price_unit_scale",
+        "price_number_baseline_shift", "price_unit_baseline_shift",
+    ),
+    "band_proportion": (
+        "headline_band_height_scale", "offer_band_height_scale",
+    ),
+    "accent_rule": ("accent_rule_width_scale", "accent_rule_y_shift"),
+    "placement": (
+        "headline_y_shift", "offer_x_shift", "offer_y_shift",
+        "offer_alignment",
+    ),
+    "color": (
+        "headline_background", "headline_text", "offer_background",
+        "offer_text", "cta_text",
+    ),
+    "contrast": (
+        "surface_opacity_delta", "headline_background", "headline_text",
+        "offer_background", "offer_text", "cta_text",
+    ),
+    "cta": (
+        "cta_scale", "price_cta_gap_delta", "offer_weight",
+        "offer_tracking_delta", "cta_text",
+    ),
+    "product_visibility": (
+        "headline_y_shift", "offer_x_shift", "offer_y_shift",
+        "headline_band_height_scale", "offer_band_height_scale",
+        "surface_opacity_delta",
+    ),
+}
+
+_ISSUE_FALLBACK_ADJUSTMENTS = {
+    "typography": ("headline_tracking_delta", 1),
+    "hierarchy": ("title_scale", 1.05),
+    "spacing": ("headline_subtitle_gap_delta", 0.01),
+    "price_composition": ("price_number_scale", 0.92),
+    "band_proportion": ("headline_band_height_scale", 0.95),
+    "accent_rule": ("accent_rule_width_scale", 1.10),
+    "placement": ("headline_y_shift", 0.01),
+    "color": ("headline_text", "neutral_light"),
+    "contrast": ("surface_opacity_delta", 0.05),
+    "cta": ("cta_scale", 1.05),
+    "product_visibility": ("surface_opacity_delta", -0.05),
+}
+
+_SCALE_ADJUSTMENTS = {
+    "headline_scale", "offer_scale", "title_scale", "subtitle_scale",
+    "price_scale", "cta_scale", "price_number_scale", "price_unit_scale",
+    "headline_band_height_scale", "offer_band_height_scale",
+    "accent_rule_width_scale",
+}
+
+
+def _is_non_neutral_adjustment(name: str, value) -> bool:
+    if name in _SCALE_ADJUSTMENTS:
+        return abs(float(value) - 1.0) >= 1e-9
+    if isinstance(value, str):
+        return value != "keep"
+    return abs(float(value)) >= 1e-9
+
+
+def _enforce_diagnosis_adjustments(review: dict) -> list[str]:
+    """Make every diagnosed problem category affect a relevant control."""
+    diagnosis = review.get("diagnosis", {})
+    categories = [diagnosis.get("primary_issue")]
+    categories.extend(
+        problem.get("category")
+        for problem in diagnosis.get("observed_problems", [])
+        if isinstance(problem, dict)
+    )
+    enforced = []
+    adjustments = review["adjustments"]
+    for category in dict.fromkeys(filter(None, categories)):
+        fields = _ISSUE_ADJUSTMENT_FIELDS.get(category, ())
+        if any(
+            _is_non_neutral_adjustment(name, adjustments[name])
+            for name in fields
+        ):
+            continue
+        fallback = _ISSUE_FALLBACK_ADJUSTMENTS.get(category)
+        if fallback is None:
+            continue
+        field, value = fallback
+        adjustments[field] = value
+        enforced.append(category)
+    return enforced
+
+
 @dataclass(frozen=True)
 class LayoutGenerationResult:
     output_dir: Path
@@ -112,6 +216,7 @@ def _enforce_final_review_revision(review: dict, layout: dict) -> dict:
     """Guarantee that the completed-ad review produces a visible correction."""
     revision_was_forced = not bool(review.get("needs_revision"))
     review["needs_revision"] = True
+    enforced_categories = _enforce_diagnosis_adjustments(review)
     candidate = apply_final_review_revision(layout, review)
     visible_change = (
         candidate["elements"] != layout["elements"]
@@ -119,12 +224,29 @@ def _enforce_final_review_revision(review: dict, layout: dict) -> dict:
     )
     if not visible_change:
         review["adjustments"]["surface_opacity_delta"] = 0.05
-    review["revision_enforced"] = revision_was_forced or not visible_change
+    review["diagnosis_adjustment_enforced"] = bool(enforced_categories)
+    if enforced_categories:
+        review["enforced_problem_categories"] = enforced_categories
+    review["revision_enforced"] = (
+        revision_was_forced or bool(enforced_categories) or not visible_change
+    )
     if review["revision_enforced"]:
-        review["enforcement_reason"] = (
-            "Final review must apply at least one visible correction; "
-            "a visually neutral response increases copy-surface opacity by 0.05."
-        )
+        reasons = []
+        if enforced_categories:
+            reasons.append(
+                "Diagnosed categories without related changes received "
+                "bounded category-specific fallback adjustments: "
+                + ", ".join(enforced_categories)
+                + "."
+            )
+        if revision_was_forced:
+            reasons.append("Final review always requires a revision.")
+        if not visible_change:
+            reasons.append(
+                "A visually neutral response increases copy-surface opacity "
+                "by 0.05."
+            )
+        review["enforcement_reason"] = " ".join(reasons)
     return review
 
 

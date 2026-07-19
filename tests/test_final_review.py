@@ -184,6 +184,17 @@ class FinalReviewTests(unittest.TestCase):
             "properties"
         ]["cta_treatment"]
         self.assertEqual(cta_treatment["enum"], ["plain"])
+        observed = FINAL_REVIEW_SCHEMA["properties"]["diagnosis"][
+            "properties"
+        ]["observed_problems"]
+        self.assertEqual(observed["items"]["type"], "object")
+        self.assertEqual(
+            set(observed["items"]["required"]),
+            {
+                "category", "target", "evidence",
+                "required_correction", "severity",
+            },
+        )
 
     def test_build_layout_never_creates_cta_button(self):
         analysis = {
@@ -341,6 +352,19 @@ class FinalReviewTests(unittest.TestCase):
         review = _enforce_final_review_revision(
             {
                 "needs_revision": False,
+                "diagnosis": {
+                    "primary_issue": "contrast",
+                    "observed_problems": [
+                        {
+                            "category": "contrast",
+                            "target": "headline_band",
+                            "evidence": "The headline lacks sufficient contrast.",
+                            "required_correction": "Increase surface contrast.",
+                            "severity": "high",
+                        }
+                    ],
+                    "correction_summary": "Improve headline contrast.",
+                },
                 "adjustments": adjustments,
                 "reason": "No changes.",
             },
@@ -349,6 +373,48 @@ class FinalReviewTests(unittest.TestCase):
         self.assertTrue(review["needs_revision"])
         self.assertTrue(review["revision_enforced"])
         self.assertEqual(review["adjustments"]["surface_opacity_delta"], 0.05)
+
+    def test_price_diagnosis_forces_price_specific_adjustment(self):
+        adjustments = _adjustments()
+        for field in (
+            "price_scale",
+            "price_number_scale",
+            "price_unit_scale",
+        ):
+            adjustments[field] = 1.0
+        adjustments["price_number_baseline_shift"] = 0.0
+        adjustments["price_unit_baseline_shift"] = 0.0
+        review = _enforce_final_review_revision(
+            {
+                "needs_revision": True,
+                "diagnosis": {
+                    "primary_issue": "hierarchy",
+                    "observed_problems": [
+                        {
+                            "category": "price_composition",
+                            "target": "price_number",
+                            "evidence": (
+                                "The number is disproportionately large relative "
+                                "to the surrounding price units."
+                            ),
+                            "required_correction": (
+                                "Reduce the number scale to restore one price line."
+                            ),
+                            "severity": "high",
+                        }
+                    ],
+                    "correction_summary": "Balance the price typography.",
+                },
+                "adjustments": adjustments,
+                "reason": "Improve hierarchy.",
+            },
+            _layout(),
+        )
+        self.assertEqual(review["adjustments"]["price_number_scale"], 0.92)
+        self.assertTrue(review["diagnosis_adjustment_enforced"])
+        self.assertIn(
+            "price_composition", review["enforced_problem_categories"]
+        )
 
 
 if __name__ == "__main__":

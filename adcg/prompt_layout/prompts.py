@@ -75,9 +75,21 @@ smallest coherent set of changes that resolves every diagnosed problem.
 Keep the headline horizontally centered. Preserve the exact copy, semantic
 groups, product visibility, and core art direction, but improve the execution
 where the second-stage result is visibly weak. Always set needs_revision to
-true, report one to four concrete observed problems, and return at least one
-non-neutral adjustment. Never request new copy, a new template, or an
-alternative design.
+true and report one to four concrete observed problems. For every problem,
+identify its category and exact target, describe visible evidence as a complete
+specific sentence, state the required correction as a complete actionable
+sentence, and assign severity. Do not use vague diagnoses such as "improve
+hierarchy" or "adjust spacing" without naming the visual relationship that is
+wrong and its consequence.
+
+Every observed problem category must be represented by at least one related
+non-neutral adjustment. In particular, a price_composition problem must change
+price scale, number/unit scale, or number/unit baseline; generic group movement
+does not resolve it. A spacing problem must change a relevant group position or
+gap. A typography or hierarchy problem must change a relevant role scale,
+weight, or tracking. A band, accent, color, contrast, CTA, placement, or product
+visibility problem must likewise change its corresponding controls. Never
+request new copy, a new template, or an alternative design.
 """.strip()
 
 
