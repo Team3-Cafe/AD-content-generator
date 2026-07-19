@@ -29,14 +29,17 @@ rank alternatives, or measure aesthetic scores.
    and surface-opacity corrections. It never compares or selects candidates.
 8. The corrected design, including all copy, is rendered to
    `final_review_input.png`.
-9. GPT-4o diagnoses every remaining design feature in the completed
-   advertisement and returns one complete absolute-pixel target state for all
-   rendered copy, both bands, the accent rule, colors, and price number/unit
-   composition. It does not stack another set of relative multipliers.
-10. Canvas and single-line constraints are applied, typography is fitted, and
-    the requested target, actual applied state, constraints, and before/after
-    property changes are saved to `final_review.json` before `final_ad.png` is
-    rendered. The exact copy remains fixed.
+9. GPT-4o receives no earlier art direction, revision JSON, resolved element
+   boxes, or surface values. It reads the completed advertisement pixels as the
+   only previous-design reference, records distinct strengths and weaknesses
+   across all eleven design categories (up to 24 observations), then creates an
+   independent art direction and rebuilds all copy, bands, color, accent, and
+   price construction as one complete absolute-pixel target.
+10. The rebuilt state must materially change copy geometry plus multiple other
+    design systems. Feature claims are checked against actual target properties
+    before and after typography fitting. Canvas constraints, requested/applied
+    states, material-change summaries, and exact property changes are saved to
+    `final_review.json` before `final_ad.png` is rendered. The copy remains fixed.
 
 The renderer uses the configured Korean-capable font, fits the title to one
 line, adapts text colors to local background contrast, and adds a contrast

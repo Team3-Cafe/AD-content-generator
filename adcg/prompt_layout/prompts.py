@@ -50,41 +50,51 @@ needed. Never request a new template or alternative design.
 
 
 FINAL_REVIEW_SYSTEM_PROMPT = """
-You are the final senior art director reviewing the second-stage completed
-advertisement. The supplied image already contains the finished background and
-all rendered Korean copy. Diagnose the actual delivered composition, then
-return a complete ABSOLUTE target layout in canvas pixels. This is not a list
-of deltas, shifts, or scale multipliers.
+You are an independent senior art director rebuilding the copy design of the
+supplied completed advertisement. The image already combines the final
+background and all Korean copy. Read this image itself as the only source of
+truth about the previous design. You are not given the second review JSON, its
+numeric adjustments, its resolved element boxes, or the earlier art direction.
+Do not try to reconstruct or preserve that hidden design state.
 
-Evaluate every feature in feature_reviews: typography, hierarchy, spacing,
-price composition, band proportion, accent rule, placement, color, contrast,
-CTA treatment, and product visibility. Give each one a concrete keep/revise
-verdict based on visible evidence. A revised feature must name every affected
-target; a kept feature must have an empty affected_targets list. Do not invent
-problems merely to increase a count, but make a decisive redesign wherever the
-finished image is visibly weak. Avoid token 5% changes that preserve the same
-composition without resolving the diagnosed relationship.
+Audit the completed pixels as broadly as possible before redesigning. Collect
+both weaknesses and strengths worth preserving or building on. Cover EVERY
+category at least once: typography, hierarchy, spacing, price composition, band
+proportion, accent rule, placement, color, contrast, CTA treatment, and product
+visibility. Return at least eleven distinct design_observations and continue up
+to the schema limit when the image supports more. Evidence must describe what
+is visibly happening in the image, its design consequence, and whether the new
+design should preserve, build on, or redesign it. Do not repeat the same point
+with different wording.
 
-The target_layout is the complete desired final state, not just changed fields.
-Return every currently rendered copy role exactly once and return exactly one
-headline and one offer surface. Coordinates, boxes, font sizes, band geometry,
-and accent-rule geometry are absolute pixels within the supplied canvas.
-Choose enough text-box width and height for the requested font size and line
-count. Keep the title, price, and CTA on one line. Preserve the exact copy.
+After the audit, independently perform the role of a fresh design revision:
+create a new coherent art direction in redesign_plan and rebuild the entire
+copy layer from a blank overlay on the same background. Preserve only the exact
+copy strings, legibility, and clear product visibility. You may substantially
+change placement, group proportions, alignment, font sizes and weights,
+tracking, price construction, band positions and heights, surface opacity and
+colors, and accent-rule treatment. Use strengths as raw material, not as a
+reason to copy the existing layout. Prefer one coordinated composition over
+many small nudges. The result must be visibly distinguishable from the input;
+near-identical values and token 1-5% changes are invalid.
 
-Judge Korean typography as a composed system. In particular, when the price
-contains a large number plus surrounding qualifier/unit text, balance the
-number scale, unit scale, and baselines so the number is emphasized without
-looking detached or oversized. Review clipping, wrapping, optical centering,
-line gaps, band padding, and hierarchy together instead of changing each value
-independently. Do not issue mutually cancelling movements.
+The target_layout is the complete rebuilt state in ABSOLUTE canvas pixels, not
+deltas or multipliers. Return every supplied copy role exactly once and exactly
+one headline and one offer surface. Infer placement from the image and the
+provided canvas, palette, and protected-subject constraints. Choose boxes large
+enough for the typography. Keep title, price, and CTA on one line. The CTA is
+plain typography in a static image, never a button, pill, outline, or UI
+control. Color fields use palette tokens or "keep"; use "keep" only when that
+specific visual choice is deliberately carried into the new system.
 
-The CTA is plain typography in a static image, never a button, pill, outline,
-or interactive control. Maintain product visibility. Color fields use palette
-tokens or "keep"; use the current-state colors when a field is kept. Always set
-needs_revision to true. Report concrete observed problems with exact targets,
-visible evidence, actionable corrections, and severity. Never request new copy,
-a new template, an alternative image, or another VLM review.
+For every feature, return a keep/revise verdict. Mark revise whenever the new
+design changes that feature. Every affected_targets entry must correspond to a
+material change in target_layout. When composing a price such as a large number
+with qualifier and unit text, balance number_scale, unit_scale, and baselines
+so emphasis remains integrated rather than detached or oversized. Never ask
+for new copy, a different background, another image, or another VLM review.
+Always set needs_revision to true and deliver the independent rebuilt design in
+this single response.
 """.strip()
 
 
@@ -133,87 +143,37 @@ def build_revision_request(
 
 def build_final_review_request(
     ad_copy: dict,
-    design_spec: dict,
-    layout: dict,
+    image_analysis: dict,
 ) -> str:
-    compact_layout = {
-        "canvas": layout["canvas"],
-        "elements": [
-            {
-                "role": item["role"],
-                "group": item["design_group"],
-                "x": item["x"],
-                "y": item["y"],
-                "width": item["width"],
-                "height": item["height"],
-                "font_size": item["font_size"],
-                "font_weight": item.get("font_weight", 600),
-                "tracking": item.get("tracking", 0),
-                "text_align": item.get("text_align", "left"),
-                "max_lines": item.get("max_lines", 2),
-                "color": item.get("color"),
-                "content": item.get("content"),
-                "number_scale": item.get("number_scale"),
-                "unit_scale": item.get("unit_scale"),
-                "number_baseline_shift": item.get(
-                    "number_baseline_shift", 0
-                ),
-                "unit_baseline_shift": item.get(
-                    "unit_baseline_shift", 0
-                ),
-            }
-            for item in layout["elements"]
-        ],
-        "surfaces": [
-            {
-                "id": item.get("id"),
-                "group": item.get("design_group"),
-                "background_color": item.get("background_color"),
-                "gradient_color": item.get("gradient_color"),
-                "opacity": item.get("opacity"),
-                "x": item.get("x"),
-                "y": item.get("y"),
-                "width": item.get("width"),
-                "height": item.get("height"),
-                "border_color": item.get("border_color"),
-            }
-            for item in layout.get("underlays", [])
-            if str(item.get("id", "")).startswith("surface-")
-        ],
-        "accent_rule": next(
-            (
-                item
-                for item in layout.get("underlays", [])
-                if item.get("id") == "accent-rule"
-            ),
-            None,
-        ),
-        "protected_subject": layout.get("design_groups", {}).get(
-            "protected_subject"
-        ),
-        "design_tokens": {
-            "palette": layout["design_tokens"]["palette"],
-            "headline_alignment": layout["design_tokens"][
-                "headline_alignment"
+    independent_constraints = {
+        "canvas": image_analysis["canvas"],
+        "palette": image_analysis["palette"],
+        "render_contract": {
+            "copy_roles": [
+                role
+                for role in ("title", "subtitle", "price", "cta")
+                if ad_copy.get(role)
             ],
-            "offer_alignment": layout["design_tokens"]["offer_alignment"],
-            "offer_arrangement": layout["design_tokens"][
-                "offer_arrangement"
-            ],
-            "cta_treatment": layout["design_tokens"]["cta_treatment"],
-            "color_direction": layout["design_tokens"]["color_direction"],
+            "headline_roles": ["title", "subtitle"],
+            "offer_roles": ["price", "cta"],
+            "required_surfaces": ["headline", "offer"],
+            "single_line_roles": ["title", "price", "cta"],
+            "cta_treatment": "plain_typography",
         },
     }
     return (
-        "Return a complete absolute-pixel target layout for the second-stage "
-        "completed advertisement after diagnosing every design feature.\n\n"
-        "Exact rendered copy:\n"
+        "Independently audit this completed advertisement and rebuild its copy "
+        "design without access to the previous revision JSON or layout values.\n\n"
+        "Exact copy strings to preserve:\n"
         + json.dumps(ad_copy, ensure_ascii=False, indent=2)
-        + "\n\nArt direction to preserve:\n"
-        + json.dumps(design_spec, ensure_ascii=False, indent=2)
-        + "\n\nCurrent rendered design state:\n"
-        + json.dumps(compact_layout, ensure_ascii=False, indent=2)
+        + "\n\nOnly non-design constraints available to the rebuild:\n"
+        + json.dumps(
+            independent_constraints,
+            ensure_ascii=False,
+            indent=2,
+        )
     )
+
 
 
 __all__ = [

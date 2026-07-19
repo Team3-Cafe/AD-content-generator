@@ -43,6 +43,28 @@ def _review_consistency_issues(review: dict, layout: dict) -> list[str]:
     """Validate target completeness and feature-to-target accountability."""
     issues = []
     feature_reviews = review["diagnosis"]["feature_reviews"]
+    observations = review["diagnosis"]["design_observations"]
+    if len(observations) < len(FINAL_REVIEW_FEATURES):
+        issues.append(
+            "completed-ad audit must include at least one observation per "
+            "design feature"
+        )
+    observation_keys = {
+        (
+            item["assessment"], item["category"], item["target"],
+            item["evidence"].strip(),
+        )
+        for item in observations
+    }
+    if len(observation_keys) != len(observations):
+        issues.append("completed-ad audit contains duplicate observations")
+    categories = {item["category"] for item in observations}
+    missing_categories = set(FINAL_REVIEW_FEATURES) - categories
+    if missing_categories:
+        issues.append(
+            "completed-ad audit is missing design categories: "
+            + ", ".join(sorted(missing_categories))
+        )
     for feature in FINAL_REVIEW_FEATURES:
         feedback = feature_reviews[feature]
         targets = feedback["affected_targets"]
@@ -70,29 +92,45 @@ def _review_consistency_issues(review: dict, layout: dict) -> list[str]:
 
 
 def _layout_state(layout: dict) -> dict:
-    """Serialize the actual post-constraint/post-fit state for audit output."""
+    """Serialize a canonical rendered state, including visual defaults."""
+    elements = []
+    for item in layout["elements"]:
+        role = str(item["role"])
+        state = {
+            "role": role,
+            "x": int(item["x"]), "y": int(item["y"]),
+            "width": int(item["width"]), "height": int(item["height"]),
+            "font_size": int(item["font_size"]),
+            "font_weight": int(item.get("font_weight", 600)),
+            "tracking": int(item.get("tracking", 0)),
+            "text_align": str(item.get("text_align", "left")),
+            "max_lines": int(item.get("max_lines", 1 if role == "title" else 2)),
+            "color": str(item.get("color", "#FFFFFF")),
+        }
+        if role == "price":
+            state.update({
+                "number_scale": float(item.get("number_scale", 1.22)),
+                "unit_scale": float(item.get("unit_scale", 0.80)),
+                "number_baseline_shift": float(
+                    item.get("number_baseline_shift", 0.0)
+                ),
+                "unit_baseline_shift": float(
+                    item.get("unit_baseline_shift", 0.0)
+                ),
+            })
+        elements.append(state)
     return {
-        "elements": [
-            {
-                key: item.get(key)
-                for key in (
-                    "role", "x", "y", "width", "height", "font_size",
-                    "font_weight", "tracking", "text_align", "max_lines",
-                    "color", "number_scale", "unit_scale",
-                    "number_baseline_shift", "unit_baseline_shift",
-                )
-                if item.get(key) is not None
-            }
-            for item in layout["elements"]
-        ],
+        "elements": elements,
         "surfaces": [
             {
                 "group": str(item["id"]).removeprefix("surface-"),
-                "x": item.get("x"), "y": item.get("y"),
-                "width": item.get("width"), "height": item.get("height"),
-                "opacity": item.get("opacity"),
-                "background_color": item.get("background_color"),
-                "gradient_color": item.get("gradient_color"),
+                "x": int(item["x"]), "y": int(item["y"]),
+                "width": int(item["width"]), "height": int(item["height"]),
+                "opacity": float(item.get("opacity", 1.0)),
+                "background_color": str(item.get("background_color")),
+                "gradient_color": str(item.get(
+                    "gradient_color", item.get("background_color")
+                )),
             }
             for item in layout.get("underlays", [])
             if str(item.get("id", "")).startswith("surface-")
@@ -101,10 +139,10 @@ def _layout_state(layout: dict) -> dict:
         "accent_rule": next(
             (
                 {
-                    key: item.get(key)
-                    for key in (
-                        "x", "y", "width", "height", "background_color"
-                    )
+                    "present": True,
+                    "x": int(item["x"]), "y": int(item["y"]),
+                    "width": int(item["width"]), "height": int(item["height"]),
+                    "background_color": str(item.get("background_color")),
                 }
                 for item in layout.get("underlays", [])
                 if item.get("id") == "accent-rule"
@@ -112,6 +150,148 @@ def _layout_state(layout: dict) -> dict:
             {"present": False},
         ),
     }
+
+
+def _material_revision_summary(
+    before: dict,
+    after: dict,
+    canvas: dict,
+) -> dict:
+    """Measure meaningful state changes without comparing rendered pixels."""
+    x_threshold = max(4, round(int(canvas["width"]) * 0.015))
+    y_threshold = max(4, round(int(canvas["height"]) * 0.015))
+    systems: dict[str, set[str]] = {
+        name: set()
+        for name in ("composition", "typography", "surface", "color", "price", "accent")
+    }
+    changed_targets = set()
+    properties = set()
+
+    def record(system: str, target: str, property_name: str) -> None:
+        systems[system].add(target)
+        changed_targets.add(target)
+        properties.add((target, property_name))
+
+    before_elements = {item["role"]: item for item in before["elements"]}
+    for item in after["elements"]:
+        role = item["role"]
+        previous = before_elements[role]
+        for key in ("x", "width"):
+            if abs(int(item[key]) - int(previous[key])) >= x_threshold:
+                record("composition", f"{role}_geometry", key)
+                changed_targets.add("overall_composition")
+        for key in ("y", "height"):
+            if abs(int(item[key]) - int(previous[key])) >= y_threshold:
+                record("composition", f"{role}_geometry", key)
+                changed_targets.add("overall_composition")
+        if abs(int(item["font_size"]) - int(previous["font_size"])) >= 2:
+            record("typography", f"{role}_typography", "font_size")
+        for key in ("font_weight", "tracking", "text_align", "max_lines"):
+            if item[key] != previous[key]:
+                record("typography", f"{role}_typography", key)
+        if item["color"] != previous["color"]:
+            record("color", "color_palette", f"{role}.color")
+        if role == "price":
+            for key, threshold in (
+                ("number_scale", 0.06), ("unit_scale", 0.06),
+                ("number_baseline_shift", 0.025),
+                ("unit_baseline_shift", 0.025),
+            ):
+                if abs(float(item[key]) - float(previous[key])) >= threshold:
+                    record("price", "price_composition", key)
+
+    before_surfaces = {item["group"]: item for item in before["surfaces"]}
+    for item in after["surfaces"]:
+        group = item["group"]
+        previous = before_surfaces[group]
+        for key in ("x", "width"):
+            if abs(int(item[key]) - int(previous[key])) >= x_threshold:
+                record("surface", f"{group}_surface", key)
+                changed_targets.add("overall_composition")
+        for key in ("y", "height"):
+            if abs(int(item[key]) - int(previous[key])) >= y_threshold:
+                record("surface", f"{group}_surface", key)
+                changed_targets.add("overall_composition")
+        if abs(float(item["opacity"]) - float(previous["opacity"])) >= 0.04:
+            record("surface", f"{group}_surface", "opacity")
+        for key in ("background_color", "gradient_color"):
+            if item[key] != previous[key]:
+                record("color", "color_palette", f"{group}.{key}")
+                changed_targets.add(f"{group}_surface")
+
+    before_rule = before["accent_rule"]
+    after_rule = after["accent_rule"]
+    if before_rule.get("present") != after_rule.get("present"):
+        record("accent", "accent_rule", "present")
+    elif after_rule.get("present"):
+        for key in ("x", "width"):
+            if abs(int(after_rule[key]) - int(before_rule[key])) >= x_threshold:
+                record("accent", "accent_rule", key)
+        for key in ("y", "height"):
+            if abs(int(after_rule[key]) - int(before_rule[key])) >= y_threshold:
+                record("accent", "accent_rule", key)
+        if after_rule["background_color"] != before_rule["background_color"]:
+            record("accent", "accent_rule", "color")
+            changed_targets.add("color_palette")
+
+    active_systems = [name for name, targets in systems.items() if targets]
+    return {
+        "active_systems": active_systems,
+        "systems": {name: sorted(targets) for name, targets in systems.items()},
+        "changed_targets": sorted(changed_targets),
+        "material_property_count": len(properties),
+        "thresholds": {
+            "horizontal_geometry_px": x_threshold,
+            "vertical_geometry_px": y_threshold,
+            "font_size_px": 2,
+            "surface_opacity": 0.04,
+            "price_scale": 0.06,
+            "price_baseline": 0.025,
+        },
+    }
+
+
+def _material_revision_issues(review: dict, summary: dict) -> list[str]:
+    """Require a broad redesign and truthful feature-to-target claims."""
+    issues = []
+    composition_targets = summary["systems"]["composition"]
+    if len(composition_targets) < 2:
+        issues.append(
+            "rebuilt design must materially recompose at least two copy roles; "
+            f"changed {len(composition_targets)}"
+        )
+    if len(summary["active_systems"]) < 3:
+        issues.append(
+            "rebuilt design must change at least three design systems; "
+            f"changed {len(summary['active_systems'])}"
+        )
+
+    feature_reviews = review["diagnosis"]["feature_reviews"]
+    revised_features = [
+        feature for feature, feedback in feature_reviews.items()
+        if feedback["verdict"] == "revise"
+    ]
+    changed_targets = set(summary["changed_targets"])
+    claimed_targets = {
+        target
+        for feature in revised_features
+        for target in feature_reviews[feature]["affected_targets"]
+    }
+    for feature in revised_features:
+        claimed = set(feature_reviews[feature]["affected_targets"])
+        if not claimed.intersection(changed_targets):
+            issues.append(
+                f"{feature} claims targets with no material applied change"
+            )
+    for system in summary["active_systems"]:
+        system_targets = set(summary["systems"][system])
+        if system == "composition":
+            system_targets.add("overall_composition")
+        if not system_targets.intersection(claimed_targets):
+            issues.append(
+                f"materially changed {system} system has no revise feedback"
+            )
+    return issues
 
 
 def _applied_changes(before: dict, after: dict) -> list[dict]:
@@ -232,16 +412,18 @@ def _enforce_final_review_revision(review: dict, layout: dict) -> dict:
         )
 
     candidate = apply_final_review_revision(layout, review)
-    visible_change = (
-        candidate["elements"] != layout["elements"]
-        or candidate.get("underlays", []) != layout.get("underlays", [])
+    requested_summary = _material_revision_summary(
+        _layout_state(layout), _layout_state(candidate), layout["canvas"]
     )
-    if not visible_change:
+    material_issues = _material_revision_issues(review, requested_summary)
+    if material_issues:
         raise ValueError(
-            "Final review selected no effective design revision."
+            "Final review did not produce a material redesign: "
+            + "; ".join(material_issues)
         )
     review["consistency_validated"] = True
-    review["revision_mode"] = "absolute_target"
+    review["revision_mode"] = "completed_ad_rebuild"
+    review["requested_material_changes"] = requested_summary
     return review
 
 
@@ -371,14 +553,13 @@ def generate_prompt_layout(
         instructions=FINAL_REVIEW_SYSTEM_PROMPT,
         request_text=build_final_review_request(
             ad_copy,
-            design_spec,
-            revised_layout,
+            computed_analysis,
         ),
         image_path=final_review_input_path,
         detail=detail,
         schema_name="completed_ad_final_layout_review",
         schema=FINAL_REVIEW_SCHEMA,
-        temperature=0,
+        temperature=temperature,
     )
     final_review = _enforce_final_review_revision(
         final_review, revised_layout
@@ -392,7 +573,17 @@ def generate_prompt_layout(
     )
     final_layout = ensure_layout_contrast(image_path, final_layout)
     applied_final_state = _layout_state(final_layout)
+    applied_summary = _material_revision_summary(
+        before_final_state, applied_final_state, final_layout["canvas"]
+    )
+    post_fit_issues = _material_revision_issues(final_review, applied_summary)
+    if post_fit_issues:
+        raise ValueError(
+            "Final layout fitting erased the material redesign: "
+            + "; ".join(post_fit_issues)
+        )
     final_review["applied_target_layout"] = applied_final_state
+    final_review["applied_material_changes"] = applied_summary
     final_review["applied_changes"] = _applied_changes(
         before_final_state, applied_final_state
     )

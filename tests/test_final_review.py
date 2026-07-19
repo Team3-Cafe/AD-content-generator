@@ -13,6 +13,7 @@ from adcg.prompt_layout.generator import (
     _layout_state,
     generate_prompt_layout,
 )
+from adcg.prompt_layout.prompts import build_final_review_request
 from adcg.prompt_layout.renderer import _draw_price_line
 from adcg.prompt_layout.schemas import FINAL_REVIEW_FEATURES, FINAL_REVIEW_SCHEMA
 
@@ -70,12 +71,25 @@ def _layout() -> dict:
 
 
 def _feature_reviews() -> dict:
+    targets = {
+        "typography": ["title_typography"],
+        "hierarchy": ["overall_composition"],
+        "spacing": ["overall_composition"],
+        "price_composition": ["price_composition"],
+        "band_proportion": ["headline_surface"],
+        "accent_rule": ["accent_rule"],
+        "placement": ["overall_composition"],
+        "color": ["color_palette"],
+        "contrast": ["color_palette"],
+        "cta": ["cta_typography"],
+        "product_visibility": ["overall_composition"],
+    }
     return {
         feature: {
             "verdict": "revise",
             "evidence": f"Visible issue in {feature}.",
             "recommended_change": f"Correct {feature} with the target state.",
-            "affected_targets": ["overall_composition"],
+            "affected_targets": targets[feature],
         }
         for feature in FINAL_REVIEW_FEATURES
     }
@@ -119,13 +133,43 @@ def _review() -> dict:
         "diagnosis": {
             "primary_issue": "hierarchy",
             "feature_reviews": _feature_reviews(),
-            "observed_problems": [{
-                "category": "hierarchy", "target": "price_number",
-                "evidence": "The number is detached from its unit.",
-                "required_correction": "Rebalance number and unit sizes.",
-                "severity": "high",
-            }],
+            "design_observations": [
+                {
+                    "assessment": (
+                        "strength" if index in {1, 8} else "weakness"
+                    ),
+                    "category": category, "target": target,
+                    "evidence": f"Distinct visible observation {index} in {target}.",
+                    "design_implication": f"Use observation {index} in the rebuild.",
+                    "recommended_action": (
+                        "build_on" if index in {1, 8} else "redesign"
+                    ),
+                    "impact": "high" if index < 3 else "medium",
+                }
+                for index, (category, target) in enumerate((
+                    ("typography", "title"),
+                    ("hierarchy", "headline_group"),
+                    ("spacing", "offer_group"),
+                    ("price_composition", "price_number"),
+                    ("band_proportion", "headline_band"),
+                    ("accent_rule", "accent_rule"),
+                    ("placement", "offer_group"),
+                    ("color", "offer_band"),
+                    ("contrast", "title"),
+                    ("cta", "cta"),
+                    ("product_visibility", "product"),
+                ))
+            ],
             "correction_summary": "Apply a coherent absolute target layout.",
+        },
+        "redesign_plan": {
+            "concept": "Rebuilt industrial editorial layout.",
+            "composition_strategy": "Recompose both copy groups.",
+            "hierarchy_strategy": "Balance title and price emphasis.",
+            "typography_strategy": "Rebuild Korean type scale and rhythm.",
+            "surface_strategy": "Resize both editorial bands.",
+            "color_strategy": "Use a light offer band with dark type.",
+            "product_visibility_strategy": "Keep bands outside the product body.",
         },
         "target_layout": _target_layout(),
         "reason": "Resolve the visible hierarchy and spacing defects.",
@@ -133,13 +177,37 @@ def _review() -> dict:
 
 
 class FinalReviewTests(unittest.TestCase):
+    def test_final_request_excludes_previous_design_state(self):
+        request = build_final_review_request(
+            {"title": "TITLE", "price": "10????"},
+            {
+                "canvas": {"width": 400, "height": 400},
+                "palette": {
+                    "dark": "#111111", "light": "#F5F5F5",
+                    "accent": "#FF6600",
+                },
+            },
+        )
+        self.assertIn("Exact copy strings to preserve", request)
+        self.assertIn("copy_roles", request)
+        self.assertNotIn("font_size", request)
+        self.assertNotIn("surface-headline", request)
+        self.assertNotIn("Art direction", request)
+        self.assertNotIn("design_revision", request)
+
     def test_pipeline_keeps_exactly_three_vlm_calls(self):
         source = inspect.getsource(generate_prompt_layout)
         self.assertEqual(source.count("_request_json("), 3)
 
     def test_schema_uses_absolute_target_layout(self):
         self.assertIn("target_layout", FINAL_REVIEW_SCHEMA["properties"])
+        self.assertIn("redesign_plan", FINAL_REVIEW_SCHEMA["properties"])
         self.assertNotIn("adjustments", FINAL_REVIEW_SCHEMA["properties"])
+        observations = FINAL_REVIEW_SCHEMA["properties"]["diagnosis"]["properties"]["design_observations"]
+        self.assertEqual(
+            (observations["minItems"], observations["maxItems"]),
+            (11, 24),
+        )
         element = FINAL_REVIEW_SCHEMA["properties"]["target_layout"]["properties"]["elements"]["items"]
         self.assertIn("x", element["properties"])
         self.assertIn("font_size", element["properties"])
@@ -169,6 +237,45 @@ class FinalReviewTests(unittest.TestCase):
         self.assertEqual((title["x"], title["y"], title["width"], title["height"]),
                          (0, 0, 400, 400))
         self.assertTrue(result["final_review_constraints"])
+
+
+    def test_visually_equivalent_target_is_rejected(self):
+        layout = _layout()
+        review = _review()
+        review["target_layout"]["elements"] = [
+            {
+                "role": item["role"], "x": item["x"], "y": item["y"],
+                "width": item["width"], "height": item["height"],
+                "font_size": item["font_size"],
+                "font_weight": item["font_weight"],
+                "tracking": item["tracking"],
+                "text_align": item["text_align"],
+                "max_lines": item["max_lines"], "color": "keep",
+            }
+            for item in layout["elements"]
+        ]
+        review["target_layout"]["surfaces"] = [
+            {
+                "group": item["design_group"], "x": item["x"],
+                "y": item["y"], "width": item["width"],
+                "height": item["height"], "opacity": item["opacity"],
+                "background": "keep", "gradient": "keep",
+            }
+            for item in layout["underlays"]
+            if item["id"] in {"surface-headline", "surface-offer"}
+        ]
+        rule = next(item for item in layout["underlays"] if item["id"] == "accent-rule")
+        review["target_layout"]["accent_rule"] = {
+            "present": True, "x": rule["x"], "y": rule["y"],
+            "width": rule["width"], "height": rule["height"],
+            "color": "keep",
+        }
+        review["target_layout"]["price_composition"] = {
+            "number_scale": 1.22, "unit_scale": 0.80,
+            "number_baseline_shift": 0.0, "unit_baseline_shift": 0.0,
+        }
+        with self.assertRaisesRegex(ValueError, "material redesign"):
+            _enforce_final_review_revision(review, layout)
 
     def test_review_requires_every_rendered_role_once(self):
         review = _review()

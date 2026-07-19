@@ -259,8 +259,43 @@ FINAL_REVIEW_TARGETS = (
     "price_composition", "color_palette", "overall_composition",
 )
 
+FINAL_REVIEW_FEATURE_TARGETS = {
+    "typography": [
+        "title_typography", "subtitle_typography",
+        "price_typography", "cta_typography", "price_composition",
+    ],
+    "hierarchy": [
+        "title_geometry", "title_typography", "subtitle_geometry",
+        "subtitle_typography", "price_geometry", "price_typography",
+        "cta_geometry", "cta_typography", "overall_composition",
+    ],
+    "spacing": [
+        "title_geometry", "subtitle_geometry", "price_geometry",
+        "cta_geometry", "headline_surface", "offer_surface",
+        "overall_composition",
+    ],
+    "price_composition": [
+        "price_geometry", "price_typography", "price_composition",
+    ],
+    "band_proportion": ["headline_surface", "offer_surface"],
+    "accent_rule": ["accent_rule"],
+    "placement": [
+        "title_geometry", "subtitle_geometry", "price_geometry",
+        "cta_geometry", "overall_composition",
+    ],
+    "color": ["color_palette"],
+    "contrast": ["color_palette", "headline_surface", "offer_surface"],
+    "cta": ["cta_geometry", "cta_typography", "offer_surface"],
+    "product_visibility": [
+        "title_geometry", "subtitle_geometry", "price_geometry",
+        "cta_geometry", "headline_surface", "offer_surface",
+        "overall_composition",
+    ],
+}
 
-def _feature_feedback_schema() -> dict:
+
+
+def _feature_feedback_schema(feature: str) -> dict:
     return {
         "type": "object",
         "properties": {
@@ -271,7 +306,7 @@ def _feature_feedback_schema() -> dict:
                 "type": "array",
                 "items": {
                     "type": "string",
-                    "enum": list(FINAL_REVIEW_TARGETS),
+                    "enum": FINAL_REVIEW_FEATURE_TARGETS[feature],
                 },
                 "maxItems": 8,
             },
@@ -343,17 +378,21 @@ FINAL_REVIEW_SCHEMA = {
                 "feature_reviews": {
                     "type": "object",
                     "properties": {
-                        feature: _feature_feedback_schema()
+                        feature: _feature_feedback_schema(feature)
                         for feature in FINAL_REVIEW_FEATURES
                     },
                     "required": list(FINAL_REVIEW_FEATURES),
                     "additionalProperties": False,
                 },
-                "observed_problems": {
+                "design_observations": {
                     "type": "array",
                     "items": {
                         "type": "object",
                         "properties": {
+                            "assessment": {
+                                "type": "string",
+                                "enum": ["strength", "weakness"],
+                            },
                             "category": {
                                 "type": "string",
                                 "enum": list(FINAL_REVIEW_FEATURES),
@@ -370,26 +409,48 @@ FINAL_REVIEW_SCHEMA = {
                                 ],
                             },
                             "evidence": {"type": "string"},
-                            "required_correction": {"type": "string"},
-                            "severity": {
+                            "design_implication": {"type": "string"},
+                            "recommended_action": {
+                                "type": "string",
+                                "enum": ["preserve", "build_on", "redesign"],
+                            },
+                            "impact": {
                                 "type": "string",
                                 "enum": ["low", "medium", "high"],
                             },
                         },
                         "required": [
-                            "category", "target", "evidence",
-                            "required_correction", "severity",
+                            "assessment", "category", "target", "evidence",
+                            "design_implication", "recommended_action", "impact",
                         ],
                         "additionalProperties": False,
                     },
-                    "minItems": 1,
-                    "maxItems": 8,
+                    "minItems": 11,
+                    "maxItems": 24,
                 },
                 "correction_summary": {"type": "string"},
             },
             "required": [
-                "primary_issue", "feature_reviews", "observed_problems",
+                "primary_issue", "feature_reviews", "design_observations",
                 "correction_summary",
+            ],
+            "additionalProperties": False,
+        },
+        "redesign_plan": {
+            "type": "object",
+            "properties": {
+                "concept": {"type": "string"},
+                "composition_strategy": {"type": "string"},
+                "hierarchy_strategy": {"type": "string"},
+                "typography_strategy": {"type": "string"},
+                "surface_strategy": {"type": "string"},
+                "color_strategy": {"type": "string"},
+                "product_visibility_strategy": {"type": "string"},
+            },
+            "required": [
+                "concept", "composition_strategy", "hierarchy_strategy",
+                "typography_strategy", "surface_strategy",
+                "color_strategy", "product_visibility_strategy",
             ],
             "additionalProperties": False,
         },
@@ -449,7 +510,10 @@ FINAL_REVIEW_SCHEMA = {
         },
         "reason": {"type": "string"},
     },
-    "required": ["needs_revision", "diagnosis", "target_layout", "reason"],
+    "required": [
+        "needs_revision", "diagnosis", "redesign_plan",
+        "target_layout", "reason",
+    ],
     "additionalProperties": False,
 }
 
@@ -460,5 +524,6 @@ __all__ = [
     "FINAL_REVIEW_SCHEMA",
     "FINAL_REVIEW_FEATURES",
     "FINAL_REVIEW_TARGETS",
+    "FINAL_REVIEW_FEATURE_TARGETS",
     "DESIGN_SPEC_SCHEMA",
 ]
