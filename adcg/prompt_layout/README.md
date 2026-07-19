@@ -81,17 +81,10 @@ is `0.4`. Exactly three OpenAI calls are made: one art-direction call, one
 draft revision call, and one final review of the completed advertisement.
 `OPENAI_API_KEY` is loaded from the project-root `.env` when present.
 
-Install the browser runtime once after installing requirements:
-
-    python -m playwright install chromium
-
-On Linux, install Chromium and its required shared libraries together:
-
-    uv run playwright install --with-deps chromium
-
-The renderer automatically discovers Korean-capable system fonts and exposes a
-browser fallback stack (`Noto Sans KR`, `Noto Sans CJK KR`, `Malgun Gothic`, and
-`Apple SD Gothic Neo`). `--font`/`--layout-font` and `ADCG_FONT_PATH` remain optional
-overrides for deterministic branding; they are not required when a suitable system
-font is installed. A renderer cannot display Korean glyphs if neither the system
-nor the supplied font contains them.
+The Pillow renderer runs without a browser runtime or additional system package.
+It automatically discovers Korean-capable system fonts, including `Noto Sans KR`,
+`Noto Sans CJK KR`, `Malgun Gothic`, and `Apple SD Gothic Neo`.
+The `--font`/`--layout-font` options and `ADCG_FONT_PATH` remain optional overrides for
+deterministic branding; they are not required when a suitable system font is
+installed. A renderer cannot display Korean glyphs if neither the system nor the
+supplied font contains them.

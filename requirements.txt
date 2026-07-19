@@ -7,7 +7,6 @@ numpy
 Pillow
 opencv-python
 rembg[gpu]
-playwright
 
 # Stable Diffusion and ControlNet pipelines
 torch
