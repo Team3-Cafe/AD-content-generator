@@ -546,6 +546,8 @@ def _draw_text_run(
     font,
     color: tuple[int, int, int],
     item: dict,
+    *,
+    anchor: str | None = None,
 ) -> None:
     tracking = max(0, int(item.get("tracking", 0)))
     shadow_offset = max(0, int(item.get("shadow_offset", 0)))
@@ -570,6 +572,7 @@ def _draw_text_run(
                     if use_stroke and stroke_width
                     else None
                 ),
+                anchor=anchor,
             )
             return
         cursor = x
@@ -585,6 +588,7 @@ def _draw_text_run(
                     if use_stroke and stroke_width
                     else None
                 ),
+                anchor=anchor,
             )
             cursor += _text_width(draw, character, font) + tracking
 
@@ -665,8 +669,22 @@ def _draw_price_line(
     else:
         cursor_x = int(item["x"])
 
+    metrics = [
+        (
+            font.getmetrics()
+            if hasattr(font, "getmetrics")
+            else (int(getattr(font, "size", base_size)), 0)
+        )
+        for _part, font, _width in segments
+    ]
+    max_ascent = max(ascent for ascent, _descent in metrics)
+    max_descent = max(descent for _ascent, descent in metrics)
+    visual_height = max_ascent + max_descent
+    common_baseline_y = (
+        cursor_y + max(0, (step - visual_height) // 2) + max_ascent
+    )
+
     for part, font, width in segments:
-        font_size = int(getattr(font, "size", base_size))
         is_number = re.fullmatch(r"\d[\d,.]*", part) is not None
         baseline_key = (
             "number_baseline_shift"
@@ -676,7 +694,7 @@ def _draw_price_line(
         baseline_shift = round(
             base_size * float(item.get(baseline_key, 0.0))
         )
-        segment_y = cursor_y + max(0, (step - font_size) // 2) + baseline_shift
+        segment_y = common_baseline_y + baseline_shift
         _draw_text_run(
             draw,
             (cursor_x, segment_y),
@@ -684,6 +702,7 @@ def _draw_price_line(
             font,
             color,
             item,
+            anchor="ls",
         )
         cursor_x += width
     return True

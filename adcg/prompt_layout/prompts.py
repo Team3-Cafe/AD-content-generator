@@ -48,6 +48,8 @@ typography, hierarchy, spacing, price composition, band proportion, accent rule,
 placement, color, contrast, CTA treatment, and product visibility. For every
 feature, provide evidence, a keep/revise verdict, affected targets, and an explicit
 feature_strategy. You may revise any feature when the rendered pixels justify it.
+When a price contains an enlarged number, keep its optical baseline aligned with
+or slightly above the qualifier and unit; never let the number hang below them.
 
 Prioritize visual integration that the initial design could not verify in its own
 output: image-derived color harmony, text/background contrast, surface presence,
@@ -152,7 +154,8 @@ composition when price is absent. When verdict is revise, every affected_targets
 entry must correspond to a material change in target_layout. When composing a price
 such as a large number
 with qualifier and unit text, balance number_scale, unit_scale, and baselines
-so emphasis remains integrated rather than detached or oversized. Never ask
+so emphasis remains integrated rather than detached or oversized. The enlarged
+number must not sit below the surrounding price text. Never ask
 for new copy, a different background, another image, or another VLM review.
 Always set needs_revision to true and deliver the independent rebuilt design in
 this single response.

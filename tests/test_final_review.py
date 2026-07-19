@@ -450,6 +450,23 @@ class FinalReviewTests(unittest.TestCase):
         }
         self.assertEqual(surface_ids, set())
 
+        headline_surface_spec = json.loads(json.dumps(design_spec))
+        headline_surface_spec["art_direction"]["headline_surface"] = (
+            "content_width"
+        )
+        with_headline_surface = build_design_layout(
+            analysis,
+            {"title": "TITLE", "subtitle": "SUB", "price": "$10", "cta": ""},
+            headline_surface_spec,
+        )
+        headline_surface = next(
+            item for item in with_headline_surface["underlays"]
+            if item["id"] == "surface-headline"
+        )
+        self.assertEqual(
+            (headline_surface["x"], headline_surface["width"]), (0, 400)
+        )
+
         with_cta = build_design_layout(
             analysis,
             {
@@ -682,8 +699,40 @@ class FinalReviewTests(unittest.TestCase):
         self.assertEqual(
             underlays["surface-headline"]["fill_colors"][0], "#17324D"
         )
+        self.assertEqual(
+            (underlays["surface-headline"]["x"],
+             underlays["surface-headline"]["width"]),
+            (0, 400),
+        )
         self.assertEqual(items["price"]["text_align"], "right")
         self.assertEqual(underlays["accent-rule"]["width"], 110)
+
+    def test_price_number_cannot_drop_below_surrounding_text(self):
+        review = _review()
+        review["target_layout"]["price_composition"].update({
+            "number_baseline_shift": 0.18,
+            "unit_baseline_shift": -0.04,
+        })
+        result = apply_final_review_revision(_layout(), review)
+        price = next(item for item in result["elements"] if item["role"] == "price")
+        self.assertEqual(price["number_baseline_shift"], -0.04)
+        self.assertEqual(price["unit_baseline_shift"], -0.04)
+        self.assertIn(
+            "number_baseline_cannot_sit_below_price_text",
+            {item["reason"] for item in result["final_review_constraints"]},
+        )
+
+    def test_headline_surface_is_always_full_canvas_width(self):
+        result = apply_final_review_revision(_layout(), _review())
+        headline = next(
+            item for item in result["underlays"]
+            if item["id"] == "surface-headline"
+        )
+        self.assertEqual((headline["x"], headline["width"]), (0, 400))
+        self.assertIn(
+            "full_canvas_width_headline_surface",
+            {item["reason"] for item in result["final_review_constraints"]},
+        )
 
     def test_canvas_constraints_are_recorded(self):
         review = _review()

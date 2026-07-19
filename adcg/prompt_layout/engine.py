@@ -587,7 +587,7 @@ def build_design_layout(
     ) -> None:
         if surface_style == "none":
             return
-        full_width = surface_style == "full_width"
+        full_width = group == "headline" or surface_style == "full_width"
         content_x = max(0, group_box["x"] - band_padding)
         box = (
             {"x": 0, "y": band_y, "width": width, "height": band_height}
@@ -779,6 +779,15 @@ def apply_final_review_revision(layout: dict, revision: dict) -> dict:
             "unit_baseline_shift",
         ):
             price[name] = round(float(composition[name]), 4)
+        if price["number_baseline_shift"] > price["unit_baseline_shift"]:
+            requested_shift = price["number_baseline_shift"]
+            price["number_baseline_shift"] = price["unit_baseline_shift"]
+            constraints.append({
+                "target": "price_composition",
+                "reason": "number_baseline_cannot_sit_below_price_text",
+                "requested": requested_shift,
+                "applied": price["number_baseline_shift"],
+            })
 
     underlays = []
     for surface_target in target["surfaces"]:
@@ -867,12 +876,19 @@ def apply_final_review_revision(layout: dict, revision: dict) -> dict:
         contained = {
             "x": left, "y": top, "width": right - left, "height": bottom - top,
         }
+        if group == "headline":
+            contained["x"] = 0
+            contained["width"] = width
         current = {key: int(surface[key]) for key in ("x", "y", "width", "height")}
         if contained != current:
             surface.update(contained)
             constraints.append({
                 "target": f"{group}_surface",
-                "reason": "expanded_to_contain_text",
+                "reason": (
+                    "full_canvas_width_headline_surface"
+                    if group == "headline"
+                    else "expanded_to_contain_text"
+                ),
                 "requested": current, "applied": contained,
             })
 
