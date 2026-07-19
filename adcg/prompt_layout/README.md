@@ -15,8 +15,10 @@ rank alternatives, or measure aesthetic scores.
    palette for each band, text group, and CTA.
 3. A relational layout engine converts independent headline/offer x/y positions,
    widths, and alignments into responsive pixel geometry. Each surface may be
-   absent, content-width, or full-width, and colors may use image-palette tokens
-   or exact hex values. Centering is an option rather than a fixed template.
+   absent, content-width, or full-width. A shared effect model lets both the first
+   and final VLM compose solid, multi-stop linear/radial gradient, scrim, exact
+   colors, angle, opacity, radius, backdrop blur, blend mode, border, and shadow.
+   Centering and surface styling are choices rather than fixed templates.
 4. Price and CTA keep independent alignment and placement. CTA remains optional
    plain typography rather than a button, pill, outline, or interactive UI.
 5. Selected palette colors are resolved to exact values and checked for WCAG
@@ -43,8 +45,8 @@ rank alternatives, or measure aesthetic scores.
     `final_review.json` before `final_ad.png` is rendered. The copy remains fixed.
 
 The renderer uses the configured Korean-capable font, fits the title to one
-line, adapts text colors to local background contrast, and adds a contrast
-underlay only when neither light nor dark text is sufficiently readable.
+line, renders the VLM-authored composable surface effects, and adapts text colors
+to local background contrast without inventing an unrequested surface.
 
 ## Outputs
 

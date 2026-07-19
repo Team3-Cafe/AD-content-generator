@@ -18,7 +18,7 @@ def _luminance(rgb: tuple[int, int, int]) -> float:
     ) / 255.0
 
 
-def _palette(image: Image.Image) -> dict[str, str]:
+def _palette(image: Image.Image) -> dict[str, object]:
     thumbnail = image.convert("RGB")
     thumbnail.thumbnail((128, 128))
     quantized = thumbnail.quantize(colors=16)
@@ -34,6 +34,7 @@ def _palette(image: Image.Image) -> dict[str, str]:
             "dark": "#101820",
             "light": "#F7F4EC",
             "accent": "#FFD23F",
+            "swatches": ["#101820", "#F7F4EC", "#FFD23F"],
         }
 
     dark = min(colors, key=lambda item: _luminance(item[1]))[1]
@@ -57,10 +58,24 @@ def _palette(image: Image.Image) -> dict[str, str]:
     )[1]
     if saturation < 0.20:
         accent = (255, 210, 63)
+    swatches = []
+    for _count, rgb in sorted(colors, key=lambda item: item[0], reverse=True):
+        if all(
+            sum((rgb[index] - existing[index]) ** 2 for index in range(3))
+            >= 32 ** 2
+            for existing in swatches
+        ):
+            swatches.append(rgb)
+        if len(swatches) == 8:
+            break
+    for required in (dark, light, accent):
+        if required not in swatches:
+            swatches.append(required)
     return {
         "dark": _hex(dark),
         "light": _hex(light),
         "accent": _hex(accent),
+        "swatches": [_hex(rgb) for rgb in swatches[:8]],
     }
 
 
@@ -86,8 +101,10 @@ def analyze_image_space(
             top = round(row * height / grid_size)
             right = round((column + 1) * width / grid_size)
             bottom = round((row + 1) * height / grid_size)
+            color_crop = image.crop((left, top, right, bottom))
             gray_crop = gray.crop((left, top, right, bottom))
             edge_crop = edges.crop((left, top, right, bottom))
+            color_stats = ImageStat.Stat(color_crop)
             gray_stats = ImageStat.Stat(gray_crop)
             edge_stats = ImageStat.Stat(edge_crop)
             luminance = float(gray_stats.mean[0]) / 255.0
@@ -111,6 +128,9 @@ def analyze_image_space(
                     "contrast": round(contrast, 4),
                     "edge_density": round(edge_density, 4),
                     "quietness": round(quietness, 4),
+                    "mean_color": _hex(tuple(
+                        round(value) for value in color_stats.mean[:3]
+                    )),
                 }
             )
 

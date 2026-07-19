@@ -7,7 +7,7 @@ import re
 import shutil
 import subprocess
 
-from PIL import Image, ImageColor, ImageDraw, ImageFont
+from PIL import Image, ImageChops, ImageColor, ImageDraw, ImageFilter, ImageFont
 
 
 REGULAR_FONT_CANDIDATES = (
@@ -320,6 +320,83 @@ def _contrast_score(
     return ratios[percentile_index]
 
 
+def _surface_gradient(item: dict, size: tuple[int, int]) -> Image.Image:
+    """Create a color surface from VLM-selected stops and gradient geometry."""
+    width, height = size
+    fill_type = str(item.get("fill_type", "solid"))
+    colors = [
+        ImageColor.getrgb(str(value))[:3]
+        for value in item.get("fill_colors", ["#000000", "#000000"])
+    ]
+    if len(colors) < 2:
+        colors = colors * 2
+    stops = [float(value) for value in item.get("fill_stops", [0.0, 1.0])]
+    if len(stops) != len(colors):
+        denominator = max(1, len(colors) - 1)
+        stops = [index / denominator for index in range(len(colors))]
+    pairs = sorted(zip(stops, colors), key=lambda pair: pair[0])
+    stops = [max(0.0, min(1.0, pair[0])) for pair in pairs]
+    colors = [pair[1] for pair in pairs]
+
+    if fill_type in {"solid", "scrim"}:
+        return Image.new("RGB", size, colors[0])
+    if fill_type == "radial_gradient":
+        gradient = Image.radial_gradient("L").resize(size, Image.Resampling.BICUBIC)
+    else:
+        diagonal = max(2, int(round((width ** 2 + height ** 2) ** 0.5)))
+        gradient = Image.linear_gradient("L").resize(
+            (diagonal, diagonal), Image.Resampling.BICUBIC
+        )
+        angle = float(item.get("gradient_angle", 0.0))
+        gradient = gradient.rotate(
+            90.0 - angle,
+            resample=Image.Resampling.BICUBIC,
+            expand=False,
+        )
+        left = (diagonal - width) // 2
+        top = (diagonal - height) // 2
+        gradient = gradient.crop((left, top, left + width, top + height))
+
+    channel_luts = [[], [], []]
+    for value in range(256):
+        ratio = value / 255.0
+        upper = next(
+            (index for index, stop in enumerate(stops) if stop >= ratio),
+            len(stops) - 1,
+        )
+        lower = max(0, upper - 1)
+        span = max(1e-9, stops[upper] - stops[lower])
+        local_ratio = 0.0 if upper == lower else (ratio - stops[lower]) / span
+        for channel in range(3):
+            channel_luts[channel].append(round(
+                colors[lower][channel]
+                + (colors[upper][channel] - colors[lower][channel])
+                * local_ratio
+            ))
+    return Image.merge(
+        "RGB",
+        tuple(gradient.point(lut) for lut in channel_luts),
+    )
+
+
+def _blend_surface(
+    background: Image.Image,
+    surface: Image.Image,
+    mode: str,
+) -> Image.Image:
+    background = background.convert("RGB")
+    surface = surface.convert("RGB")
+    if mode == "multiply":
+        return ImageChops.multiply(background, surface)
+    if mode == "screen":
+        return ImageChops.screen(background, surface)
+    if mode == "overlay":
+        overlay = getattr(ImageChops, "overlay", None)
+        if overlay is not None:
+            return overlay(background, surface)
+    return surface
+
+
 def _draw_underlays(
     image: Image.Image,
     underlays: list[dict],
@@ -329,47 +406,72 @@ def _draw_underlays(
         underlays,
         key=lambda value: int(value.get("z_index", 0)),
     ):
-        x = int(item["x"])
-        y = int(item["y"])
-        width = int(item["width"])
-        height = int(item["height"])
-        radius = int(item.get("border_radius", 0))
+        x = int(item["x"]); y = int(item["y"])
+        width = int(item["width"]); height = int(item["height"])
+        radius = max(0, int(item.get("border_radius", 0)))
         if width < 1 or height < 1:
             continue
 
         local_mask = Image.new("L", (width, height), 0)
         ImageDraw.Draw(local_mask).rounded_rectangle(
-            (0, 0, width - 1, height - 1),
-            radius=radius,
-            fill=255,
+            (0, 0, width - 1, height - 1), radius=radius, fill=255
         )
-        start_rgb = ImageColor.getrgb(
-            str(item.get("background_color", "#000000"))
-        )[:3]
-        end_rgb = ImageColor.getrgb(
-            str(item.get("gradient_color", item.get(
-                "background_color",
-                "#000000",
-            )))
-        )[:3]
-        panel = Image.new("RGBA", (width, height))
-        panel_draw = ImageDraw.Draw(panel)
-        denominator = max(1, width - 1)
-        alpha = round(255 * float(item.get("opacity", 0.65)))
-        for offset in range(width):
-            ratio = offset / denominator
-            rgb = tuple(
-                round(start + (end - start) * ratio)
-                for start, end in zip(start_rgb, end_rgb)
+
+        if item.get("shadow_enabled") and float(item.get("shadow_opacity", 0)) > 0:
+            shadow_mask = Image.new("L", result.size, 0)
+            offset_x = int(item.get("shadow_offset_x", 0))
+            offset_y = int(item.get("shadow_offset_y", 0))
+            shadow_mask.paste(local_mask, (x + offset_x, y + offset_y))
+            blur = max(0, int(item.get("shadow_blur", 0)))
+            if blur:
+                shadow_mask = shadow_mask.filter(ImageFilter.GaussianBlur(blur))
+            shadow_alpha = float(item.get("shadow_opacity", 0))
+            shadow_mask = shadow_mask.point(
+                lambda value: round(value * shadow_alpha)
             )
-            panel_draw.line(
-                (offset, 0, offset, height),
-                fill=(*rgb, alpha),
-            )
-        panel.putalpha(
-            local_mask.point(lambda value: value * alpha // 255)
+            shadow_rgb = ImageColor.getrgb(
+                str(item.get("shadow_color", "#000000"))
+            )[:3]
+            shadow_layer = Image.new("RGBA", result.size, (*shadow_rgb, 0))
+            shadow_layer.putalpha(shadow_mask)
+            result = Image.alpha_composite(result, shadow_layer)
+
+        backdrop_blur = max(0, int(item.get("backdrop_blur", 0)))
+        if backdrop_blur:
+            blurred = result.filter(ImageFilter.GaussianBlur(backdrop_blur))
+            full_mask = Image.new("L", result.size, 0)
+            full_mask.paste(local_mask, (x, y))
+            result = Image.composite(blurred, result, full_mask)
+
+        surface = _surface_gradient(item, (width, height))
+        background = result.crop((x, y, x + width, y + height))
+        surface = _blend_surface(
+            background, surface, str(item.get("blend_mode", "normal"))
         )
+        alpha = max(0.0, min(1.0, float(item.get("opacity", 0.65))))
+        panel = surface.convert("RGBA")
+        panel.putalpha(local_mask.point(lambda value: round(value * alpha)))
         result.alpha_composite(panel, (x, y))
+
+        if (
+            item.get("border_enabled")
+            and int(item.get("border_width", 0)) > 0
+            and float(item.get("border_opacity", 0)) > 0
+        ):
+            border_layer = Image.new("RGBA", result.size, (0, 0, 0, 0))
+            border_rgb = ImageColor.getrgb(
+                str(item.get("border_color", "#FFFFFF"))
+            )[:3]
+            border_alpha = round(
+                255 * max(0.0, min(1.0, float(item["border_opacity"])))
+            )
+            ImageDraw.Draw(border_layer).rounded_rectangle(
+                (x, y, x + width - 1, y + height - 1),
+                radius=radius,
+                outline=(*border_rgb, border_alpha),
+                width=int(item["border_width"]),
+            )
+            result = Image.alpha_composite(result, border_layer)
     return result
 
 

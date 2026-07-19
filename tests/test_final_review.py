@@ -9,6 +9,7 @@ from unittest.mock import patch
 
 from PIL import Image, ImageChops, ImageDraw
 
+from adcg.prompt_layout.analysis import _palette
 from adcg.prompt_layout.engine import (
     apply_final_review_revision,
     build_design_layout,
@@ -21,8 +22,45 @@ from adcg.prompt_layout.generator import (
     generate_prompt_layout,
 )
 from adcg.prompt_layout.prompts import build_final_review_request
-from adcg.prompt_layout.renderer import _draw_price_line
+from adcg.prompt_layout.renderer import _draw_price_line, _draw_underlays
 from adcg.prompt_layout.schemas import FINAL_REVIEW_FEATURES, FINAL_REVIEW_SCHEMA
+
+
+def _effect(
+    colors=("#17324D", "#315B73"),
+    *,
+    fill_type="linear_gradient",
+    opacity=0.82,
+    radius=18,
+    angle=25.0,
+    blur=0,
+    blend="normal",
+    border=False,
+    shadow=False,
+):
+    return {
+        "fill_type": fill_type,
+        "fill_colors": list(colors),
+        "fill_stops": [
+            index / max(1, len(colors) - 1)
+            for index in range(len(colors))
+        ],
+        "gradient_angle": angle, "opacity": opacity,
+        "corner_radius": radius, "backdrop_blur": blur,
+        "blend_mode": blend, "border_enabled": border,
+        "border_color": colors[0], "border_width": 1 if border else 0,
+        "border_opacity": 0.5 if border else 0.0,
+        "shadow_enabled": shadow, "shadow_color": "#000000",
+        "shadow_offset_x": 0, "shadow_offset_y": 5 if shadow else 0,
+        "shadow_blur": 12 if shadow else 0,
+        "shadow_opacity": 0.22 if shadow else 0.0,
+    }
+
+
+def _render_effect(effect):
+    result = dict(effect)
+    result["border_radius"] = result.pop("corner_radius")
+    return result
 
 
 def _layout() -> dict:
@@ -50,15 +88,20 @@ def _layout() -> dict:
         "underlays": [
             {"id": "surface-headline", "design_group": "headline", "x": 0,
              "y": 15, "width": 400, "height": 105,
-             "background_color": "#111111", "gradient_color": "#111111",
-             "opacity": 0.78},
+             **_render_effect(_effect(
+                 ("#111111", "#263238"), opacity=0.78, radius=0,
+             ))},
             {"id": "surface-offer", "design_group": "offer", "x": 0,
              "y": 265, "width": 400, "height": 110,
-             "background_color": "#222222", "gradient_color": "#222222",
-             "opacity": 0.84},
+             **_render_effect(_effect(
+                 ("#222222", "#4A3B2A"), opacity=0.84, radius=0,
+             ))},
             {"id": "accent-rule", "design_group": "headline", "x": 170,
              "y": 75, "width": 60, "height": 3,
-             "background_color": "#FF6600", "opacity": 1.0},
+             **_render_effect(_effect(
+                 ("#FF6600", "#FF6600"), fill_type="solid",
+                 opacity=1.0, radius=2,
+             ))},
         ],
         "design_groups": {
             "headline": {"x": 40, "y": 30, "width": 320, "height": 80},
@@ -123,16 +166,19 @@ def _target_layout() -> dict:
         "elements": elements,
         "surfaces": [
             {
-                "group": "headline", "enabled": True, "style": "gradient",
+                "group": "headline", "enabled": True,
                 "x": 12, "y": 20, "width": 376, "height": 120,
-                "opacity": 0.82, "background_color": "#17324D",
-                "gradient_color": "#315B73", "corner_radius": 18,
+                "effect": _effect(
+                    ("#17324D", "#315B73"), angle=32, border=True, shadow=True,
+                ),
             },
             {
-                "group": "offer", "enabled": False, "style": "none",
+                "group": "offer", "enabled": False,
                 "x": 0, "y": 250, "width": 400, "height": 125,
-                "opacity": 0.0, "background_color": "#F8F1E5",
-                "gradient_color": "#F8F1E5", "corner_radius": 0,
+                "effect": _effect(
+                    ("#F8F1E5", "#F8F1E5"), fill_type="solid",
+                    opacity=0.0, radius=0,
+                ),
             },
         ],
         "accent_rule": {"present": True, "x": 145, "y": 87,
@@ -306,11 +352,15 @@ class FinalReviewTests(unittest.TestCase):
                 "headline_surface": "none",
                 "offer_surface": "none",
                 "accent_role": "rule",
+                "headline_effect": _effect(
+                    ("#23405A", "#315B73"), angle=45,
+                ),
+                "offer_effect": _effect(
+                    ("#D9B66F", "#F1E7D2"), angle=120,
+                ),
             },
             "color_direction": {
-                "headline_background": "#23405A",
                 "headline_text": "#F1E7D2",
-                "offer_background": "#D9B66F",
                 "offer_text": "#17324D",
                 "cta_text": "#000080",
             },
@@ -351,6 +401,18 @@ class FinalReviewTests(unittest.TestCase):
         self.assertNotEqual(
             with_cta_items["cta"]["color"],
             with_cta_items["price"]["color"],
+        )
+
+        price_accent_spec = json.loads(json.dumps(design_spec))
+        price_accent_spec["art_direction"]["accent_role"] = "price"
+        price_accent_layout = build_design_layout(
+            analysis,
+            {"title": "TITLE", "subtitle": "SUB", "price": "$10", "cta": ""},
+            price_accent_spec,
+        )
+        self.assertNotIn(
+            "accent-rule",
+            {item["id"] for item in price_accent_layout["underlays"]},
         )
 
     def test_final_request_excludes_previous_design_state(self):
@@ -429,7 +491,7 @@ class FinalReviewTests(unittest.TestCase):
         underlays = {item["id"]: item for item in result["underlays"]}
         self.assertNotIn("surface-offer", underlays)
         self.assertEqual(
-            underlays["surface-headline"]["background_color"], "#17324D"
+            underlays["surface-headline"]["fill_colors"][0], "#17324D"
         )
         self.assertEqual(items["price"]["text_align"], "right")
         self.assertEqual(underlays["accent-rule"]["width"], 110)
@@ -470,10 +532,25 @@ class FinalReviewTests(unittest.TestCase):
             {
                 "group": item["design_group"], "x": item["x"],
                 "y": item["y"], "width": item["width"],
-                "height": item["height"], "opacity": item["opacity"],
-                "enabled": True, "style": "solid",
-                "background_color": "keep", "gradient_color": "keep",
-                "corner_radius": item.get("border_radius", 0),
+                "height": item["height"], "enabled": True,
+                "effect": {
+                    **_effect(("keep", "keep"),
+                              fill_type=item.get("fill_type", "solid"),
+                              opacity=item["opacity"],
+                              radius=item.get("border_radius", 0),
+                              angle=item.get("gradient_angle", 0.0)),
+                    "fill_stops": list(item.get("fill_stops", [0.0, 1.0])),
+                    "backdrop_blur": item.get("backdrop_blur", 0),
+                    "blend_mode": item.get("blend_mode", "normal"),
+                    "border_enabled": item.get("border_enabled", False),
+                    "border_width": item.get("border_width", 0),
+                    "border_opacity": item.get("border_opacity", 0.0),
+                    "shadow_enabled": item.get("shadow_enabled", False),
+                    "shadow_offset_x": item.get("shadow_offset_x", 0),
+                    "shadow_offset_y": item.get("shadow_offset_y", 0),
+                    "shadow_blur": item.get("shadow_blur", 0),
+                    "shadow_opacity": item.get("shadow_opacity", 0.0),
+                },
             }
             for item in layout["underlays"]
             if item["id"] in {"surface-headline", "surface-offer"}
@@ -503,6 +580,58 @@ class FinalReviewTests(unittest.TestCase):
         changes = _applied_changes(before, after)
         targets = {item["target"] for item in changes}
         self.assertTrue({"title", "price", "headline_surface", "accent_rule"}.issubset(targets))
+
+    def test_image_palette_exposes_diverse_surface_swatches(self):
+        image = Image.new("RGB", (80, 40), "#14283C")
+        draw = ImageDraw.Draw(image)
+        draw.rectangle((20, 0, 39, 39), fill="#D88724")
+        draw.rectangle((40, 0, 59, 39), fill="#E8E0D0")
+        draw.rectangle((60, 0, 79, 39), fill="#466B5A")
+        palette = _palette(image)
+        self.assertGreaterEqual(len(palette["swatches"]), 4)
+        self.assertIn(palette["accent"], palette["swatches"] or [palette["accent"]])
+
+    def test_composable_surface_effects_change_rendered_pixels(self):
+        background = Image.new("RGB", (220, 160), "#B8C4CC")
+        ImageDraw.Draw(background).rectangle(
+            (0, 70, 219, 90), fill="#334455"
+        )
+        plain = {
+            "id": "surface-test", "x": 30, "y": 30,
+            "width": 150, "height": 90, "z_index": 0,
+            **_render_effect(_effect(
+                ("#336699", "#CC8844"), angle=0, radius=16,
+            )),
+        }
+        rich = {
+            **plain,
+            **_render_effect(_effect(
+                ("#163A5F", "#D58A32", "#F2E4C8"),
+                fill_type="radial_gradient", angle=135, radius=24,
+                blur=7, blend="multiply", border=True, shadow=True,
+            )),
+        }
+        plain_image = _draw_underlays(background, [plain])
+        rich_image = _draw_underlays(background, [rich])
+        self.assertIsNotNone(
+            ImageChops.difference(
+                plain_image.convert("RGB"), rich_image.convert("RGB")
+            ).getbbox()
+        )
+        self.assertNotEqual(
+            plain_image.getpixel((35, 35)), rich_image.getpixel((35, 35))
+        )
+        variants = []
+        for mode, angle in (("normal", 0), ("normal", 90),
+                            ("screen", 45), ("overlay", 135)):
+            effect = _render_effect(_effect(
+                ("#163A5F", "#D58A32", "#F2E4C8"),
+                angle=angle, blend=mode, border=True, shadow=True,
+            ))
+            variants.append(_draw_underlays(background, [{
+                **plain, **effect,
+            }]).convert("RGB").tobytes())
+        self.assertEqual(len(set(variants)), len(variants))
 
     def test_price_baseline_shift_changes_rendered_pixels(self):
         base_item = {"role": "price", "x": 0, "width": 300, "font_size": 24,

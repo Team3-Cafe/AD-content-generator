@@ -193,13 +193,26 @@ def _layout_state(layout: dict) -> dict:
                 "group": str(item["id"]).removeprefix("surface-"),
                 "x": int(item["x"]), "y": int(item["y"]),
                 "width": int(item["width"]), "height": int(item["height"]),
+                "fill_type": str(item.get("fill_type", "solid")),
+                "fill_colors": list(item.get("fill_colors", ["#000000"] * 2)),
+                "fill_stops": [
+                    float(value) for value in item.get("fill_stops", [0.0, 1.0])
+                ],
+                "gradient_angle": float(item.get("gradient_angle", 0.0)),
                 "opacity": float(item.get("opacity", 1.0)),
-                "background_color": str(item.get("background_color")),
-                "gradient_color": str(item.get(
-                    "gradient_color", item.get("background_color")
-                )),
-                "surface_style": str(item.get("surface_style", "solid")),
                 "corner_radius": int(item.get("border_radius", 0)),
+                "backdrop_blur": int(item.get("backdrop_blur", 0)),
+                "blend_mode": str(item.get("blend_mode", "normal")),
+                "border_enabled": bool(item.get("border_enabled", False)),
+                "border_color": str(item.get("border_color", "#000000")),
+                "border_width": int(item.get("border_width", 0)),
+                "border_opacity": float(item.get("border_opacity", 0.0)),
+                "shadow_enabled": bool(item.get("shadow_enabled", False)),
+                "shadow_color": str(item.get("shadow_color", "#000000")),
+                "shadow_offset_x": int(item.get("shadow_offset_x", 0)),
+                "shadow_offset_y": int(item.get("shadow_offset_y", 0)),
+                "shadow_blur": int(item.get("shadow_blur", 0)),
+                "shadow_opacity": float(item.get("shadow_opacity", 0.0)),
             }
             for item in layout.get("underlays", [])
             if str(item.get("id", "")).startswith("surface-")
@@ -210,7 +223,9 @@ def _layout_state(layout: dict) -> dict:
                     "present": True,
                     "x": int(item["x"]), "y": int(item["y"]),
                     "width": int(item["width"]), "height": int(item["height"]),
-                    "background_color": str(item.get("background_color")),
+                    "background_color": str(
+                        (item.get("fill_colors") or ["#000000"])[0]
+                    ),
                 }
                 for item in layout.get("underlays", [])
                 if item.get("id") == "accent-rule"
@@ -291,12 +306,23 @@ def _material_revision_summary(
             if abs(int(item[key]) - int(previous[key])) >= y_threshold:
                 record("surface", f"{group}_surface", key)
                 changed_targets.add("overall_composition")
-        if abs(float(item["opacity"]) - float(previous["opacity"])) >= 0.04:
-            record("surface", f"{group}_surface", "opacity")
-        for key in ("surface_style", "corner_radius"):
+        for key, threshold in (
+            ("opacity", 0.04), ("gradient_angle", 3.0),
+            ("border_opacity", 0.04), ("shadow_opacity", 0.04),
+        ):
+            if abs(float(item[key]) - float(previous[key])) >= threshold:
+                record("surface", f"{group}_surface", key)
+        for key in (
+            "fill_type", "fill_stops", "corner_radius", "backdrop_blur",
+            "blend_mode", "border_enabled", "border_width",
+            "shadow_enabled", "shadow_offset_x", "shadow_offset_y",
+            "shadow_blur",
+        ):
             if item[key] != previous[key]:
                 record("surface", f"{group}_surface", key)
-        for key in ("background_color", "gradient_color"):
+        for key in (
+            "fill_colors", "border_color", "shadow_color",
+        ):
             if item[key] != previous[key]:
                 record("color", "color_palette", f"{group}.{key}")
                 changed_targets.add(f"{group}_surface")

@@ -16,14 +16,20 @@ each group. Centering is an option, not a default. In particular, price and CTA
 may use left or right alignment whenever that better supports the composition.
 
 Background surfaces are optional. Choose none when the image already supports
-legible type. When useful, choose a full-width band or a content-width solid,
-gradient, or scrim based on the image rather than a fixed template. The CTA is
+legible type. When useful, choose full-width or content-width geometry and author
+headline_effect/offer_effect as a coherent combination of solid, linear or radial
+gradient, scrim, exact colors and stops, angle, opacity, corner radius, backdrop
+blur, blend mode, border, and shadow. Use two to five matching fill_colors and
+fill_stops ordered from 0 to 1. Disabled border/shadow fields remain neutral.
+Do not default mechanically to a white card or beige band. The CTA is
 plain typography in a static image, never a button, pill, outline, or UI
 control. If CTA copy is empty, do not invent or render one.
 
 For every color field, return either one of the supplied palette tokens
-(palette_dark, palette_light, palette_accent) or an exact #RRGGBB value
-chosen from the image. Headline and offer may use
+(palette_dark, palette_light, palette_accent) or an exact #RRGGBB value chosen
+from the image. Use the supplied palette.swatches and quiet-region mean_color
+values as a broad image-derived starting set; you may derive coherent tints and
+shades as exact hex. Headline and offer may use
 independent colors. Maintain readable contrast without defaulting every design
 to white, black, and the same accent band.
 
@@ -79,9 +85,13 @@ near-identical values and token 1-5% changes are invalid.
 
 The target_layout is the complete rebuilt state in ABSOLUTE canvas pixels, not
 deltas or multipliers. Return every supplied non-empty copy role exactly once.
-Surfaces are optional: return zero, one, or two entries, and use enabled=false
-or style=none when no box is needed. A surface may be full width or content
-width through its absolute geometry. Infer placement from the two images and
+Surfaces are optional: return zero, one, or two entries and use enabled=false
+when no box is needed. For each enabled surface, author effect as a coherent
+combination of solid, linear or radial gradient, scrim, two to five exact colors
+and matching ordered stops, angle, opacity, corner radius, backdrop blur, blend
+mode, border, and shadow. A surface may be full width or content width through
+its absolute geometry. Prefer image-derived color harmony over generic white,
+black, or beige panels. Infer placement from the two images and
 the provided canvas and palette. Choose boxes large enough for the typography.
 Keep title, price, and CTA on one line. The CTA is plain typography in a static
 image, never a button, pill, outline, or UI control. Element, shadow, stroke,

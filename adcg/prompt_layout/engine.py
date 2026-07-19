@@ -133,25 +133,6 @@ def _place_group(
     )
 
 
-def _mix_hex(first: str, second: str, ratio: float) -> str:
-    ratio = max(0.0, min(1.0, ratio))
-    first_rgb = tuple(int(first[index:index + 2], 16) for index in (1, 3, 5))
-    second_rgb = tuple(int(second[index:index + 2], 16) for index in (1, 3, 5))
-    mixed = tuple(
-        round(start + (end - start) * ratio)
-        for start, end in zip(first_rgb, second_rgb)
-    )
-    return "#{:02X}{:02X}{:02X}".format(*mixed)
-
-
-def _hex_luminance(color: str) -> float:
-    red, green, blue = (
-        int(color[index:index + 2], 16)
-        for index in (1, 3, 5)
-    )
-    return (0.2126 * red + 0.7152 * green + 0.0722 * blue) / 255.0
-
-
 def _resolve_color_token(token: str, palette: dict[str, str]) -> str:
     value = str(token).strip()
     if len(value) == 7 and value.startswith("#"):
@@ -225,66 +206,86 @@ def _safe_text_color(
     )
 
 
+def _resolve_surface_effect(
+    effect: dict,
+    palette: dict[str, str],
+    current: dict | None = None,
+) -> dict:
+    """Resolve VLM surface primitives into renderer-ready values."""
+    current = current or {}
+    current_colors = list(current.get("fill_colors", [])) or [
+        str(current.get("background_color", palette["dark"])),
+        str(current.get("gradient_color", palette["dark"])),
+    ]
+
+    def resolve_color(value: str, index: int = 0) -> str:
+        if str(value).strip() == "keep":
+            return current_colors[min(index, len(current_colors) - 1)]
+        return _resolve_color_token(str(value), palette)
+
+    colors = [
+        resolve_color(value, index)
+        for index, value in enumerate(effect["fill_colors"])
+    ]
+    stops = [float(value) for value in effect["fill_stops"]]
+    if len(stops) != len(colors):
+        denominator = max(1, len(colors) - 1)
+        stops = [index / denominator for index in range(len(colors))]
+    pairs = sorted(zip(stops, colors), key=lambda pair: pair[0])
+    stops = [max(0.0, min(1.0, pair[0])) for pair in pairs]
+    colors = [pair[1] for pair in pairs]
+
+    def optional_color(field: str, fallback: str) -> str:
+        value = str(effect[field])
+        if value == "keep":
+            return str(current.get(field, fallback))
+        return _resolve_color_token(value, palette)
+
+    return {
+        "fill_type": str(effect["fill_type"]),
+        "fill_colors": colors,
+        "fill_stops": stops,
+        "gradient_angle": float(effect["gradient_angle"]),
+        "opacity": float(effect["opacity"]),
+        "border_radius": int(effect["corner_radius"]),
+        "backdrop_blur": int(effect["backdrop_blur"]),
+        "blend_mode": str(effect["blend_mode"]),
+        "border_enabled": bool(effect["border_enabled"]),
+        "border_color": optional_color("border_color", colors[0]),
+        "border_width": int(effect["border_width"]),
+        "border_opacity": float(effect["border_opacity"]),
+        "shadow_enabled": bool(effect["shadow_enabled"]),
+        "shadow_color": optional_color("shadow_color", palette["dark"]),
+        "shadow_offset_x": int(effect["shadow_offset_x"]),
+        "shadow_offset_y": int(effect["shadow_offset_y"]),
+        "shadow_blur": int(effect["shadow_blur"]),
+        "shadow_opacity": float(effect["shadow_opacity"]),
+    }
+
+
 def _band_style(
     image_analysis: dict,
     *,
-    center_y: int,
     surface: str,
-    background_token: str,
+    effect: dict,
     text_token: str,
 ) -> dict:
-    """Resolve VLM palette choices and enforce readable contrast."""
-    height = max(1, int(image_analysis["canvas"]["height"]))
-    ratio = center_y / height
-    bands = image_analysis.get("horizontal_bands", [])
-    band = min(
-        bands,
-        key=lambda item: abs(
-            float(item["y"]) + float(item["height"]) / 2 - ratio
-        ),
-    ) if bands else {
-        "luminance": image_analysis["overall_luminance"],
-        "contrast": 0.0,
-        "edge_density": 0.0,
-    }
+    """Resolve one VLM-authored surface effect and readable text color."""
     palette = image_analysis["palette"]
-    busy = float(band["contrast"]) + float(band["edge_density"]) > 0.42
-    background = _resolve_color_token(background_token, palette)
+    resolved_effect = _resolve_surface_effect(effect, palette)
     requested_text = _resolve_color_token(text_token, palette)
     text = (
         requested_text
         if surface == "none"
-        else _safe_text_color(background, requested_text, palette)
-    )
-    if surface in {"full_width_gradient", "content_gradient"}:
-        gradient_target = (
-            palette["dark"]
-            if _hex_luminance(background) >= 0.55
-            else palette["accent"]
+        else _safe_text_color(
+            resolved_effect["fill_colors"][0], requested_text, palette
         )
-        gradient = _mix_hex(background, gradient_target, 0.18)
-    else:
-        gradient = background
-    opacity = {
-        "full_width_solid": 0.90,
-        "full_width_gradient": 0.84,
-        "full_width_scrim": 0.78,
-        "accent_band": 0.94,
-        "content_solid": 0.88,
-        "content_gradient": 0.82,
-        "none": 0.0,
-    }.get(surface, 0.84)
-    if busy:
-        opacity = min(0.92, opacity + 0.08)
+    )
     return {
-        "background": background,
-        "gradient": gradient,
         "text": text,
         "requested_text": requested_text,
-        "background_token": background_token,
         "text_token": text_token,
-        "opacity": opacity,
-        "local_region": band,
+        "effect": resolved_effect,
     }
 
 
@@ -293,24 +294,16 @@ def _panel(
     group: str,
     box: dict,
     *,
-    background: str,
-    opacity: float,
-    radius: int,
-    gradient: str | None = None,
+    effect: dict,
     z_index: int = 0,
 ) -> dict:
-    item = {
+    return {
         "id": panel_id,
         "design_group": group,
         **box,
         "z_index": z_index,
-        "background_color": background,
-        "opacity": opacity,
-        "border_radius": radius,
+        **effect,
     }
-    if gradient is not None:
-        item["gradient_color"] = gradient
-    return item
 
 
 def _element(
@@ -458,16 +451,14 @@ def build_design_layout(
 
     headline_band = _band_style(
         image_analysis,
-        center_y=headline_group["y"] + headline_group["height"] // 2,
         surface=direction["headline_surface"],
-        background_token=color_direction["headline_background"],
+        effect=direction["headline_effect"],
         text_token=color_direction["headline_text"],
     )
     offer_band = _band_style(
         image_analysis,
-        center_y=offer_group["y"] + offer_group["height"] // 2,
         surface=direction["offer_surface"],
-        background_token=color_direction["offer_background"],
+        effect=direction["offer_effect"],
         text_token=color_direction["offer_text"],
     )
 
@@ -563,19 +554,16 @@ def build_design_layout(
         palette,
     )
     cta_text_color = _safe_text_color(
-        offer_band["background"],
+        offer_band["effect"]["fill_colors"][0],
         requested_cta_text,
         palette,
     )
     if has_price:
         price_color = offer_band["text"]
-        if (
-            accent_role == "price"
-            and direction["offer_surface"] != "accent_band"
-        ):
+        if accent_role == "price":
             price_color = palette["accent"]
         price_color = _safe_text_color(
-            offer_band["background"],
+            offer_band["effect"]["fill_colors"][0],
             price_color,
             palette,
         )
@@ -632,9 +620,7 @@ def build_design_layout(
     ) -> None:
         if surface_style == "none":
             return
-        full_width = surface_style.startswith("full_width") or (
-            group == "offer" and surface_style == "accent_band"
-        )
+        full_width = surface_style == "full_width"
         content_x = max(0, group_box["x"] - band_padding)
         box = (
             {"x": 0, "y": band_y, "width": width, "height": band_height}
@@ -654,10 +640,7 @@ def build_design_layout(
                 f"surface-{group}",
                 group,
                 box,
-                background=band["background"],
-                gradient=band["gradient"],
-                opacity=band["opacity"],
-                radius=(0 if full_width else max(6, round(short_side * 0.02))),
+                effect=band["effect"],
             )
         )
 
@@ -672,30 +655,42 @@ def build_design_layout(
         )
 
 
-    rule_width = max(3, round(short_side * 0.008))
-    rule_length = max(
-        rule_width * 8,
-        round(headline_group["width"] * 0.16),
-    )
-    underlays.append(
-        _panel(
-            "accent-rule",
-            "headline",
-            {
-                "x": (width - rule_length) // 2,
-                "y": min(
-                    headline_band_y + headline_band_height - rule_width * 2,
-                    headline_group["y"] + title_height + max(2, inner_gap // 3),
-                ),
-                "width": rule_length,
-                "height": rule_width,
-            },
-            background=palette["accent"],
-            opacity=1.0,
-            radius=max(1, rule_width // 2),
-            z_index=1,
+    if accent_role == "rule":
+        rule_width = max(3, round(short_side * 0.008))
+        rule_length = max(
+            rule_width * 8,
+            round(headline_group["width"] * 0.16),
         )
-    )
+        underlays.append(
+            _panel(
+                "accent-rule",
+                "headline",
+                {
+                    "x": (width - rule_length) // 2,
+                    "y": min(
+                        headline_band_y + headline_band_height - rule_width * 2,
+                        headline_group["y"] + title_height + max(2, inner_gap // 3),
+                    ),
+                    "width": rule_length,
+                    "height": rule_width,
+                },
+                effect={
+                    "fill_type": "solid",
+                    "fill_colors": [palette["accent"], palette["accent"]],
+                    "fill_stops": [0.0, 1.0],
+                    "gradient_angle": 0.0,
+                    "opacity": 1.0,
+                    "border_radius": max(1, rule_width // 2),
+                    "backdrop_blur": 0, "blend_mode": "normal",
+                    "border_enabled": False, "border_color": palette["accent"],
+                    "border_width": 0, "border_opacity": 0.0,
+                    "shadow_enabled": False, "shadow_color": palette["dark"],
+                    "shadow_offset_x": 0, "shadow_offset_y": 0,
+                    "shadow_blur": 0, "shadow_opacity": 0.0,
+                },
+                z_index=1,
+            )
+        )
 
     return {
         "canvas": {"width": width, "height": height},
@@ -896,29 +891,17 @@ def apply_final_review_revision(layout: dict, revision: dict) -> dict:
     underlays = []
     for surface_target in target["surfaces"]:
         group = str(surface_target["group"])
-        if not surface_target["enabled"] or surface_target["style"] == "none":
+        if not surface_target["enabled"]:
             continue
         source = source_underlays.get(f"surface-{group}", {})
-        background = resolve(
-            str(surface_target["background_color"]),
-            str(source.get("background_color", palette["dark"])),
+        effect = _resolve_surface_effect(
+            surface_target["effect"], palette, source
         )
-        gradient = resolve(
-            str(surface_target["gradient_color"]),
-            str(source.get("gradient_color", background)),
-        )
-        style = str(surface_target["style"])
-        if style in {"solid", "scrim"}:
-            gradient = background
         underlays.append({
             "id": f"surface-{group}",
             "design_group": group,
             **bounded_box(surface_target, f"{group}_surface"),
-            "background_color": background,
-            "gradient_color": gradient,
-            "opacity": round(float(surface_target["opacity"]), 3),
-            "border_radius": int(surface_target["corner_radius"]),
-            "surface_style": style,
+            **effect,
             "z_index": 0,
         })
 
@@ -930,12 +913,22 @@ def apply_final_review_revision(layout: dict, revision: dict) -> dict:
             "id": "accent-rule",
             "design_group": "headline",
             **rule_box,
-            "background_color": resolve(
-                str(accent_target["color"]),
-                str(source.get("background_color", palette["accent"])),
-            ),
-            "opacity": 1.0,
+            "fill_type": "solid",
+            "fill_colors": [
+                resolve(
+                    str(accent_target["color"]),
+                    str((source.get("fill_colors") or [palette["accent"]])[0]),
+                )
+            ] * 2,
+            "fill_stops": [0.0, 1.0],
+            "gradient_angle": 0.0, "opacity": 1.0,
             "border_radius": max(0, int(rule_box["height"]) // 2),
+            "backdrop_blur": 0, "blend_mode": "normal",
+            "border_enabled": False, "border_color": palette["accent"],
+            "border_width": 0, "border_opacity": 0.0,
+            "shadow_enabled": False, "shadow_color": palette["dark"],
+            "shadow_offset_x": 0, "shadow_offset_y": 0,
+            "shadow_blur": 0, "shadow_opacity": 0.0,
             "z_index": 1,
         })
 

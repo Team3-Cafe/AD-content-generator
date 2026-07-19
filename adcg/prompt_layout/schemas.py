@@ -22,6 +22,78 @@ FINAL_COLOR_SCHEMA = {
 }
 
 
+def _surface_effect_schema(color_schema: dict) -> dict:
+    return {
+        "type": "object",
+        "properties": {
+            "fill_type": {
+                "type": "string",
+                "enum": [
+                    "solid", "linear_gradient",
+                    "radial_gradient", "scrim",
+                ],
+            },
+            "fill_colors": {
+                "type": "array", "items": color_schema,
+                "minItems": 2, "maxItems": 5,
+            },
+            "fill_stops": {
+                "type": "array",
+                "items": {"type": "number", "minimum": 0, "maximum": 1},
+                "minItems": 2, "maxItems": 5,
+            },
+            "gradient_angle": {
+                "type": "number", "minimum": 0, "maximum": 359,
+            },
+            "opacity": {"type": "number", "minimum": 0, "maximum": 1},
+            "corner_radius": {
+                "type": "integer", "minimum": 0, "maximum": 256,
+            },
+            "backdrop_blur": {
+                "type": "integer", "minimum": 0, "maximum": 32,
+            },
+            "blend_mode": {
+                "type": "string",
+                "enum": ["normal", "multiply", "screen", "overlay"],
+            },
+            "border_enabled": {"type": "boolean"},
+            "border_color": color_schema,
+            "border_width": {
+                "type": "integer", "minimum": 0, "maximum": 12,
+            },
+            "border_opacity": {
+                "type": "number", "minimum": 0, "maximum": 1,
+            },
+            "shadow_enabled": {"type": "boolean"},
+            "shadow_color": color_schema,
+            "shadow_offset_x": {
+                "type": "integer", "minimum": -32, "maximum": 32,
+            },
+            "shadow_offset_y": {
+                "type": "integer", "minimum": -32, "maximum": 32,
+            },
+            "shadow_blur": {
+                "type": "integer", "minimum": 0, "maximum": 48,
+            },
+            "shadow_opacity": {
+                "type": "number", "minimum": 0, "maximum": 1,
+            },
+        },
+        "required": [
+            "fill_type", "fill_colors", "fill_stops", "gradient_angle",
+            "opacity", "corner_radius", "backdrop_blur", "blend_mode",
+            "border_enabled", "border_color", "border_width",
+            "border_opacity", "shadow_enabled", "shadow_color",
+            "shadow_offset_x", "shadow_offset_y", "shadow_blur",
+            "shadow_opacity",
+        ],
+        "additionalProperties": False,
+    }
+
+
+SURFACE_EFFECT_SCHEMA = _surface_effect_schema(COLOR_TOKEN_SCHEMA)
+FINAL_SURFACE_EFFECT_SCHEMA = _surface_effect_schema(FINAL_COLOR_SCHEMA)
+
 
 NORMALIZED_BOX_SCHEMA = {
     "type": "object",
@@ -82,30 +154,18 @@ DESIGN_SPEC_SCHEMA = {
                 },
                 "headline_surface": {
                     "type": "string",
-                    "enum": [
-                        "full_width_solid",
-                        "full_width_gradient",
-                        "full_width_scrim",
-                        "content_solid",
-                        "content_gradient",
-                        "none",
-                    ],
+                    "enum": ["full_width", "content_width", "none"],
                 },
                 "offer_surface": {
                     "type": "string",
-                    "enum": [
-                        "full_width_solid",
-                        "full_width_gradient",
-                        "accent_band",
-                        "content_solid",
-                        "content_gradient",
-                        "none",
-                    ],
+                    "enum": ["full_width", "content_width", "none"],
                 },
                 "accent_role": {
                     "type": "string",
-                    "enum": ["rule", "price"],
+                    "enum": ["none", "rule", "price"],
                 },
+                "headline_effect": SURFACE_EFFECT_SCHEMA,
+                "offer_effect": SURFACE_EFFECT_SCHEMA,
             },
             "required": [
                 "mood",
@@ -115,22 +175,20 @@ DESIGN_SPEC_SCHEMA = {
                 "headline_surface",
                 "offer_surface",
                 "accent_role",
+                "headline_effect",
+                "offer_effect",
             ],
             "additionalProperties": False,
         },
         "color_direction": {
             "type": "object",
             "properties": {
-                "headline_background": COLOR_TOKEN_SCHEMA,
                 "headline_text": COLOR_TOKEN_SCHEMA,
-                "offer_background": COLOR_TOKEN_SCHEMA,
                 "offer_text": COLOR_TOKEN_SCHEMA,
                 "cta_text": COLOR_TOKEN_SCHEMA,
             },
             "required": [
-                "headline_background",
                 "headline_text",
-                "offer_background",
                 "offer_text",
                 "cta_text",
             ],
@@ -360,22 +418,14 @@ _ABSOLUTE_SURFACE_SCHEMA = {
     "properties": {
         "group": {"type": "string", "enum": ["headline", "offer"]},
         "enabled": {"type": "boolean"},
-        "style": {
-            "type": "string",
-            "enum": ["none", "solid", "gradient", "scrim"],
-        },
         "x": {"type": "integer", "minimum": 0, "maximum": 4096},
         "y": {"type": "integer", "minimum": 0, "maximum": 4096},
         "width": {"type": "integer", "minimum": 1, "maximum": 4096},
         "height": {"type": "integer", "minimum": 1, "maximum": 4096},
-        "opacity": {"type": "number", "minimum": 0.0, "maximum": 1.0},
-        "background_color": FINAL_COLOR_SCHEMA,
-        "gradient_color": FINAL_COLOR_SCHEMA,
-        "corner_radius": {"type": "integer", "minimum": 0, "maximum": 256},
+        "effect": FINAL_SURFACE_EFFECT_SCHEMA,
     },
     "required": [
-        "group", "enabled", "style", "x", "y", "width", "height",
-        "opacity", "background_color", "gradient_color", "corner_radius",
+        "group", "enabled", "x", "y", "width", "height", "effect",
     ],
     "additionalProperties": False,
 }
@@ -541,4 +591,6 @@ __all__ = [
     "FINAL_REVIEW_FEATURES",
     "FINAL_REVIEW_FEATURE_TARGETS",
     "DESIGN_SPEC_SCHEMA",
+    "SURFACE_EFFECT_SCHEMA",
+    "FINAL_SURFACE_EFFECT_SCHEMA",
 ]
