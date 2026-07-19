@@ -45,6 +45,17 @@ def _surface_effect_schema(color_schema: dict) -> dict:
             "gradient_angle": {
                 "type": "number", "minimum": 0, "maximum": 359,
             },
+            "shape": {
+                "type": "string",
+                "enum": [
+                    "rounded_rect", "pill", "ellipse",
+                    "cut_corner", "diagonal",
+                ],
+            },
+            "overlay_color": color_schema,
+            "overlay_opacity": {
+                "type": "number", "minimum": 0, "maximum": 1,
+            },
             "opacity": {"type": "number", "minimum": 0, "maximum": 1},
             "corner_radius": {
                 "type": "integer", "minimum": 0, "maximum": 256,
@@ -78,14 +89,41 @@ def _surface_effect_schema(color_schema: dict) -> dict:
             "shadow_opacity": {
                 "type": "number", "minimum": 0, "maximum": 1,
             },
+            "shadow_layers": {
+                "type": "array",
+                "items": {
+                    "type": "object",
+                    "properties": {
+                        "color": color_schema,
+                        "offset_x": {
+                            "type": "integer", "minimum": -48, "maximum": 48,
+                        },
+                        "offset_y": {
+                            "type": "integer", "minimum": -48, "maximum": 48,
+                        },
+                        "blur": {
+                            "type": "integer", "minimum": 0, "maximum": 64,
+                        },
+                        "opacity": {
+                            "type": "number", "minimum": 0, "maximum": 1,
+                        },
+                    },
+                    "required": [
+                        "color", "offset_x", "offset_y", "blur", "opacity",
+                    ],
+                    "additionalProperties": False,
+                },
+                "maxItems": 3,
+            },
         },
         "required": [
             "fill_type", "fill_colors", "fill_stops", "gradient_angle",
+            "shape", "overlay_color", "overlay_opacity",
             "opacity", "corner_radius", "backdrop_blur", "blend_mode",
             "border_enabled", "border_color", "border_width",
             "border_opacity", "shadow_enabled", "shadow_color",
             "shadow_offset_x", "shadow_offset_y", "shadow_blur",
-            "shadow_opacity",
+            "shadow_opacity", "shadow_layers",
         ],
         "additionalProperties": False,
     }
@@ -338,6 +376,11 @@ _ABSOLUTE_ELEMENT_SCHEMA = {
             "enum": [300, 400, 500, 600, 700, 800, 900],
         },
         "tracking": {"type": "integer", "minimum": 0, "maximum": 12},
+        "wrap_mode": {
+            "type": "string", "enum": ["character", "word", "balanced"],
+        },
+        "min_font_size": {"type": "integer", "minimum": 8, "maximum": 128},
+        "optical_align": {"type": "boolean"},
         "text_align": {
             "type": "string", "enum": ["left", "center", "right"],
         },
@@ -351,7 +394,8 @@ _ABSOLUTE_ELEMENT_SCHEMA = {
     },
     "required": [
         "role", "x", "y", "width", "height", "font_size",
-        "font_weight", "tracking", "text_align", "max_lines", "color",
+        "font_weight", "tracking", "wrap_mode", "min_font_size",
+        "optical_align", "text_align", "max_lines", "color",
         "line_height", "shadow_offset", "shadow_color",
         "stroke_width", "stroke_color",
     ],
@@ -602,10 +646,15 @@ FINAL_REVIEW_SCHEMA = {
                         "unit_baseline_shift": {
                             "type": "number", "minimum": -0.3, "maximum": 0.3,
                         },
+                        "baseline_mode": {
+                            "type": "string",
+                            "enum": ["shared", "cap_height", "optical_center"],
+                        },
                     },
                     "required": [
                         "number_scale", "unit_scale",
                         "number_baseline_shift", "unit_baseline_shift",
+                        "baseline_mode",
                     ],
                     "additionalProperties": False,
                 },

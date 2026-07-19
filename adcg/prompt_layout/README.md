@@ -88,3 +88,9 @@ The `--font`/`--layout-font` options and `ADCG_FONT_PATH` remain optional overri
 deterministic branding; they are not required when a suitable system font is
 installed. A renderer cannot display Korean glyphs if neither the system nor the
 supplied font contains them.
+The renderer supports rounded, pill, ellipse, cut-corner, and diagonal surfaces;
+image-derived color overlays; up to three surface shadow layers; character, word,
+and balanced wrapping; optical text anchoring; automatic same-group collision
+correction; and shared, cap-height, or optical-center price baselines. These
+choices are exposed to the second and final VLM design stages and persisted in
+the resolved layout JSON.

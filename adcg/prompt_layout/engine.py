@@ -203,7 +203,7 @@ def _resolve_surface_effect(
     colors = [pair[1] for pair in pairs]
 
     def optional_color(field: str, fallback: str) -> str:
-        value = str(effect[field])
+        value = str(effect.get(field, "keep"))
         if value == "keep":
             return str(current.get(field, fallback))
         return _resolve_color_token(value, palette)
@@ -213,6 +213,9 @@ def _resolve_surface_effect(
         "fill_colors": colors,
         "fill_stops": stops,
         "gradient_angle": float(effect["gradient_angle"]),
+        "shape": str(effect.get("shape", "rounded_rect")),
+        "overlay_color": optional_color("overlay_color", colors[0]),
+        "overlay_opacity": float(effect.get("overlay_opacity", 0.0)),
         "opacity": float(effect["opacity"]),
         "border_radius": int(effect["corner_radius"]),
         "backdrop_blur": int(effect["backdrop_blur"]),
@@ -221,12 +224,35 @@ def _resolve_surface_effect(
         "border_color": optional_color("border_color", colors[0]),
         "border_width": int(effect["border_width"]),
         "border_opacity": float(effect["border_opacity"]),
-        "shadow_enabled": bool(effect["shadow_enabled"]),
+        "shadow_enabled": bool(
+            effect["shadow_enabled"] or effect.get("shadow_layers")
+        ),
         "shadow_color": optional_color("shadow_color", palette["dark"]),
         "shadow_offset_x": int(effect["shadow_offset_x"]),
         "shadow_offset_y": int(effect["shadow_offset_y"]),
         "shadow_blur": int(effect["shadow_blur"]),
         "shadow_opacity": float(effect["shadow_opacity"]),
+        "shadow_layers": [
+            {
+                "color": (
+                    str(current_layer.get("color", palette["dark"]))
+                    if str(layer.get("color", "keep")) == "keep"
+                    else _resolve_color_token(str(layer["color"]), palette)
+                ),
+                "offset_x": int(layer["offset_x"]),
+                "offset_y": int(layer["offset_y"]),
+                "blur": int(layer["blur"]),
+                "opacity": float(layer["opacity"]),
+            }
+            for index, layer in enumerate(effect.get("shadow_layers", []))
+            for current_layer in [
+                (
+                    list(current.get("shadow_layers", []))[index]
+                    if index < len(list(current.get("shadow_layers", [])))
+                    else {}
+                )
+            ]
+        ],
     }
 
 
@@ -301,6 +327,9 @@ def _element(
         "max_lines": max_lines,
         "line_height": line_height,
         "tracking": 0,
+        "wrap_mode": "balanced" if role == "subtitle" else "character",
+        "min_font_size": 10,
+        "optical_align": True,
         "shadow_offset": 0,
         "shadow_color": "#000000",
         "stroke_width": 0,
@@ -548,6 +577,7 @@ def build_design_layout(
         )
         price_item["number_scale"] = 1.22
         price_item["unit_scale"] = 0.80
+        price_item["baseline_mode"] = "shared"
         elements.append(price_item)
     if has_cta:
         elements.append(
@@ -646,7 +676,8 @@ def build_design_layout(
                     "fill_colors": [palette["accent"], palette["accent"]],
                     "fill_stops": [0.0, 1.0],
                     "gradient_angle": 0.0,
-                    "opacity": 1.0,
+                    "shape": "pill", "overlay_color": palette["accent"],
+                    "overlay_opacity": 0.0, "opacity": 1.0,
                     "border_radius": max(1, rule_width // 2),
                     "backdrop_blur": 0, "blend_mode": "normal",
                     "border_enabled": False, "border_color": palette["accent"],
@@ -654,6 +685,7 @@ def build_design_layout(
                     "shadow_enabled": False, "shadow_color": palette["dark"],
                     "shadow_offset_x": 0, "shadow_offset_y": 0,
                     "shadow_blur": 0, "shadow_opacity": 0.0,
+                    "shadow_layers": [],
                 },
                 z_index=1,
             )
@@ -748,6 +780,9 @@ def apply_final_review_revision(layout: dict, revision: dict) -> dict:
             "font_size": max(8, int(element_target["font_size"])),
             "font_weight": int(element_target["font_weight"]),
             "tracking": int(element_target["tracking"]),
+            "wrap_mode": str(element_target.get("wrap_mode", "character")),
+            "min_font_size": int(element_target.get("min_font_size", 8)),
+            "optical_align": bool(element_target.get("optical_align", True)),
             "text_align": str(element_target["text_align"]),
             "vertical_align": "center",
             "max_lines": max_lines,
@@ -779,6 +814,7 @@ def apply_final_review_revision(layout: dict, revision: dict) -> dict:
             "unit_baseline_shift",
         ):
             price[name] = round(float(composition[name]), 4)
+        price["baseline_mode"] = str(composition.get("baseline_mode", "shared"))
         if price["number_baseline_shift"] > price["unit_baseline_shift"]:
             requested_shift = price["number_baseline_shift"]
             price["number_baseline_shift"] = price["unit_baseline_shift"]
@@ -822,7 +858,9 @@ def apply_final_review_revision(layout: dict, revision: dict) -> dict:
                 )
             ] * 2,
             "fill_stops": [0.0, 1.0],
-            "gradient_angle": 0.0, "opacity": 1.0,
+            "gradient_angle": 0.0, "shape": "pill",
+            "overlay_color": palette["accent"], "overlay_opacity": 0.0,
+            "opacity": 1.0,
             "border_radius": max(0, int(rule_box["height"]) // 2),
             "backdrop_blur": 0, "blend_mode": "normal",
             "border_enabled": False, "border_color": palette["accent"],
@@ -830,6 +868,7 @@ def apply_final_review_revision(layout: dict, revision: dict) -> dict:
             "shadow_enabled": False, "shadow_color": palette["dark"],
             "shadow_offset_x": 0, "shadow_offset_y": 0,
             "shadow_blur": 0, "shadow_opacity": 0.0,
+            "shadow_layers": [],
             "z_index": 1,
         })
 

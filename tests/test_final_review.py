@@ -7,7 +7,7 @@ from types import SimpleNamespace
 import unittest
 from unittest.mock import patch
 
-from PIL import Image, ImageChops, ImageDraw
+from PIL import Image, ImageChops, ImageDraw, ImageFont
 
 from adcg.prompt_layout.analysis import _palette, build_design_candidate_pool
 from adcg.prompt_layout.engine import (
@@ -29,6 +29,9 @@ from adcg.prompt_layout.prompts import (
 from adcg.prompt_layout.renderer import (
     _draw_price_line,
     _draw_underlays,
+    _surface_mask,
+    _wrap_text,
+    fit_layout_typography,
     render_layout_image,
 )
 from adcg.prompt_layout.schemas import (
@@ -49,6 +52,8 @@ def _effect(
     blend="normal",
     border=False,
     shadow=False,
+    shape="rounded_rect",
+    overlay_opacity=0.0,
 ):
     return {
         "fill_type": fill_type,
@@ -57,7 +62,9 @@ def _effect(
             index / max(1, len(colors) - 1)
             for index in range(len(colors))
         ],
-        "gradient_angle": angle, "opacity": opacity,
+        "gradient_angle": angle, "shape": shape,
+        "overlay_color": colors[0], "overlay_opacity": overlay_opacity,
+        "opacity": opacity,
         "corner_radius": radius, "backdrop_blur": blur,
         "blend_mode": blend, "border_enabled": border,
         "border_color": colors[0], "border_width": 1 if border else 0,
@@ -66,6 +73,14 @@ def _effect(
         "shadow_offset_x": 0, "shadow_offset_y": 5 if shadow else 0,
         "shadow_blur": 12 if shadow else 0,
         "shadow_opacity": 0.22 if shadow else 0.0,
+        "shadow_layers": (
+            [
+                {"color": "#000000", "offset_x": 0, "offset_y": 5,
+                 "blur": 12, "opacity": 0.18},
+                {"color": colors[0], "offset_x": 0, "offset_y": 1,
+                 "blur": 3, "opacity": 0.12},
+            ] if shadow else []
+        ),
     }
 
 
@@ -170,6 +185,10 @@ def _target_layout() -> dict:
     ]
     for item in elements:
         item.update({
+            "wrap_mode": (
+                "balanced" if item["role"] == "subtitle" else "character"
+            ),
+            "min_font_size": 10, "optical_align": True,
             "line_height": 1.1, "shadow_offset": 0,
             "shadow_color": "#000000", "stroke_width": 0,
             "stroke_color": "#000000",
@@ -197,7 +216,8 @@ def _target_layout() -> dict:
                          "width": 110, "height": 4, "color": "#D9822B"},
         "price_composition": {"number_scale": 1.15, "unit_scale": 0.92,
                               "number_baseline_shift": 0.0,
-                              "unit_baseline_shift": -0.02},
+                              "unit_baseline_shift": -0.02,
+                              "baseline_mode": "shared"},
     }
 
 
@@ -676,6 +696,19 @@ class FinalReviewTests(unittest.TestCase):
         self.assertIn("design candidate pool", request)
         self.assertIn("alignment_combinations", request)
 
+    def test_schema_exposes_advanced_renderer_choices(self):
+        target = FINAL_REVIEW_SCHEMA["properties"]["target_layout"]["properties"]
+        element = target["elements"]["items"]
+        self.assertTrue({
+            "wrap_mode", "min_font_size", "optical_align",
+        }.issubset(element["required"]))
+        surface = target["surfaces"]["items"]["properties"]["effect"]
+        self.assertTrue({
+            "shape", "overlay_color", "overlay_opacity", "shadow_layers",
+        }.issubset(surface["required"]))
+        price = target["price_composition"]
+        self.assertIn("baseline_mode", price["required"])
+
     def test_schema_uses_absolute_target_layout(self):
         self.assertIn("target_layout", FINAL_REVIEW_SCHEMA["properties"])
         self.assertIn("redesign_plan", FINAL_REVIEW_SCHEMA["properties"])
@@ -760,6 +793,9 @@ class FinalReviewTests(unittest.TestCase):
                 "font_size": item["font_size"],
                 "font_weight": item["font_weight"],
                 "tracking": item["tracking"],
+                "wrap_mode": item.get("wrap_mode", "character"),
+                "min_font_size": item.get("min_font_size", 8),
+                "optical_align": item.get("optical_align", True),
                 "text_align": item["text_align"],
                 "max_lines": item["max_lines"], "color": "keep",
                 "line_height": item.get("line_height", 1.2),
@@ -806,6 +842,7 @@ class FinalReviewTests(unittest.TestCase):
         review["target_layout"]["price_composition"] = {
             "number_scale": 1.22, "unit_scale": 0.80,
             "number_baseline_shift": 0.0, "unit_baseline_shift": 0.0,
+            "baseline_mode": "shared",
         }
         with self.assertRaisesRegex(ValueError, "material redesign"):
             _enforce_final_review_revision(review, layout)
@@ -878,6 +915,82 @@ class FinalReviewTests(unittest.TestCase):
             }]).convert("RGB").tobytes())
         self.assertEqual(len(set(variants)), len(variants))
 
+    def test_surface_shapes_overlays_and_layered_shadows_are_rendered(self):
+        background = Image.new("RGB", (220, 160), "#B8C4CC")
+        masks = [
+            _surface_mask(
+                {"shape": shape, "border_radius": 18, "gradient_angle": 30},
+                (120, 70),
+            ).tobytes()
+            for shape in (
+                "rounded_rect", "pill", "ellipse", "cut_corner", "diagonal"
+            )
+        ]
+        self.assertEqual(len(set(masks)), len(masks))
+
+        base = {
+            "id": "surface-test", "x": 40, "y": 40,
+            "width": 140, "height": 80, "z_index": 0,
+            **_render_effect(_effect(("#335577", "#99AABB"))),
+        }
+        enhanced = {
+            **base,
+            **_render_effect(_effect(
+                ("#335577", "#99AABB"),
+                shape="cut_corner", shadow=True, overlay_opacity=0.28,
+            )),
+        }
+        difference = ImageChops.difference(
+            _draw_underlays(background, [base]).convert("RGB"),
+            _draw_underlays(background, [enhanced]).convert("RGB"),
+        )
+        self.assertIsNotNone(difference.getbbox())
+
+    def test_balanced_wrap_and_collision_resolution(self):
+        image = Image.new("RGB", (1, 1))
+        draw = ImageDraw.Draw(image)
+        font = ImageFont.load_default(size=18)
+        lines = _wrap_text(
+            draw,
+            "professional lift truck service for busy logistics sites",
+            font,
+            190,
+            mode="balanced",
+            max_lines=3,
+        )
+        self.assertGreaterEqual(len(lines), 2)
+        self.assertLessEqual(len(lines), 3)
+
+        fitted = fit_layout_typography(_layout())
+        elements = {item["role"]: item for item in fitted["elements"]}
+        title_bottom = elements["title"]["y"] + elements["title"]["height"]
+        self.assertGreater(elements["subtitle"]["y"], title_bottom)
+        self.assertTrue(any(
+            "Resolved headline text collision" in warning
+            for warning in fitted["warnings"]
+        ))
+
+    def test_price_baseline_modes_change_optical_composition(self):
+        item = {
+            "role": "price", "x": 0, "width": 300, "font_size": 28,
+            "font_weight": 800, "text_align": "left",
+            "number_scale": 1.45, "unit_scale": 0.78,
+            "number_baseline_shift": 0.0, "unit_baseline_shift": 0.0,
+            "baseline_mode": "shared",
+        }
+        shared = Image.new("RGB", (300, 80), "white")
+        optical = Image.new("RGB", (300, 80), "white")
+        self.assertTrue(_draw_price_line(
+            ImageDraw.Draw(shared), "10 USD", 10, 48,
+            {**item, "baseline_mode": "shared"}, None, (0, 0, 0),
+        ))
+        self.assertTrue(_draw_price_line(
+            ImageDraw.Draw(optical), "10 USD", 10, 48,
+            {**item, "baseline_mode": "optical_center"}, None, (0, 0, 0),
+        ))
+        self.assertIsNotNone(
+            ImageChops.difference(shared, optical).getbbox()
+        )
     def test_price_baseline_shift_changes_rendered_pixels(self):
         base_item = {"role": "price", "x": 0, "width": 300, "font_size": 24,
                      "font_weight": 800, "text_align": "left",

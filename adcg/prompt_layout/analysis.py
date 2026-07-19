@@ -274,6 +274,11 @@ def build_design_candidate_pool(
                 "align copy to subject edge without covering it",
             ],
         },
+        "text_composition_options": {
+            "wrap_modes": ["character", "word", "balanced"],
+            "optical_alignment": [True, False],
+            "price_baselines": ["shared", "cap_height", "optical_center"],
+        },
         "alignment_combinations": [
             {"headline": headline, "offer": offer}
             for headline in ("left", "center", "right")
@@ -282,7 +287,10 @@ def build_design_candidate_pool(
         "surface_effect_components": {
             "fill_types": ["none", "solid", "linear_gradient", "radial_gradient", "scrim"],
             "blend_modes": ["normal", "multiply", "screen", "overlay"],
+            "shapes": ["rounded_rect", "pill", "ellipse", "cut_corner", "diagonal"],
             "edge_treatments": ["square", "rounded", "bordered", "shadowed", "blurred"],
+            "shadow_systems": ["none", "ambient", "directional", "two-layer depth", "three-layer depth"],
+            "color_overlays": ["none", "tonal glaze", "accent wash", "contrast tint"],
             "width_modes": ["none", "content_width", "partial_width", "full_width"],
         },
         "copy_roles": copy_roles,

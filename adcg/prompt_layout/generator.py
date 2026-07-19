@@ -204,6 +204,9 @@ def _layout_state(layout: dict) -> dict:
             "font_size": int(item["font_size"]),
             "font_weight": int(item.get("font_weight", 600)),
             "tracking": int(item.get("tracking", 0)),
+            "wrap_mode": str(item.get("wrap_mode", "character")),
+            "min_font_size": int(item.get("min_font_size", 8)),
+            "optical_align": bool(item.get("optical_align", True)),
             "text_align": str(item.get("text_align", "left")),
             "max_lines": int(item.get("max_lines", 1 if role == "title" else 2)),
             "line_height": float(item.get("line_height", 1.2)),
@@ -223,6 +226,7 @@ def _layout_state(layout: dict) -> dict:
                 "unit_baseline_shift": float(
                     item.get("unit_baseline_shift", 0.0)
                 ),
+                "baseline_mode": str(item.get("baseline_mode", "shared")),
             })
         elements.append(state)
     return {
@@ -238,6 +242,9 @@ def _layout_state(layout: dict) -> dict:
                     float(value) for value in item.get("fill_stops", [0.0, 1.0])
                 ],
                 "gradient_angle": float(item.get("gradient_angle", 0.0)),
+                "shape": str(item.get("shape", "rounded_rect")),
+                "overlay_color": str(item.get("overlay_color", "#000000")),
+                "overlay_opacity": float(item.get("overlay_opacity", 0.0)),
                 "opacity": float(item.get("opacity", 1.0)),
                 "corner_radius": int(item.get("border_radius", 0)),
                 "backdrop_blur": int(item.get("backdrop_blur", 0)),
@@ -252,6 +259,7 @@ def _layout_state(layout: dict) -> dict:
                 "shadow_offset_y": int(item.get("shadow_offset_y", 0)),
                 "shadow_blur": int(item.get("shadow_blur", 0)),
                 "shadow_opacity": float(item.get("shadow_opacity", 0.0)),
+                "shadow_layers": list(item.get("shadow_layers", [])),
             }
             for item in layout.get("underlays", [])
             if str(item.get("id", "")).startswith("surface-")
@@ -309,7 +317,8 @@ def _material_revision_summary(
         if abs(int(item["font_size"]) - int(previous["font_size"])) >= 2:
             record("typography", f"{role}_typography", "font_size")
         for key in (
-            "font_weight", "tracking", "text_align", "max_lines",
+            "font_weight", "tracking", "wrap_mode", "min_font_size",
+            "optical_align", "text_align", "max_lines",
             "shadow_offset", "stroke_width",
         ):
             if item[key] != previous[key]:
@@ -327,6 +336,8 @@ def _material_revision_summary(
             ):
                 if abs(float(item[key]) - float(previous[key])) >= threshold:
                     record("price", "price_composition", key)
+            if item["baseline_mode"] != previous["baseline_mode"]:
+                record("price", "price_composition", "baseline_mode")
 
     before_surfaces = {item["group"]: item for item in before["surfaces"]}
     after_surfaces = {item["group"]: item for item in after["surfaces"]}
@@ -348,19 +359,20 @@ def _material_revision_summary(
         for key, threshold in (
             ("opacity", 0.04), ("gradient_angle", 3.0),
             ("border_opacity", 0.04), ("shadow_opacity", 0.04),
+            ("overlay_opacity", 0.04),
         ):
             if abs(float(item[key]) - float(previous[key])) >= threshold:
                 record("surface", f"{group}_surface", key)
         for key in (
-            "fill_type", "fill_stops", "corner_radius", "backdrop_blur",
-            "blend_mode", "border_enabled", "border_width",
+            "fill_type", "fill_stops", "shape", "corner_radius",
+            "backdrop_blur", "blend_mode", "border_enabled", "border_width",
             "shadow_enabled", "shadow_offset_x", "shadow_offset_y",
-            "shadow_blur",
+            "shadow_blur", "shadow_layers",
         ):
             if item[key] != previous[key]:
                 record("surface", f"{group}_surface", key)
         for key in (
-            "fill_colors", "border_color", "shadow_color",
+            "fill_colors", "overlay_color", "border_color", "shadow_color",
         ):
             if item[key] != previous[key]:
                 record("color", "color_palette", f"{group}.{key}")

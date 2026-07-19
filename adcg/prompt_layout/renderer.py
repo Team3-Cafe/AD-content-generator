@@ -159,12 +159,12 @@ def _text_width(
     return box[2] - box[0] + max(0, len(text) - 1) * tracking
 
 
-def _wrap_text(
+def _character_wrap_text(
     draw: ImageDraw.ImageDraw,
     text: str,
     font,
     max_width: int,
-    tracking: int = 0,
+    tracking: int,
 ) -> list[str]:
     lines = []
     for paragraph in text.splitlines() or [""]:
@@ -174,11 +174,7 @@ def _wrap_text(
         line = ""
         for character in paragraph:
             candidate = line + character
-            if (
-                line
-                and _text_width(draw, candidate, font, tracking)
-                > max_width
-            ):
+            if line and _text_width(draw, candidate, font, tracking) > max_width:
                 lines.append(line.rstrip())
                 line = character.lstrip()
             else:
@@ -187,6 +183,66 @@ def _wrap_text(
             lines.append(line.rstrip())
     return lines
 
+
+def _word_wrap_text(
+    draw: ImageDraw.ImageDraw,
+    text: str,
+    font,
+    max_width: int,
+    tracking: int,
+) -> list[str]:
+    lines = []
+    for paragraph in text.splitlines() or [""]:
+        tokens = re.findall(r"\S+\s*", paragraph)
+        if not tokens:
+            lines.append("")
+            continue
+        line = ""
+        for token in tokens:
+            candidate = line + token
+            if line and _text_width(draw, candidate.rstrip(), font, tracking) > max_width:
+                lines.append(line.rstrip())
+                line = token.lstrip()
+            else:
+                line = candidate
+            if _text_width(draw, line.rstrip(), font, tracking) > max_width:
+                fragments = _character_wrap_text(
+                    draw, line.rstrip(), font, max_width, tracking
+                )
+                lines.extend(fragments[:-1])
+                line = fragments[-1]
+        if line or not lines:
+            lines.append(line.rstrip())
+    return lines
+
+
+def _wrap_text(
+    draw: ImageDraw.ImageDraw,
+    text: str,
+    font,
+    max_width: int,
+    tracking: int = 0,
+    *,
+    mode: str = "character",
+    max_lines: int = 2,
+) -> list[str]:
+    if mode == "character":
+        return _character_wrap_text(draw, text, font, max_width, tracking)
+    if mode == "word":
+        return _word_wrap_text(draw, text, font, max_width, tracking)
+
+    full_width = _text_width(draw, text.replace("\n", " "), font, tracking)
+    estimated_lines = max(1, min(max_lines, (full_width + max_width - 1) // max_width))
+    balanced_width = min(
+        max_width,
+        max(1, round(full_width / estimated_lines * 1.10)),
+    )
+    lines = _word_wrap_text(
+        draw, text, font, balanced_width, tracking
+    )
+    if len(lines) > max_lines:
+        return _word_wrap_text(draw, text, font, max_width, tracking)
+    return lines
 
 def _fit_text(
     draw: ImageDraw.ImageDraw,
@@ -198,6 +254,7 @@ def _fit_text(
     max_height = int(item["height"])
     max_lines = int(item.get("max_lines", 2))
     start_size = int(item.get("font_size", 24))
+    min_size = max(8, min(start_size, int(item.get("min_font_size", 8))))
     weight = int(item.get("font_weight", 600))
     line_height = float(item.get("line_height", 1.2))
     tracking = max(0, int(item.get("tracking", 0)))
@@ -214,7 +271,10 @@ def _fit_text(
         )
 
     selected = None
-    for size in range(start_size, 7, -1):
+    sizes = list(range(start_size, min_size - 1, -1))
+    if min_size > 8:
+        sizes.extend(range(min_size - 1, 7, -1))
+    for size in sizes:
         font = _load_font(size, resolved_font, weight)
         lines = (
             [text]
@@ -225,6 +285,8 @@ def _fit_text(
                 font,
                 max_width,
                 tracking,
+                mode=str(item.get("wrap_mode", "character")),
+                max_lines=max_lines,
             )
         )
         step = max(1, int(round(size * line_height)))
@@ -246,6 +308,100 @@ def _fit_text(
     return selected
 
 
+def _horizontal_overlap_ratio(first: dict, second: dict) -> float:
+    overlap = max(
+        0,
+        min(int(first["x"]) + int(first["width"]),
+            int(second["x"]) + int(second["width"]))
+        - max(int(first["x"]), int(second["x"])),
+    )
+    return overlap / max(1, min(int(first["width"]), int(second["width"])))
+
+
+def _resolve_element_collisions(layout: dict) -> None:
+    """Separate unintended same-group text overlaps and persist the correction."""
+    canvas_height = int(layout["canvas"]["height"])
+    gap = max(4, round(min(
+        int(layout["canvas"]["width"]), canvas_height
+    ) * 0.012))
+    warnings = layout.setdefault("warnings", [])
+
+    for group in ("headline", "offer"):
+        items = sorted(
+            (
+                item for item in layout["elements"]
+                if item.get("design_group") == group
+            ),
+            key=lambda item: (int(item["y"]), int(item["x"])),
+        )
+        for first, second in zip(items, items[1:]):
+            if _horizontal_overlap_ratio(first, second) < 0.35:
+                continue
+            first_bottom = int(first["y"]) + int(first["height"])
+            overlap = first_bottom + gap - int(second["y"])
+            if overlap <= 0:
+                continue
+
+            available_below = (
+                canvas_height
+                - (int(second["y"]) + int(second["height"]))
+            )
+            if available_below >= overlap:
+                second["y"] = int(second["y"]) + overlap
+                action = f"shifted {second['role']} down {overlap}px"
+            else:
+                available_above = int(first["y"])
+                shift = min(overlap, available_above)
+                first["y"] = int(first["y"]) - shift
+                remainder = overlap - shift
+                if remainder:
+                    second["font_size"] = max(
+                        int(second.get("min_font_size", 8)),
+                        round(int(second["font_size"]) * 0.90),
+                    )
+                action = (
+                    f"shifted {first['role']} up {shift}px"
+                    + (
+                        f" and reduced {second['role']} typography"
+                        if remainder else ""
+                    )
+                )
+            warning = f"Resolved {group} text collision: {action}."
+            if warning not in warnings:
+                warnings.append(warning)
+
+    for group in ("headline", "offer"):
+        group_items = [
+            item for item in layout["elements"]
+            if item.get("design_group") == group
+        ]
+        if not group_items:
+            continue
+        left = min(int(item["x"]) for item in group_items)
+        top = min(int(item["y"]) for item in group_items)
+        right = max(int(item["x"]) + int(item["width"]) for item in group_items)
+        bottom = max(int(item["y"]) + int(item["height"]) for item in group_items)
+        layout.setdefault("design_groups", {})[group] = {
+            "x": left, "y": top, "width": right - left, "height": bottom - top,
+        }
+        surface = next(
+            (
+                item for item in layout.get("underlays", [])
+                if item.get("id") == f"surface-{group}"
+            ),
+            None,
+        )
+        if surface is None:
+            continue
+        padding = gap
+        surface_top = min(int(surface["y"]), max(0, top - padding))
+        surface_bottom = max(
+            int(surface["y"]) + int(surface["height"]),
+            min(canvas_height, bottom + padding),
+        )
+        surface["y"] = surface_top
+        surface["height"] = surface_bottom - surface_top
+
 def fit_layout_typography(
     layout: dict,
     *,
@@ -263,8 +419,17 @@ def fit_layout_typography(
         )
         fitted_size = getattr(font, "size", item.get("font_size", 24))
         item["font_size"] = max(8, int(fitted_size))
+        preferred_minimum = int(item.get("min_font_size", 8))
+        if item["font_size"] < preferred_minimum:
+            warning = (
+                f"Reduced {item['role']} below preferred minimum "
+                f"{preferred_minimum}px to prevent text overflow."
+            )
+            if warning not in adjusted.setdefault("warnings", []):
+                adjusted["warnings"].append(warning)
         if item.get("role") == "title":
             item["max_lines"] = 1
+    _resolve_element_collisions(adjusted)
     return adjusted
 
 
@@ -397,6 +562,61 @@ def _blend_surface(
     return surface
 
 
+def _surface_mask(item: dict, size: tuple[int, int]) -> Image.Image:
+    """Build a VLM-selected non-rectangular surface mask."""
+    width, height = size
+    mask = Image.new("L", size, 0)
+    draw = ImageDraw.Draw(mask)
+    shape = str(item.get("shape", "rounded_rect"))
+    radius = max(0, int(item.get("border_radius", 0)))
+    bounds = (0, 0, width - 1, height - 1)
+
+    if shape == "pill":
+        draw.rounded_rectangle(bounds, radius=min(width, height) // 2, fill=255)
+    elif shape == "ellipse":
+        draw.ellipse(bounds, fill=255)
+    elif shape == "cut_corner":
+        cut = max(2, min(width, height, max(radius, min(width, height) // 7)))
+        draw.polygon([
+            (cut, 0), (width - 1 - cut, 0),
+            (width - 1, cut), (width - 1, height - 1 - cut),
+            (width - 1 - cut, height - 1), (cut, height - 1),
+            (0, height - 1 - cut), (0, cut),
+        ], fill=255)
+    elif shape == "diagonal":
+        slant = max(2, min(width // 5, height // 2))
+        angle = float(item.get("gradient_angle", 0.0))
+        if 90 <= angle < 270:
+            points = [
+                (0, 0), (width - 1 - slant, 0),
+                (width - 1, height - 1), (slant, height - 1),
+            ]
+        else:
+            points = [
+                (slant, 0), (width - 1, 0),
+                (width - 1 - slant, height - 1), (0, height - 1),
+            ]
+        draw.polygon(points, fill=255)
+    else:
+        draw.rounded_rectangle(bounds, radius=radius, fill=255)
+    return mask
+
+
+def _surface_shadow_layers(item: dict) -> list[dict]:
+    layers = list(item.get("shadow_layers", []))
+    if layers:
+        return layers[:3]
+    if item.get("shadow_enabled") and float(item.get("shadow_opacity", 0)) > 0:
+        return [{
+            "color": item.get("shadow_color", "#000000"),
+            "offset_x": item.get("shadow_offset_x", 0),
+            "offset_y": item.get("shadow_offset_y", 0),
+            "blur": item.get("shadow_blur", 0),
+            "opacity": item.get("shadow_opacity", 0),
+        }]
+    return []
+
+
 def _draw_underlays(
     image: Image.Image,
     underlays: list[dict],
@@ -406,31 +626,37 @@ def _draw_underlays(
         underlays,
         key=lambda value: int(value.get("z_index", 0)),
     ):
-        x = int(item["x"]); y = int(item["y"])
-        width = int(item["width"]); height = int(item["height"])
-        radius = max(0, int(item.get("border_radius", 0)))
+        x = int(item["x"])
+        y = int(item["y"])
+        width = int(item["width"])
+        height = int(item["height"])
         if width < 1 or height < 1:
             continue
 
-        local_mask = Image.new("L", (width, height), 0)
-        ImageDraw.Draw(local_mask).rounded_rectangle(
-            (0, 0, width - 1, height - 1), radius=radius, fill=255
-        )
+        local_mask = _surface_mask(item, (width, height))
 
-        if item.get("shadow_enabled") and float(item.get("shadow_opacity", 0)) > 0:
+        for shadow in _surface_shadow_layers(item):
+            shadow_opacity = max(
+                0.0, min(1.0, float(shadow.get("opacity", 0.0)))
+            )
+            if shadow_opacity <= 0:
+                continue
             shadow_mask = Image.new("L", result.size, 0)
-            offset_x = int(item.get("shadow_offset_x", 0))
-            offset_y = int(item.get("shadow_offset_y", 0))
-            shadow_mask.paste(local_mask, (x + offset_x, y + offset_y))
-            blur = max(0, int(item.get("shadow_blur", 0)))
+            shadow_mask.paste(
+                local_mask,
+                (
+                    x + int(shadow.get("offset_x", 0)),
+                    y + int(shadow.get("offset_y", 0)),
+                ),
+            )
+            blur = max(0, int(shadow.get("blur", 0)))
             if blur:
                 shadow_mask = shadow_mask.filter(ImageFilter.GaussianBlur(blur))
-            shadow_alpha = float(item.get("shadow_opacity", 0))
             shadow_mask = shadow_mask.point(
-                lambda value: round(value * shadow_alpha)
+                lambda value: round(value * shadow_opacity)
             )
             shadow_rgb = ImageColor.getrgb(
-                str(item.get("shadow_color", "#000000"))
+                str(shadow.get("color", "#000000"))
             )[:3]
             shadow_layer = Image.new("RGBA", result.size, (*shadow_rgb, 0))
             shadow_layer.putalpha(shadow_mask)
@@ -448,32 +674,51 @@ def _draw_underlays(
         surface = _blend_surface(
             background, surface, str(item.get("blend_mode", "normal"))
         )
+        overlay_opacity = max(
+            0.0, min(1.0, float(item.get("overlay_opacity", 0.0)))
+        )
+        if overlay_opacity:
+            overlay_color = ImageColor.getrgb(
+                str(item.get("overlay_color", "#000000"))
+            )[:3]
+            surface = Image.blend(
+                surface.convert("RGB"),
+                Image.new("RGB", surface.size, overlay_color),
+                overlay_opacity,
+            )
+
         alpha = max(0.0, min(1.0, float(item.get("opacity", 0.65))))
         panel = surface.convert("RGBA")
         panel.putalpha(local_mask.point(lambda value: round(value * alpha)))
         result.alpha_composite(panel, (x, y))
 
-        if (
-            item.get("border_enabled")
-            and int(item.get("border_width", 0)) > 0
-            and float(item.get("border_opacity", 0)) > 0
-        ):
-            border_layer = Image.new("RGBA", result.size, (0, 0, 0, 0))
+        border_width = max(0, int(item.get("border_width", 0)))
+        border_opacity = max(
+            0.0, min(1.0, float(item.get("border_opacity", 0.0)))
+        )
+        if item.get("border_enabled") and border_width and border_opacity:
+            max_kernel = max(1, min(width, height))
+            if max_kernel % 2 == 0:
+                max_kernel -= 1
+            kernel = min(border_width * 2 + 1, max_kernel)
+            inner = (
+                local_mask.filter(ImageFilter.MinFilter(kernel))
+                if kernel >= 3
+                else Image.new("L", local_mask.size, 0)
+            )
+            border_mask = ImageChops.subtract(local_mask, inner)
+            border_mask = border_mask.point(
+                lambda value: round(value * border_opacity)
+            )
             border_rgb = ImageColor.getrgb(
                 str(item.get("border_color", "#FFFFFF"))
             )[:3]
-            border_alpha = round(
-                255 * max(0.0, min(1.0, float(item["border_opacity"])))
-            )
-            ImageDraw.Draw(border_layer).rounded_rectangle(
-                (x, y, x + width - 1, y + height - 1),
-                radius=radius,
-                outline=(*border_rgb, border_alpha),
-                width=int(item["border_width"]),
-            )
+            border_patch = Image.new("RGBA", (width, height), (*border_rgb, 0))
+            border_patch.putalpha(border_mask)
+            border_layer = Image.new("RGBA", result.size, (0, 0, 0, 0))
+            border_layer.alpha_composite(border_patch, (x, y))
             result = Image.alpha_composite(result, border_layer)
     return result
-
 
 def ensure_layout_contrast(
     image_path: str | Path,
@@ -683,8 +928,16 @@ def _draw_price_line(
     common_baseline_y = (
         cursor_y + max(0, (step - visual_height) // 2) + max_ascent
     )
+    ink_boxes = [
+        draw.textbbox((0, 0), part, font=font, anchor="ls")
+        for part, font, _width in segments
+    ]
+    max_ink_height = max(box[3] - box[1] for box in ink_boxes)
+    common_ink_top = cursor_y + max(0, (step - max_ink_height) // 2)
+    common_ink_center = cursor_y + step / 2
+    baseline_mode = str(item.get("baseline_mode", "shared"))
 
-    for part, font, width in segments:
+    for (part, font, width), ink_box in zip(segments, ink_boxes):
         is_number = re.fullmatch(r"\d[\d,.]*", part) is not None
         baseline_key = (
             "number_baseline_shift"
@@ -694,7 +947,15 @@ def _draw_price_line(
         baseline_shift = round(
             base_size * float(item.get(baseline_key, 0.0))
         )
-        segment_y = common_baseline_y + baseline_shift
+        if baseline_mode == "cap_height":
+            segment_y = common_ink_top - ink_box[1]
+        elif baseline_mode == "optical_center":
+            segment_y = round(
+                common_ink_center - (ink_box[1] + ink_box[3]) / 2
+            )
+        else:
+            segment_y = common_baseline_y
+        segment_y += baseline_shift
         _draw_text_run(
             draw,
             (cursor_x, segment_y),
@@ -789,6 +1050,7 @@ def render_layout_image(
                 font,
                 color[:3],
                 item,
+                anchor="lt" if item.get("optical_align", True) else None,
             )
             cursor_y += step
 

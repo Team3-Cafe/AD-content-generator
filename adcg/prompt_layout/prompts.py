@@ -18,8 +18,9 @@ may use left or right alignment whenever that better supports the composition.
 Background surfaces are optional. Choose none when the image already supports
 legible type. When useful, choose full-width or content-width geometry and author
 headline_effect/offer_effect as a coherent combination of solid, linear or radial
-gradient, scrim, exact colors and stops, angle, opacity, corner radius, backdrop
-blur, blend mode, border, and shadow. Use two to five matching fill_colors and
+gradient, scrim, exact colors and stops, angle, opacity, non-rectangular shape,
+color overlay, corner radius, backdrop blur, blend mode, border, and up to
+three coordinated shadow layers. Use two to five matching fill_colors and
 fill_stops ordered from 0 to 1. Disabled border/shadow fields remain neutral.
 Do not default mechanically to a white card or beige band. The CTA is
 plain typography in a static image, never a button, pill, outline, or UI
@@ -53,8 +54,9 @@ or slightly above the qualifier and unit; never let the number hang below them.
 
 Prioritize visual integration that the initial design could not verify in its own
 output: image-derived color harmony, text/background contrast, surface presence,
-fill type, two-to-five color stops, gradient angle, opacity, radius, backdrop blur,
-blend mode, border, shadow, text color, stroke, and shadow. Avoid generic white or
+fill type, two-to-five color stops, gradient angle, opacity, surface shape, color
+overlay, radius, backdrop blur, blend mode, border, multi-layer shadow, text
+color, stroke, wrap mode, minimum type size, and optical alignment. Avoid generic white or
 beige cards unless the image visibly supports them. Use the product and background
 colors as evidence, not as a fixed template.
 
@@ -136,11 +138,12 @@ deltas or multipliers. Return every supplied non-empty copy role exactly once.
 Surfaces are optional: return zero, one, or two entries and use enabled=false
 when no box is needed. For each enabled surface, author effect as a coherent
 combination of solid, linear or radial gradient, scrim, two to five exact colors
-and matching ordered stops, angle, opacity, corner radius, backdrop blur, blend
-mode, border, and shadow. A surface may be full width or content width through
+and matching ordered stops, angle, opacity, shape, color overlay, corner radius,
+backdrop blur, blend mode, border, and zero to three coordinated shadows. A surface may be full width or content width through
 its absolute geometry. Prefer image-derived color harmony over generic white,
 black, or beige panels. Infer placement from the two images and
-the provided canvas and palette. Choose boxes large enough for the typography.
+the provided canvas and palette. Choose boxes large enough for the typography. Select character, word, or balanced
+wrapping, a meaningful minimum font size, and optical alignment for every role.
 Keep title, price, and CTA on one line. The CTA is plain typography in a static
 image, never a button, pill, outline, or UI control. Element, shadow, stroke,
 surface, gradient, and accent colors may be exact #RRGGBB values or "keep".
@@ -154,7 +157,8 @@ composition when price is absent. When verdict is revise, every affected_targets
 entry must correspond to a material change in target_layout. When composing a price
 such as a large number
 with qualifier and unit text, balance number_scale, unit_scale, and baselines
-so emphasis remains integrated rather than detached or oversized. The enlarged
+so emphasis remains integrated rather than detached or oversized. Select shared,
+cap-height, or optical-center baseline logic based on the actual glyph shapes. The enlarged
 number must not sit below the surrounding price text. Never ask
 for new copy, a different background, another image, or another VLM review.
 Always set needs_revision to true and deliver the independent rebuilt design in
