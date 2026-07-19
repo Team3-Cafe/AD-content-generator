@@ -17,8 +17,8 @@ def _jsonable(value):
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         description=(
-            "Generate one content-aware ad design and refine the same design "
-            "once with GPT-4o."
+            "Generate one content-aware ad design, refine its draft, and "
+            "review the completed advertisement once more with GPT-4o."
         )
     )
     parser.add_argument(

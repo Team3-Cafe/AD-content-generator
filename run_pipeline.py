@@ -30,8 +30,10 @@ def main():
     print(f"Design info : {result.design_analysis_json}")
     print(f"Design spec : {result.design_spec_json}")
     print(f"Revision    : {result.design_revision_json}")
+    print(f"Final review: {result.final_review_json}")
     print(f"Layout JSON : {result.layout_json}")
     print(f"Design draft: {result.layout_draft_image}")
+    print(f"Review input: {result.final_review_input_image}")
     print(f"Final image : {result.final_image}")
 
     if result.eval_json is not None:

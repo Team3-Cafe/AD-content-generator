@@ -13,8 +13,10 @@ from .engine import apply_design_revision, build_design_layout
 from .io import image_to_data_url
 from .prompts import (
     DESIGN_SYSTEM_PROMPT,
+    FINAL_REVIEW_SYSTEM_PROMPT,
     REVISION_SYSTEM_PROMPT,
     build_design_request,
+    build_final_review_request,
     build_revision_request,
 )
 from .renderer import (
@@ -34,8 +36,10 @@ class LayoutGenerationResult:
     design_analysis_json: Path
     design_spec_json: Path
     design_revision_json: Path
+    final_review_json: Path
     layout_json: Path
     draft_image: Path
+    final_review_input_image: Path
     rendered_image: Path
 
 
@@ -204,7 +208,40 @@ def generate_prompt_layout(
         {"model": model, **revision},
     )
 
-    final_layout = apply_design_revision(draft_layout, revision)
+    revised_layout = apply_design_revision(draft_layout, revision)
+    revised_layout = fit_layout_typography(
+        revised_layout,
+        font_path=font_path,
+    )
+    revised_layout = ensure_layout_contrast(image_path, revised_layout)
+    final_review_input_path = render_layout_image(
+        image_path=image_path,
+        layout=revised_layout,
+        output_path=output_dir / "final_review_input.png",
+        font_path=font_path,
+    )
+
+    final_review = _request_json(
+        client,
+        model=model,
+        instructions=FINAL_REVIEW_SYSTEM_PROMPT,
+        request_text=build_final_review_request(
+            ad_copy,
+            design_spec,
+            revised_layout,
+        ),
+        image_path=final_review_input_path,
+        detail=detail,
+        schema_name="completed_ad_final_layout_review",
+        schema=DESIGN_REVISION_SCHEMA,
+        temperature=0,
+    )
+    final_review_path = _write_json(
+        output_dir / "final_review.json",
+        {"model": model, **final_review},
+    )
+
+    final_layout = apply_design_revision(revised_layout, final_review)
     final_layout = fit_layout_typography(
         final_layout,
         font_path=font_path,
@@ -217,6 +254,7 @@ def generate_prompt_layout(
         "copy": ad_copy,
         "design_rationale": design_spec["rationale"],
         "revision_reason": revision["reason"],
+        "final_review_reason": final_review["reason"],
         **final_layout,
     }
     layout_path = _write_json(output_dir / "layout.json", layout_document)
@@ -232,7 +270,9 @@ def generate_prompt_layout(
         design_analysis_json=analysis_path,
         design_spec_json=spec_path,
         design_revision_json=revision_path,
+        final_review_json=final_review_path,
         layout_json=layout_path,
         draft_image=draft_path,
+        final_review_input_image=final_review_input_path,
         rendered_image=rendered_path,
     )

@@ -26,7 +26,11 @@ rank alternatives, or measure aesthetic scores.
 6. The first design is rendered to `design_draft.png`.
 7. GPT-4o reviews that same render once and returns bounded position, scale,
    and surface-opacity corrections. It never compares or selects candidates.
-8. The corrected design is rendered to `final_ad.png`.
+8. The corrected design, including all copy, is rendered to
+   `final_review_input.png`.
+9. GPT-4o reviews that completed advertisement once more and returns a final
+   bounded layout correction.
+10. The final correction is applied and rendered to `final_ad.png`.
 
 The renderer uses the configured Korean-capable font, fits the title to one
 line, adapts text colors to local background contrast, and adds a contrast
@@ -38,6 +42,8 @@ underlay only when neither light nor dark text is sufficiently readable.
 - `design_spec.json`: the single art direction and relational composition
 - `design_draft.png`: first rendering of that design
 - `design_revision.json`: one bounded critique of the same design
+- `final_review_input.png`: completed advertisement supplied to the final VLM review
+- `final_review.json`: final bounded critique after all copy has been rendered
 - `layout.json`: final resolved pixels, typography, colors, and surfaces
 - `final_ad.png`: the completed advertisement image
 
@@ -52,9 +58,9 @@ Run independently after background generation:
       --font assets/fonts/NotoSansKR.ttf
 
 The default model is `gpt-4o`, image detail is `high`, and design temperature
-is `0.4`. Exactly two OpenAI calls are made: one art-direction call and one
-same-design revision call. `OPENAI_API_KEY` is loaded from the project-root
-`.env` when present.
+is `0.4`. Exactly three OpenAI calls are made: one art-direction call, one
+draft revision call, and one final review of the completed advertisement.
+`OPENAI_API_KEY` is loaded from the project-root `.env` when present.
 
 No new font is downloaded. For Korean copy, pass `--font`/`--layout-font` or
 set `ADCG_FONT_PATH` when the project font is not discoverable automatically.

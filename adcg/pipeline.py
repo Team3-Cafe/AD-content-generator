@@ -24,8 +24,10 @@ class PipelineResult:
     design_analysis_json: Path
     design_spec_json: Path
     design_revision_json: Path
+    final_review_json: Path
     layout_json: Path
     layout_draft_image: Path
+    final_review_input_image: Path
     final_image: Path
     eval_json: Path | None
 
@@ -224,8 +226,10 @@ def run_pipeline(
         design_analysis_json=layout_result.design_analysis_json,
         design_spec_json=layout_result.design_spec_json,
         design_revision_json=layout_result.design_revision_json,
+        final_review_json=layout_result.final_review_json,
         layout_json=layout_result.layout_json,
         layout_draft_image=layout_result.draft_image,
+        final_review_input_image=layout_result.final_review_input_image,
         final_image=layout_result.rendered_image,
         eval_json=eval_json,
     )

@@ -48,6 +48,20 @@ needed. Never request a new template or alternative design.
 """.strip()
 
 
+FINAL_REVIEW_SYSTEM_PROMPT = """
+You are performing the final visual review of a completed advertisement. The
+supplied image already contains all copy rendered on the finished background.
+Judge the advertisement as it will be delivered, paying particular attention
+to copy hierarchy, balance, separation, readability, and product visibility.
+
+Return only bounded layout shifts, scales, and surface-opacity corrections for
+this same design. Keep the headline horizontally centered and preserve the art
+direction, semantic grouping, exact copy, and overall composition. Use neutral
+values (zero shifts, scale 1.0, opacity delta 0.0) when no further correction
+is needed. Never request new copy, a new template, or an alternative design.
+""".strip()
+
+
 def build_design_request(ad_copy: dict, image_analysis: dict) -> str:
     return (
         "Create one final art direction for this advertisement.\n\n"
@@ -90,9 +104,43 @@ def build_revision_request(
     )
 
 
+def build_final_review_request(
+    ad_copy: dict,
+    design_spec: dict,
+    layout: dict,
+) -> str:
+    compact_layout = {
+        "canvas": layout["canvas"],
+        "elements": [
+            {
+                "role": item["role"],
+                "group": item["design_group"],
+                "x": item["x"],
+                "y": item["y"],
+                "width": item["width"],
+                "height": item["height"],
+                "font_size": item["font_size"],
+            }
+            for item in layout["elements"]
+        ],
+    }
+    return (
+        "Review this completed advertisement after all copy has been rendered. "
+        "Return the final bounded layout correction for this same design only.\n\n"
+        "Exact rendered copy:\n"
+        + json.dumps(ad_copy, ensure_ascii=False, indent=2)
+        + "\n\nArt direction to preserve:\n"
+        + json.dumps(design_spec, ensure_ascii=False, indent=2)
+        + "\n\nCurrent resolved geometry:\n"
+        + json.dumps(compact_layout, ensure_ascii=False, indent=2)
+    )
+
+
 __all__ = [
     "DESIGN_SYSTEM_PROMPT",
+    "FINAL_REVIEW_SYSTEM_PROMPT",
     "REVISION_SYSTEM_PROMPT",
     "build_design_request",
+    "build_final_review_request",
     "build_revision_request",
 ]
