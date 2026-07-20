@@ -13,6 +13,13 @@ except ImportError:
 
 
 DIRECTIONS = ("product_focus", "brand_focus")
+LAYOUT_MODES = ("layout", "preserve")
+EVAL_METRICS = (
+    "clip_score",
+    "aesthetic_score",
+    "dino_similarity",
+    "hps_v2_score",
+)
 
 
 @dataclass(frozen=True)
@@ -22,7 +29,12 @@ class AppConfig:
     output_dir: Path
     gpt_model: str
     direction: str
+    layout_mode: str
     copy_count: int
+    seed: int
+    cpu_offload: bool
+    evaluate: bool
+    eval_metrics: tuple[str, ...] | None
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -37,17 +49,41 @@ def build_parser() -> argparse.ArgumentParser:
         help="Existing product/store info JSON. If omitted, one is generated from the fields below.",
     )
     common.add_argument("--output-dir", default="outputs/pipeline")
+    common.add_argument("--seed", type=int, default=42)
+    common.add_argument("--cpu-offload", action="store_true")
 
-    image_generation = parser.add_argument_group("copy generation")
+    image_generation = parser.add_argument_group("image generation")
     image_generation.add_argument("--gpt-model", default="gpt-5.4-nano")
     image_generation.add_argument(
         "--direction",
         choices=DIRECTIONS,
         default="product_focus",
     )
+    image_generation.add_argument(
+        "--layout-mode",
+        choices=LAYOUT_MODES,
+        default="layout",
+    )
 
     copywriting = parser.add_argument_group("copywriting")
     copywriting.add_argument("--copy-count", type=int, default=1)
+
+    evaluation = parser.add_argument_group("evaluation")
+    evaluation.add_argument(
+        "--evaluate",
+        action="store_true",
+        help="Evaluate the final image after generation.",
+    )
+    evaluation.add_argument(
+        "--eval-metrics",
+        nargs="+",
+        choices=EVAL_METRICS,
+        default=None,
+        help=(
+            "Metrics to run with --evaluate. "
+            "Defaults to every supported metric."
+        ),
+    )
 
     info = parser.add_argument_group("product and store information")
     info.add_argument("--product-name")
@@ -182,7 +218,16 @@ def parse_config(argv: list[str] | None = None) -> AppConfig:
         output_dir=output_dir,
         gpt_model=args.gpt_model,
         direction=args.direction,
+        layout_mode=args.layout_mode,
         copy_count=args.copy_count,
+        seed=args.seed,
+        cpu_offload=args.cpu_offload,
+        evaluate=args.evaluate,
+        eval_metrics=(
+            tuple(args.eval_metrics)
+            if args.eval_metrics is not None
+            else None
+        ),
     )
 
 

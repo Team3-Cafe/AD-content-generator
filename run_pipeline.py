@@ -12,11 +12,23 @@ def main():
         gpt_model=config.gpt_model,
         copy_count=config.copy_count,
         direction=config.direction,
+        layout_mode=config.layout_mode,
+        seed=config.seed,
+        cpu_offload=config.cpu_offload,
+        evaluate=config.evaluate,
+        eval_metrics=config.eval_metrics,
     )
 
     print("\n[PIPELINE DONE]")
     print(f"Prompt JSON : {result.prompt_json}")
     print(f"Copy JSON   : {result.copy_json}")
+    print(f"Generated   : {result.generated_image}")
+    print(f"Core refined: {result.core_refined_image}")
+    print(f"Identity img: {result.identity_restored_image}")
+    print(f"Final image : {result.final_image}")
+
+    if result.eval_json is not None:
+        print(f"Evaluation  : {result.eval_json}")
 
 
 if __name__ == "__main__":
