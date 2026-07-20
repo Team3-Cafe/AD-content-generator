@@ -22,3 +22,4 @@
 - FastAPI or Streamlit/Gradio
 - OpenAI API
 - GCP VM with L4 GPU
+- `skia-python` is required for prompt layout rendering

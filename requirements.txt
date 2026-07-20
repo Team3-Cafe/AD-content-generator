@@ -7,6 +7,7 @@ numpy
 Pillow
 opencv-python
 rembg[gpu]
+skia-python
 
 # Stable Diffusion and ControlNet pipelines
 torch
