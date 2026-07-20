@@ -28,6 +28,7 @@ def run_core_refinement(
     core_opacity=0.92,
     outer_protection=7,
     background_strength=0.20,
+    focus_strength=1.0,
     shadow_offset=3,
     shadow_blur=6.0,
     shadow_strength=0.12,
@@ -87,16 +88,30 @@ def run_core_refinement(
         1.0,
     )
 
+    focus_strength = float(np.clip(focus_strength, 0.0, 1.0))
+    effective_background_strength = (
+        background_strength + (1.0 - focus_strength) * 0.40
+    )
+    blur_radius = 1 + int((1.0 - focus_strength) * 10)
+
     background_refined = cv2.bilateralFilter(
         generated_array,
         d=7,
         sigmaColor=28,
         sigmaSpace=28,
-    ).astype(np.float32)
+    )
+    if blur_radius > 1:
+        ksize = blur_radius * 2 + 1
+        background_refined = cv2.GaussianBlur(
+            background_refined,
+            (ksize, ksize),
+            sigmaX=blur_radius,
+        )
+    background_refined = background_refined.astype(np.float32)
 
     background_mask = 255 - outer_mask
     background_weight = blur_mask(background_mask, 3.0)
-    background_weight *= background_strength
+    background_weight *= effective_background_strength
 
     result = generated_array.astype(np.float32)
     result = (
@@ -145,6 +160,8 @@ def run_core_refinement(
             "core_feather": core_feather,
             "core_opacity": core_opacity,
             "background_strength": background_strength,
+            "focus_strength": focus_strength,
+            "effective_background_strength": effective_background_strength,
         },
     )
 

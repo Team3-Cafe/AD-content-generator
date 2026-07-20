@@ -11,7 +11,7 @@ def main():
         output_dir=config.output_dir,
         gpt_model=config.gpt_model,
         copy_count=config.copy_count,
-        direction=config.direction,
+        focus_strength=config.focus_strength,
         layout_mode=config.layout_mode,
         seed=config.seed,
         cpu_offload=config.cpu_offload,

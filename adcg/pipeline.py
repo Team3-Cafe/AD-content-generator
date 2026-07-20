@@ -30,7 +30,7 @@ def run_pipeline(
     output_dir="outputs/pipeline",
     gpt_model="gpt-5.4-nano",
     copy_count=1,
-    direction="product_focus",
+    focus_strength=1.0,
     layout_mode="layout",
     seed=42,
     cpu_offload=False,
@@ -57,7 +57,7 @@ def run_pipeline(
         info_path=info_path,
         output_path=output_dir / "02_prompt" / "ad_prompt.json",
         model=gpt_model,
-        direction=direction,
+        focus_strength=focus_strength,
     )
 
     print("[3/6] Advertisement copy generation")
@@ -130,6 +130,7 @@ def run_pipeline(
         product_image=refinement_product,
         product_mask=generated["product_mask"],
         output_dir=output_dir / "04_core_refined",
+        focus_strength=focus_strength,
     )
 
     print("[6/6] Boundary and identity restoration")

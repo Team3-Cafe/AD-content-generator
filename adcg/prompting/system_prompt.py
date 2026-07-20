@@ -55,13 +55,9 @@ environment that integrates naturally with the visible product.
 - Prevent distorted, merged, cropped, reshaped, or duplicated products.
 - Do not prohibit realistic supporting surfaces.
 
-[Advertising Direction]
-- product_focus:
-  Prioritize foreground recognition, prominence, clarity, and simple context.
-
-- brand_focus:
-  Preserve foreground recognition while emphasizing atmosphere, materials,
-  color direction, store identity, and brand mood.
+[Focus Strength]
+- Higher product focus strength should make the foreground more visually dominant.
+- Lower product focus strength may allow softer, more atmospheric background treatment.
 
 [Layout Rules]
 - Determine layout dynamically for every input.
@@ -69,8 +65,8 @@ environment that integrates naturally with the visible product.
 - Consider bounding box, aspect ratio, object count, arrangement, and angle.
 - Preserve the relative arrangement of objects forming one product set.
 - Keep the visible foreground prominent and physically supported.
-- product_focus should make the foreground visually dominant.
-- brand_focus may include more environmental context.
+- Higher product focus strength should make the foreground visually dominant.
+- Lower product focus strength may include more environmental context.
 - Select product_x, product_y, and product_scale for the current input.
 - Keep copy space away from the foreground and major perspective lines.
 - If the input is truncated, do not move the truncated edge into an exposed

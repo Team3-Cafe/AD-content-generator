@@ -12,10 +12,6 @@ from .system_prompt import SYSTEM_PROMPT
 ROOT_DIR = Path(__file__).resolve().parents[2]
 load_dotenv(ROOT_DIR / ".env")
 
-DIRECTIONS = {
-    "product_focus",
-    "brand_focus",
-}
 
 
 def load_json(path):
@@ -77,16 +73,22 @@ def build_truncation_instruction(preprocess_context):
 
 def build_user_instruction(
     product_info,
-    direction,
+    focus_strength=1.0,
     preprocess_context=None,
 ):
     preprocess_context = preprocess_context or {}
+    percent = int(round(focus_strength * 100))
 
     return f"""
 Create a scene plan for the supplied foreground product image.
 
-Advertising direction:
-{direction}
+Product focus strength:
+{percent}%
+
+Interpret this value as how strongly the final scene should emphasize the product.
+Higher values should make the product more visually dominant and the surrounding
+background simpler and softer. Lower values may allow a more atmospheric or
+blurrier background while preserving product recognition.
 
 Product and store metadata:
 {json.dumps(product_info, ensure_ascii=False, indent=2)}
@@ -110,7 +112,7 @@ def run_prompt_generation(
     info_path,
     output_path,
     model="gpt-5.4-nano",
-    direction="product_focus",
+    focus_strength=1.0,
     detail="low",
     preprocess_metadata_path=None,
     client=None,
@@ -119,15 +121,15 @@ def run_prompt_generation(
     info_path = Path(info_path)
     output_path = Path(output_path)
 
-    if direction not in DIRECTIONS:
-        raise ValueError(
-            f"지원하지 않는 광고 방향입니다: {direction}. "
-            f"사용 가능 값: {sorted(DIRECTIONS)}"
-        )
 
     if detail not in {"low", "high"}:
         raise ValueError(
             "detail은 'low' 또는 'high'여야 합니다."
+        )
+
+    if not 0.0 <= focus_strength <= 1.0:
+        raise ValueError(
+            "focus_strength는 0.0부터 1.0 사이의 값이어야 합니다."
         )
 
     if not image_path.exists():
@@ -154,7 +156,7 @@ def run_prompt_generation(
                         "type": "input_text",
                         "text": build_user_instruction(
                             product_info=product_info,
-                            direction=direction,
+                            focus_strength=focus_strength,
                             preprocess_context=preprocess_context,
                         ),
                     },

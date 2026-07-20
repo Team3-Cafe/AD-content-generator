@@ -12,7 +12,6 @@ except ImportError:
     load_dotenv = None
 
 
-DIRECTIONS = ("product_focus", "brand_focus")
 LAYOUT_MODES = ("layout", "preserve")
 EVAL_METRICS = (
     "clip_score",
@@ -28,7 +27,7 @@ class AppConfig:
     info_path: Path
     output_dir: Path
     gpt_model: str
-    direction: str
+    focus_strength: float
     layout_mode: str
     copy_count: int
     seed: int
@@ -55,9 +54,13 @@ def build_parser() -> argparse.ArgumentParser:
     image_generation = parser.add_argument_group("image generation")
     image_generation.add_argument("--gpt-model", default="gpt-5.4-nano")
     image_generation.add_argument(
-        "--direction",
-        choices=DIRECTIONS,
-        default="product_focus",
+        "--focus-strength",
+        type=float,
+        default=1.0,
+        help=(
+            "Product focus strength from 0.0 to 1.0. "
+            "Higher values emphasize the product more strongly."
+        ),
     )
     image_generation.add_argument(
         "--layout-mode",
@@ -212,12 +215,15 @@ def parse_config(argv: list[str] | None = None) -> AppConfig:
     output_dir.mkdir(parents=True, exist_ok=True)
     info_path = _resolve_info_path(parser, args, output_dir)
 
+    if args.focus_strength < 0.0 or args.focus_strength > 1.0:
+        parser.error("--focus-strength는 0.0부터 1.0 사이여야 합니다.")
+
     return AppConfig(
         image_path=image_path,
         info_path=info_path,
         output_dir=output_dir,
         gpt_model=args.gpt_model,
-        direction=args.direction,
+        focus_strength=args.focus_strength,
         layout_mode=args.layout_mode,
         copy_count=args.copy_count,
         seed=args.seed,
@@ -238,7 +244,7 @@ if __name__ == "__main__":
         "info_path": str(config.info_path),
         "output_dir": str(config.output_dir),
         "gpt_model": config.gpt_model,
-        "direction": config.direction,
+        "focus_strength": config.focus_strength,
         "copy_count": config.copy_count,
         "seed": config.seed,
         "cpu_offload": config.cpu_offload,
