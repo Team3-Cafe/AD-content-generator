@@ -251,7 +251,17 @@ div.stWarning *, div.stInfo * {
 .step-hero {
     background: linear-gradient(120deg, rgba(255, 253, 249, 0.96), rgba(242, 232, 221, 0.90));
     border-color: var(--ui-border);
-    border-left: 5px solid var(--ui-primary);
+    border-left: 1px solid var(--ui-border);
+    box-sizing: border-box;
+    overflow: hidden;
+    position: relative;
+}
+.step-hero::before {
+    background: var(--ui-primary);
+    content: "";
+    inset: 0 auto 0 0;
+    position: absolute;
+    width: 5px;
 }
 .step-chip {
     background: #F4F0EB;
@@ -356,11 +366,15 @@ div.stError * {
 
 /* STEP 3: preview and copy controls use purpose-built cards. */
 .st-key-copy_preview_panel,
-.st-key-copy_settings_panel {
+.st-key-copy_settings_panel,
+.st-key-final_preview_panel,
+.st-key-final_details_panel {
     background: rgba(255, 253, 249, 0.96);
     border: 1px solid #D8C9BA;
     border-radius: 18px;
+    box-sizing: border-box;
     box-shadow: 0 12px 30px rgba(57, 45, 36, 0.09);
+    overflow: hidden;
     padding: 1.15rem 1.2rem 1.25rem;
 }
 .st-key-copy_preview_panel {
@@ -423,34 +437,117 @@ div.stError * {
 .copy-process strong {
     color: var(--ui-primary) !important;
 }
-.copy-running-banner {
-    background: linear-gradient(120deg, #263B43, #3F6B73);
-    border: 1px solid #527B82;
-    border-radius: 14px;
-    box-shadow: 0 10px 24px rgba(36, 50, 59, 0.18);
-    color: #FFFFFF !important;
-    margin: 0 0 0.85rem;
-    padding: 0.9rem 1rem;
-}
-.copy-running-banner strong,
-.copy-running-banner span {
-    color: #FFFFFF !important;
-}
-.copy-running-banner span {
-    display: block;
-    font-size: 0.8rem;
-    margin-top: 0.22rem;
-    opacity: 0.84;
-}
 .st-key-copy_settings_panel [data-testid="stForm"] {
     background: transparent !important;
     border: 0 !important;
     box-shadow: none !important;
     padding: 0 !important;
 }
+.processing-panel {
+    background: linear-gradient(120deg, #263B43, #3F6B73);
+    border: 1px solid #527B82;
+    border-radius: 16px;
+    box-shadow: 0 12px 28px rgba(36, 50, 59, 0.20);
+    box-sizing: border-box;
+    color: #FFFFFF !important;
+    margin: 0 0 0.9rem;
+    overflow: hidden;
+    padding: 1rem 1.1rem 0.9rem;
+    position: relative;
+}
+.processing-panel::after {
+    animation: processingSweep 2.2s ease-in-out infinite;
+    background: linear-gradient(90deg, transparent, rgba(255,255,255,0.22), transparent);
+    content: "";
+    height: 100%;
+    left: -45%;
+    position: absolute;
+    top: 0;
+    width: 38%;
+}
+.processing-heading {
+    align-items: center;
+    display: flex;
+    gap: 0.65rem;
+    position: relative;
+    z-index: 1;
+}
+.processing-orb {
+    animation: processingPulse 1.15s ease-in-out infinite;
+    background: #F3B56F;
+    border: 3px solid rgba(255,255,255,0.28);
+    border-radius: 999px;
+    box-shadow: 0 0 0 0 rgba(243,181,111,0.5);
+    flex: 0 0 auto;
+    height: 13px;
+    width: 13px;
+}
+.processing-title,
+.processing-description,
+.processing-steps,
+.processing-steps span {
+    color: #FFFFFF !important;
+    position: relative;
+    z-index: 1;
+}
+.processing-title {
+    font-size: 1rem;
+    font-weight: 800;
+}
+.processing-description {
+    font-size: 0.81rem;
+    margin: 0.35rem 0 0.7rem 1.8rem;
+    opacity: 0.82;
+}
+.processing-steps {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.38rem;
+    margin-left: 1.8rem;
+}
+.processing-steps span {
+    background: rgba(255,255,255,0.10);
+    border: 1px solid rgba(255,255,255,0.16);
+    border-radius: 999px;
+    font-size: 0.7rem;
+    padding: 0.24rem 0.52rem;
+}
+.st-key-generation_progress_region,
+.st-key-copy_progress_detail {
+    background: transparent !important;
+    border: 0 !important;
+    box-shadow: none !important;
+    padding: 0 !important;
+}
+.st-key-final_preview_panel [data-testid="stImage"] {
+    display: flex;
+    justify-content: center;
+}
+.st-key-final_preview_panel [data-testid="stImage"] img {
+    border: 1px solid #CBD6D5;
+    border-radius: 12px;
+    box-shadow: 0 10px 24px rgba(36, 50, 59, 0.12);
+}
+[data-testid="stFileUploaderDropzone"],
+[data-testid="stTextInput"],
+[data-testid="stTextArea"],
+div[data-baseweb="select"] {
+    box-sizing: border-box;
+    overflow: hidden;
+}
+@keyframes processingPulse {
+    0%, 100% { box-shadow: 0 0 0 0 rgba(243,181,111,0.48); opacity: 0.72; }
+    50% { box-shadow: 0 0 0 9px rgba(243,181,111,0); opacity: 1; }
+}
+@keyframes processingSweep {
+    0% { left: -45%; }
+    60%, 100% { left: 115%; }
+}
 @media (max-width: 900px) {
     .st-key-copy_preview_panel,
-    .st-key-copy_settings_panel {
+    .st-key-copy_settings_panel,
+    .st-key-final_preview_panel,
+    .st-key-final_details_panel {
         padding: 0.9rem;
     }
 }
@@ -473,6 +570,28 @@ def render_step_header(step: int, title: str, description: str) -> None:
         f'<div class="step-track">{"".join(chips)}</div>'
         f'<h1>{title}</h1>'
         f'<p>{description}</p>'
+        '</section>'
+    )
+
+
+def render_processing_panel(
+    title: str,
+    description: str,
+    steps: tuple[str, ...],
+) -> None:
+    """Render the same animated processing state for generation and copy."""
+    step_items = "".join(
+        f"<span>{index:02d} · {label}</span>"
+        for index, label in enumerate(steps, start=1)
+    )
+    st.html(
+        '<section class="processing-panel">'
+        '<div class="processing-heading">'
+        '<span class="processing-orb"></span>'
+        f'<strong class="processing-title">{title}</strong>'
+        '</div>'
+        f'<p class="processing-description">{description}</p>'
+        f'<div class="processing-steps">{step_items}</div>'
         '</section>'
     )
 
@@ -688,7 +807,12 @@ elif st.session_state.step == 2:
         "장면 구성, 상품 복원, 경계 보정을 순서대로 처리합니다.",
     )
     
-    with st.spinner("이미지 분석, 생성 및 상품 복원 중..."):
+    with st.container(key="generation_progress_region"):
+        render_processing_panel(
+            "광고 이미지를 제작하고 있습니다.",
+            "브라우저를 닫지 않아도 작업은 GPU 대기열에서 계속 처리됩니다.",
+            ("이미지 분석", "장면 생성", "상품 복원", "경계 보정"),
+        )
         try:
             submission = st.session_state.get(
                 "pipeline_submission"
@@ -781,13 +905,10 @@ elif st.session_state.step == 3:
         )
 
     if copy_running:
-        st.html(
-            """
-            <div class="copy-running-banner">
-                <strong>광고 문구와 디자인을 합성하고 있습니다.</strong>
-                <span>문구 생성 → 이미지 분석 → 레이아웃 설계 → 최종 검토 순서로 진행됩니다.</span>
-            </div>
-            """
+        render_processing_panel(
+            "광고 문구와 디자인을 합성하고 있습니다.",
+            "완성 이미지의 피사체와 여백을 읽어 문구 디자인을 다듬고 있습니다.",
+            ("문구 생성", "이미지 분석", "레이아웃 설계", "최종 검토"),
         )
 
     preview_col, settings_col = st.columns(
@@ -914,13 +1035,11 @@ elif st.session_state.step == 3:
                 )
             )
 
-            with st.status(
-                "광고 문구와 레이아웃을 만드는 중입니다.",
-                expanded=True,
-            ) as copy_status:
-                st.write("① 상품 정보에 맞는 광고 문구를 작성하고 있습니다.")
-                st.write("② 이미지의 피사체와 안전 여백을 분석하고 있습니다.")
-                st.write("③ 타이포그래피, 컬러, 표면과 배치를 설계하고 있습니다.")
+            with st.container(key="copy_progress_detail"):
+                st.caption(
+                    "VLM이 문구, 배치, 타이포그래피, 컬러와 표면을 "
+                    "순서대로 검토합니다."
+                )
                 copy_result = run_copy_layout_pipeline(
                     identity_image=identity_img,
                     info_path=st.session_state.json_path,
@@ -930,11 +1049,6 @@ elif st.session_state.step == 3:
                     copy_count=1,
                     copy_tone=copy_tone,
                     copy_length=copy_length,
-                )
-                copy_status.update(
-                    label="카피와 레이아웃 합성이 완료됐습니다.",
-                    state="complete",
-                    expanded=False,
                 )
 
             st.session_state.copy_json_path = Path(
@@ -1008,16 +1122,20 @@ elif st.session_state.step == 4:
             copy_data = copies[0]
 
     if final_img is not None and final_img.exists():
-        col_image, col_info = st.columns([6, 4])
+        col_image, col_info = st.columns(
+            [0.42, 0.58],
+            gap="large",
+            vertical_alignment="top",
+        )
 
-        with col_image, st.container(border=True):
+        with col_image, st.container(key="final_preview_panel"):
             st.image(
                 str(final_img),
-                use_column_width=True,
-                caption="Copy layout 완료 이미지",
+                width=360,
+                caption="카피 레이아웃 완료 이미지",
             )
 
-        with col_info, st.container(border=True):
+        with col_info, st.container(key="final_details_panel"):
             st.success("✅ 카피와 레이아웃 합성이 완료됐습니다.")
             if copy_data:
                 st.subheader("생성된 광고 문구")
