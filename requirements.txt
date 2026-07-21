@@ -1,21 +1,33 @@
+# Supported runtime: Python 3.11
+
 # OpenAI prompting and environment configuration
-openai
-python-dotenv
+openai>=1.55,<3
+python-dotenv>=1.0,<2
 
-# Image loading, masking, and compositing
-numpy
-Pillow
-opencv-python
-rembg[cpu]
-skia-python
+# Image loading, analysis, masking, and Pillow-based layout rendering
+numpy>=1.26,<3
+Pillow>=10.4,<13
+opencv-python>=4.10,<5
+rembg[cpu]>=2.0.67,<3
 
-# Stable Diffusion and ControlNet pipelines
-torch
-diffusers
-transformers
-accelerate
-safetensors
-protobuf<4
+# Stable Diffusion, ControlNet, CLIP, and DINO pipelines
+# Install a CUDA-specific torch/torchvision pair first when the host requires it;
+# uv/pip will otherwise select the default wheels for the current platform.
+torch>=2.4,<3
+torchvision>=0.19,<1
+diffusers>=0.32,<1
+transformers>=4.48,<6
+accelerate>=1.0,<2
+safetensors>=0.4,<1
 
-# Image evaluation
+# HPS v2 runtime dependencies
+timm>=1.0,<2
+ftfy>=6.2,<7
+regex>=2024.11
+einops>=0.8,<1
+sentencepiece>=0.2,<1
+protobuf>=3.20,<4
 hpsv2 @ git+https://github.com/tgxs002/HPSv2.git@866735ecaae999fa714bd9edfa05aa2672669ee3
+
+# Linux system dependency for Korean copy rendering (not installable by pip):
+#   sudo apt-get install fontconfig fonts-noto-cjk
