@@ -8,6 +8,7 @@ from PIL import Image
 from adcg.generation.model_loader import (
     load_generation_pipeline,
 )
+from adcg.negative_prompts import IDENTITY_NEGATIVE_PROMPT
 from adcg.prompt_tokens import fit_clip_prompt
 from adcg.image_utils.blending import (
     align_product_to_mask,
@@ -24,7 +25,6 @@ from .diagnostics import (
     save_metadata,
 )
 from .prompt import (
-    NEGATIVE_REQUIRED,
     POSITIVE_REQUIRED,
     load_refinement_prompt,
 )
@@ -110,7 +110,7 @@ def run_identity_restoration(
         cv2.cvtColor(canny, cv2.COLOR_GRAY2RGB)
     )
 
-    prompt, negative_prompt = load_refinement_prompt(
+    prompt = load_refinement_prompt(
         prompt_json
     )
 
@@ -131,9 +131,8 @@ def run_identity_restoration(
     )
     negative_prompt = fit_clip_prompt(
         pipe.tokenizer,
-        negative_prompt,
+        IDENTITY_NEGATIVE_PROMPT,
         label="identity negative",
-        required_prefix=NEGATIVE_REQUIRED,
     )
     generator_device = "cuda" if torch.cuda.is_available() else "cpu"
     generator = torch.Generator(

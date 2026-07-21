@@ -8,12 +8,6 @@ POSITIVE_REQUIRED = (
     "natural edge colors, commercial product photography"
 )
 
-NEGATIVE_REQUIRED = (
-    "halo, black outline, white outline, jagged edge, "
-    "pasted cutout, floating product, duplicate product, "
-    "deformed product"
-)
-
 
 def load_refinement_prompt(prompt_json):
     data = json.loads(
@@ -26,9 +20,4 @@ def load_refinement_prompt(prompt_json):
         "background_prompt",
         data.get("background_prompt", ""),
     )
-    negative = generation.get(
-        "negative_prompt",
-        data.get("negative_prompt", ""),
-    )
-
-    return prompt.strip(), negative.strip()
+    return prompt.strip()

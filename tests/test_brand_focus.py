@@ -52,7 +52,7 @@ class BrandFocusTests(unittest.TestCase):
             SYSTEM_PROMPT,
         )
         self.assertIn(
-            "negative_prompt between 15 and 25 English words",
+            "Set negative_prompt to an empty string",
             SYSTEM_PROMPT,
         )
 

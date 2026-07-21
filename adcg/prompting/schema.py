@@ -1,4 +1,5 @@
-import re
+from adcg.negative_prompts import GENERATION_NEGATIVE_PROMPT
+
 
 PROMPT_SCHEMA_KEYS = {
     "product_analysis",
@@ -12,28 +13,6 @@ DEFAULT_POSITIVE = (
     "matching perspective, subtle depth, clean copy space"
 )
 
-REQUIRED_NEGATIVE_TERMS = (
-    "duplicate product",
-    "extra product",
-    "distorted product",
-    "deformed product",
-    "merged objects",
-    "people",
-    "hands",
-    "faces",
-    "body parts",
-    "text",
-    "letters",
-    "logo",
-    "watermark",
-    "floating product",
-    "pasted cutout",
-    "halo",
-    "jagged edge",
-    "harsh outline",
-    "conflicting perspective",
-    "unsupported objects",
-)
 
 def clamp_float(value, minimum, maximum, default):
     try:
@@ -54,34 +33,6 @@ def normalize_string_list(value):
         if str(item).strip()
     ]
 
-
-def prioritize_required_terms(prompt, required_terms):
-    """Put canonical safety terms first and remove VLM duplicates."""
-    prompt_parts = [
-        part.strip()
-        for part in str(prompt or "").strip().strip(",").split(",")
-        if part.strip()
-    ]
-
-    def contains_required_term(part):
-        return any(
-            re.search(
-                rf"(?<![a-z0-9]){re.escape(term.lower())}(?![a-z0-9])",
-                part.lower(),
-            )
-            for term in required_terms
-        )
-
-    custom_parts = []
-    seen = set()
-    for part in prompt_parts:
-        normalized = " ".join(part.lower().split())
-        if contains_required_term(part) or normalized in seen:
-            continue
-        seen.add(normalized)
-        custom_parts.append(part)
-
-    return ", ".join([*required_terms, *custom_parts])
 
 def normalize_prompt_json(data):
     if not isinstance(data, dict):
@@ -115,10 +66,7 @@ def normalize_prompt_json(data):
     if not background_prompt:
         background_prompt = DEFAULT_POSITIVE
 
-    negative_prompt = prioritize_required_terms(
-        raw_generation.get("negative_prompt"),
-        REQUIRED_NEGATIVE_TERMS,
-    )
+    negative_prompt = GENERATION_NEGATIVE_PROMPT
 
     product_position = str(
         raw_layout.get("product_position") or "lower_center"

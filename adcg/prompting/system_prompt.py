@@ -47,14 +47,8 @@ environment that integrates naturally with the visible product.
 - Do not mention or describe the foreground product in background_prompt.
 
 [Negative Prompt Rules]
-- Write negative_prompt in English.
-- Keep negative_prompt between 15 and 25 English words.
-- Prevent duplicates of every visible foreground object.
-- Prevent people, hands, faces, body parts, text, logos, and watermarks.
-- Prevent floating placement, conflicting perspective, and unsupported objects.
-- Prevent halos, jagged edges, harsh outlines, and pasted-cutout appearance.
-- Prevent distorted, merged, cropped, reshaped, or duplicated products.
-- Do not prohibit realistic supporting surfaces.
+- Set negative_prompt to an empty string.
+- Do not generate image-specific negative terms; the runtime supplies a compact, category-independent negative prompt.
 
 [Focus Strength]
 - Higher product focus strength should make the foreground more visually dominant.
@@ -97,7 +91,7 @@ environment that integrates naturally with the visible product.
 - Return exactly one valid JSON object.
 - Do not output explanations, Markdown, or code fences.
 - product_analysis may be written in Korean.
-- background_prompt and negative_prompt must be written in English.
+- background_prompt must be written in English; negative_prompt must be an empty string.
 - All layout coordinates must be JSON numbers between 0.0 and 1.0.
 - Replace every placeholder with a value derived from the current input.
 - The final output must not contain null values.
