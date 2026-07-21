@@ -2,6 +2,7 @@ import streamlit as st
 import os
 import json
 import time
+import traceback
 from pathlib import Path
 from uuid import uuid4
 
@@ -39,6 +40,26 @@ st.html(
 /* 전체 앱 및 사이드바 배경 (웜 화이트 & 소프트 베이지) */
 .stApp {
     background-color: #FDFBF7;
+}
+.block-container {
+    max-width: 1600px;
+    padding-top: 1.25rem;
+    padding-bottom: 1.5rem;
+}
+[data-testid="stVerticalBlock"] {
+    gap: 0.65rem;
+}
+.block-container h1 {
+    font-size: clamp(1.8rem, 2.5vw, 2.7rem) !important;
+    line-height: 1.2 !important;
+    margin-bottom: 0.25rem !important;
+}
+.block-container h3 {
+    font-size: 1.15rem !important;
+    margin-bottom: 0.15rem !important;
+}
+[data-testid="stFileUploaderDropzone"] {
+    padding: 0.75rem !important;
 }
 [data-testid="stSidebar"] {
     background-color: #F4EBE1 !important;
@@ -178,32 +199,71 @@ if st.session_state.step == 1:
     st.caption("업로드된 데이터는 로컬 환경에 안전하게 임시 저장되어 AI 파이프라인의 인풋으로 사용됩니다.")
     st.divider()
 
-    col_left, col_right = st.columns(2)
-    
-    with col_left:
-        st.subheader("A. 상품 이미지 업로드")
-        uploaded_image = st.file_uploader("이미지 파일 선택 (JPG, PNG)", type=["jpg", "jpeg", "png"])
+    col_image, col_product, col_store, col_ad = st.columns(
+        [0.9, 1.0, 1.0, 1.0],
+        gap="large",
+    )
+
+    with col_image:
+        st.subheader("A. 상품 이미지")
+        uploaded_image = st.file_uploader(
+            "이미지 파일 (JPG, PNG)",
+            type=["jpg", "jpeg", "png"],
+        )
         if uploaded_image:
-            st.image(uploaded_image, caption="업로드 이미지 미리보기", use_column_width=True)
-            
-    with col_right:
-            st.subheader("B. 매장 정보 직접 입력")
-            
-            # 사용자로부터 직접 입력받는 폼 생성 (예시 텍스트를 기본값으로 삽입)
-            product_name = st.text_input("상품명", value="수제 베이커리 세트")
-            product_description = st.text_area("상품 설명", value="다양한 빵과 쿠키, 아이스커피로 구성된 세트")
-            seller_description = st.text_area("판매자 설명", value="매일 아침 직접 굽는 동네 베이커리")
-            store_info = st.text_input("매장 정보", value="따뜻하고 편안한 분위기의 소규모 카페")
-            
-            # 리뷰는 여러 줄로 입력받아 리스트로 변환하기 쉽도록 안내
-            reviews_input = st.text_area("리뷰 (엔터로 구분해서 입력)", value="빵이 부드럽고 신선해요\n커피와 함께 먹기 좋아요")
-            
-            focus = st.selectbox("광고 포커스 선택", options=["product", "brand", "sales"])
-            additional_request = st.text_area("추가 요청사항", value="따뜻한 아침 햇살이 들어오는 카페 분위기")
+            st.image(uploaded_image, caption="미리보기", width=280)
+
+    with col_product:
+        st.subheader("B. 상품 정보")
+        product_name = st.text_input(
+            "상품명", value="수제 베이커리 세트"
+        )
+        product_description = st.text_area(
+            "상품 설명",
+            value="다양한 빵과 쿠키, 아이스커피로 구성된 세트",
+            height=96,
+        )
+        seller_description = st.text_area(
+            "판매자 설명",
+            value="매일 아침 직접 굽는 동네 베이커리",
+            height=80,
+        )
+
+    with col_store:
+        st.subheader("C. 매장·후기")
+        store_info = st.text_input(
+            "매장 정보", value="따뜻하고 편안한 분위기의 소규모 카페"
+        )
+        reviews_input = st.text_area(
+            "리뷰 (엔터로 구분)",
+            value="빵이 부드럽고 신선해요\n커피와 함께 먹기 좋아요",
+            height=176,
+        )
+
+    with col_ad:
+        st.subheader("D. 광고 방향")
+        focus = st.selectbox(
+            "광고 포커스",
+            options=["product", "brand", "sales"],
+            format_func=lambda value: {
+                "product": "상품 중심",
+                "brand": "브랜드 중심",
+                "sales": "판매 전환 중심",
+            }[value],
+        )
+        additional_request = st.text_area(
+            "추가 요청사항",
+            value="따뜻한 아침 햇살이 들어오는 카페 분위기",
+            height=176,
+        )
 
     st.divider()
     
-    if st.button("광고 제작 시작하기 ➔", use_container_width=True):
+    if st.button(
+        "광고 제작 시작하기 ➔",
+        use_container_width=True,
+        type="primary",
+    ):
         if uploaded_image:
             # 1. 이미지 파일을 사용자 세션 폴더에 보존
             img_path = (
@@ -420,7 +480,23 @@ elif st.session_state.step == 3:
                         st.session_state.step = 4
                         st.rerun()
                     except Exception as e:
-                        st.error(f"카피 및 레이아웃 생성 중 오류가 발생했습니다: {e}")
+                        traceback.print_exc()
+                        copy_json_candidate = (
+                            Path(st.session_state.job_output_dir)
+                            / "02_prompt"
+                            / "ad_copy.json"
+                        )
+                        if copy_json_candidate.is_file():
+                            st.warning(
+                                "광고 문구 생성은 완료됐지만 레이아웃 합성에서 "
+                                "중단됐습니다. VM 터미널의 상세 로그를 확인해주세요."
+                            )
+                        else:
+                            st.warning(
+                                "광고 문구 생성 단계에서 중단됐습니다. "
+                                "OpenAI 설정과 VM 터미널 로그를 확인해주세요."
+                            )
+                        st.exception(e)
 
     st.divider()
     if st.button("🔄 새로운 광고 만들기", use_container_width=True):

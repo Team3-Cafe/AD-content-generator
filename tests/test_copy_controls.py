@@ -29,7 +29,14 @@ class CopyControlTests(unittest.TestCase):
             return_value=client,
         ):
             result = generate_ad_copy(
-                product_info={"product_name": "빵 세트"},
+                product_info={
+                    "product_name": "빵 세트",
+                    "seller_description": "매일 직접 굽는 동네 빵집",
+                    "store_info": "주택가의 소규모 매장",
+                    "reviews": ["신선해요"],
+                    "focus": "brand",
+                    "additional_request": "정직한 분위기를 강조",
+                },
                 background_prompt="Warm bakery",
                 model="test-model",
                 copy_tone="따뜻하고 친근한",
@@ -38,6 +45,11 @@ class CopyControlTests(unittest.TestCase):
 
         self.assertIn("따뜻하고 친근한", captured["input"])
         self.assertIn("12 Korean characters", captured["input"])
+        self.assertIn("매일 직접 굽는 동네 빵집", captured["input"])
+        self.assertIn("주택가의 소규모 매장", captured["input"])
+        self.assertIn("신선해요", captured["input"])
+        self.assertIn('"focus": "brand"', captured["input"])
+        self.assertIn("정직한 분위기를 강조", captured["input"])
         self.assertEqual(result["title"], "따뜻한 한 끼")
 
     def test_invalid_copy_length_is_rejected_before_api_call(self):

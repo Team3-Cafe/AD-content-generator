@@ -7,10 +7,18 @@ from openai import OpenAI
 
 COPY_INPUT_FIELDS = (
     "product_name",
+    "product_description",
+    "seller_description",
+    "store_info",
+    "reviews",
+    "focus",
+    "additional_request",
     "store_name",
     "store_type",
     "product_category",
-    "product_description",
+    "features",
+    "target_customer",
+    "promotion",
     "price",
     "tone",
 )
@@ -74,6 +82,10 @@ def generate_ad_copy(
     }
     prompt = (
         "Write concise Korean advertising copy using only the supplied facts. "
+        "Use seller_description, store_info, reviews, focus, and "
+        "additional_request when present. Treat reviews as supporting context, "
+        "not as verified claims or verbatim testimonials. Interpret focus as "
+        "product, brand, or sales emphasis without inventing facts. "
         "Do not invent prices, discounts, benefits, or contact channels. Return "
         "an empty price when price is absent. The accepted input has no contact "
         "destination, so return an empty CTA and never invent a generic contact "
