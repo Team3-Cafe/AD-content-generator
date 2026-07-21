@@ -10,7 +10,11 @@ import subprocess
 from PIL import Image, ImageChops, ImageColor, ImageDraw, ImageFilter, ImageFont
 
 
+PROJECT_ROOT = Path(__file__).resolve().parents[2]
+PROJECT_KOREAN_FONT = PROJECT_ROOT / "assets" / "fonts" / "NotoSansKR.ttf"
+
 REGULAR_FONT_CANDIDATES = (
+    PROJECT_KOREAN_FONT,
     "C:/Windows/Fonts/malgun.ttf",
     "/usr/share/fonts/opentype/noto/NotoSansCJK-Regular.ttc",
     "/usr/share/fonts/truetype/noto/NotoSansKR-Regular.ttf",
@@ -20,6 +24,7 @@ REGULAR_FONT_CANDIDATES = (
 )
 
 BOLD_FONT_CANDIDATES = (
+    PROJECT_KOREAN_FONT,
     "C:/Windows/Fonts/malgunbd.ttf",
     "/usr/share/fonts/opentype/noto/NotoSansCJK-Bold.ttc",
     "/usr/share/fonts/truetype/noto/NotoSansKR-Bold.ttf",
@@ -265,9 +270,8 @@ def _fit_text(
     )
     if _contains_korean(text) and resolved_font is None:
         raise RuntimeError(
-            "No Korean-capable font was found. Pass --layout-font to "
-            "run_pipeline.py, --font to adcg.prompt_layout, or set "
-            "ADCG_FONT_PATH."
+            "No Korean-capable font was found. Add "
+            "assets/fonts/NotoSansKR.ttf or set ADCG_FONT_PATH."
         )
 
     selected = None

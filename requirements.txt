@@ -29,5 +29,5 @@ sentencepiece>=0.2,<1
 protobuf>=3.20,<4
 hpsv2 @ git+https://github.com/tgxs002/HPSv2.git@866735ecaae999fa714bd9edfa05aa2672669ee3
 
-# Linux system dependency for Korean copy rendering (not installable by pip):
+# Optional Linux fallback when assets/fonts/NotoSansKR.ttf is unavailable:
 #   sudo apt-get install fontconfig fonts-noto-cjk
