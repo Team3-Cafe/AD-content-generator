@@ -73,23 +73,35 @@ def build_truncation_instruction(preprocess_context):
 
 def build_user_instruction(
     product_info,
-    focus_strength=1.0,
+    product_focus=1.0,
+    brand_focus=0.5,
     preprocess_context=None,
 ):
     preprocess_context = preprocess_context or {}
-    percent = int(round(focus_strength * 100))
+    product_percent = int(round(product_focus * 100))
+    brand_percent = int(round(brand_focus * 100))
+    everyday_percent = 100 - brand_percent
 
     return f"""
 Create a scene plan for the supplied foreground product image.
 
-Product focus strength:
-{percent}%
+Product focus:
+{product_percent}%
 
 Interpret this value as how strongly the final scene should emphasize the product.
 Higher values should make the product more visually dominant and the surrounding
 background simpler and softer. Lower values may allow a more atmospheric or
 blurrier background while preserving product recognition.
 
+Brand focus:
+{brand_focus:.2f} ({everyday_percent}% authentic everyday environment / {brand_percent}% premium purpose-built set)
+
+Treat brand focus as a continuous background-art-direction value. Do not snap it
+to low, medium, or high presets. Use it only to balance environmental authenticity,
+staging, contextual prop density, surface refinement, realistic imperfections, and
+deliberate negative space. Preserve any explicit desired scene. Do not use brand
+focus to prescribe lighting intensity, exposure, brightness, contrast, saturation,
+white balance, shadows, highlights, blur, or foreground product appearance.
 Product and store metadata:
 {json.dumps(product_info, ensure_ascii=False, indent=2)}
 
@@ -112,7 +124,8 @@ def run_prompt_generation(
     info_path,
     output_path,
     model="gpt-5.4-nano",
-    focus_strength=1.0,
+    product_focus=1.0,
+    brand_focus=0.5,
     detail="low",
     preprocess_metadata_path=None,
     client=None,
@@ -127,9 +140,14 @@ def run_prompt_generation(
             "detail은 'low' 또는 'high'여야 합니다."
         )
 
-    if not 0.0 <= focus_strength <= 1.0:
+    if not 0.0 <= product_focus <= 1.0:
         raise ValueError(
-            "focus_strength는 0.0부터 1.0 사이의 값이어야 합니다."
+            "product_focus는 0.0부터 1.0 사이의 값이어야 합니다."
+        )
+
+    if not 0.0 <= brand_focus <= 1.0:
+        raise ValueError(
+            "brand_focus must be between 0.0 and 1.0."
         )
 
     if not image_path.exists():
@@ -156,7 +174,8 @@ def run_prompt_generation(
                         "type": "input_text",
                         "text": build_user_instruction(
                             product_info=product_info,
-                            focus_strength=focus_strength,
+                            product_focus=product_focus,
+                            brand_focus=brand_focus,
                             preprocess_context=preprocess_context,
                         ),
                     },
@@ -174,6 +193,10 @@ def run_prompt_generation(
 
     result = extract_json(response.output_text)
     result = normalize_prompt_json(result)
+    result["controls"] = {
+        "product_focus": product_focus,
+        "brand_focus": brand_focus,
+    }
 
     output_path.parent.mkdir(
         parents=True,

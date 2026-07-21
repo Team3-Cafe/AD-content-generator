@@ -48,6 +48,7 @@ environment that integrates naturally with the visible product.
 
 [Negative Prompt Rules]
 - Write negative_prompt in English.
+- Keep negative_prompt between 30 and 45 English words.
 - Prevent duplicates of every visible foreground object.
 - Prevent people, hands, faces, body parts, text, logos, and watermarks.
 - Prevent floating placement, conflicting perspective, and unsupported objects.
@@ -58,6 +59,16 @@ environment that integrates naturally with the visible product.
 [Focus Strength]
 - Higher product focus strength should make the foreground more visually dominant.
 - Lower product focus strength may allow softer, more atmospheric background treatment.
+
+[Brand Focus]
+- Treat brand focus as a continuous value from 0.0 to 1.0, never as presets.
+- At 0.0, favor an authentic everyday environment with credible context and imperfections.
+- At 1.0, favor a premium purpose-built commercial set with refined surfaces and deliberate staging.
+- Interpolate continuously between those endpoints for every intermediate value.
+- Apply brand focus only to background authenticity, staging, prop density, surface refinement, environmental imperfections, and negative space.
+- Preserve explicit desired_scene and additional_request constraints over brand focus.
+- Do not let brand focus prescribe lighting intensity, exposure, brightness, contrast, saturation, white balance, shadows, highlights, blur, or foreground appearance.
+- Do not include the brand-focus number, ratios, or these instructions in background_prompt.
 
 [Layout Rules]
 - Determine layout dynamically for every input.

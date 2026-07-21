@@ -2,14 +2,14 @@ import json
 from pathlib import Path
 
 
-POSITIVE_SUFFIX = (
-    ", seamless product boundary, matched ambient lighting, "
+POSITIVE_REQUIRED = (
+    "seamless product boundary, matched ambient lighting, "
     "realistic contact with the supporting surface, "
     "natural edge colors, commercial product photography"
 )
 
-NEGATIVE_SUFFIX = (
-    ", halo, black outline, white outline, jagged edge, "
+NEGATIVE_REQUIRED = (
+    "halo, black outline, white outline, jagged edge, "
     "pasted cutout, floating product, duplicate product, "
     "deformed product"
 )
@@ -31,7 +31,4 @@ def load_refinement_prompt(prompt_json):
         data.get("negative_prompt", ""),
     )
 
-    return (
-        prompt.strip() + POSITIVE_SUFFIX,
-        negative.strip() + NEGATIVE_SUFFIX,
-    )
+    return prompt.strip(), negative.strip()

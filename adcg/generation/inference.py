@@ -2,6 +2,8 @@ import time
 
 import torch
 
+from adcg.prompt_tokens import fit_clip_prompt
+
 
 def run_conditioned_inference(
     pipe,
@@ -18,6 +20,17 @@ def run_conditioned_inference(
     controlnet_scale,
     seed,
 ):
+    prompt = fit_clip_prompt(
+        pipe.tokenizer,
+        prompt,
+        label="generation positive",
+    )
+    negative_prompt = fit_clip_prompt(
+        pipe.tokenizer,
+        negative_prompt,
+        label="generation negative",
+    )
+
     generator_device = "cuda" if torch.cuda.is_available() else "cpu"
     generator = torch.Generator(
         device=generator_device

@@ -8,6 +8,7 @@ from PIL import Image
 from adcg.generation.model_loader import (
     load_generation_pipeline,
 )
+from adcg.prompt_tokens import fit_clip_prompt
 from adcg.image_utils.blending import (
     align_product_to_mask,
     color_match_product,
@@ -22,22 +23,27 @@ from .diagnostics import (
     save_diagnostics,
     save_metadata,
 )
-from .prompt import load_refinement_prompt
+from .prompt import (
+    NEGATIVE_REQUIRED,
+    POSITIVE_REQUIRED,
+    load_refinement_prompt,
+)
 
-def _dim_boundary(boundary, focus_strength):
-    focus_strength = float(np.clip(focus_strength, 0.0, 1.0))
-    dim_scale = 1.0 - focus_strength * 0.18
+
+def _dim_boundary(boundary, product_focus):
+    product_focus = float(np.clip(product_focus, 0.0, 1.0))
+    dim_scale = 1.0 - product_focus * 0.18
     return np.clip(boundary * dim_scale, 0, 255)
 
 
-def _enhance_identity_product(product_rgb, focus_strength):
-    focus_strength = float(np.clip(focus_strength, 0.0, 1.0))
+def _enhance_identity_product(product_rgb, product_focus):
+    product_focus = float(np.clip(product_focus, 0.0, 1.0))
     mean = np.mean(product_rgb, axis=2, keepdims=True)
-    contrast = 1.0 + focus_strength * 0.28
+    contrast = 1.0 + product_focus * 0.28
     enhanced = mean + (product_rgb - mean) * contrast
-    saturation = 1.0 + focus_strength * 0.15
+    saturation = 1.0 + product_focus * 0.15
     enhanced = np.clip(mean + (enhanced - mean) * saturation, 0, 255)
-    brightness = 1.0 + focus_strength * 0.12
+    brightness = 1.0 + product_focus * 0.12
     return np.clip(enhanced * brightness, 0, 255)
 
 
@@ -64,7 +70,7 @@ def run_identity_restoration(
     guidance_scale=6.5,
     controlnet_scale=0.60,
     seed=42,
-    focus_strength=1.0,
+    product_focus=1.0,
     cpu_offload=False,
 ):
     output_dir = prepare_output_dir(output_dir)
@@ -113,6 +119,18 @@ def run_identity_restoration(
         cpu_offload=cpu_offload,
     )
 
+    prompt = fit_clip_prompt(
+        pipe.tokenizer,
+        prompt,
+        label="identity positive",
+        required_prefix=POSITIVE_REQUIRED,
+    )
+    negative_prompt = fit_clip_prompt(
+        pipe.tokenizer,
+        negative_prompt,
+        label="identity negative",
+        required_prefix=NEGATIVE_REQUIRED,
+    )
     generator_device = "cuda" if torch.cuda.is_available() else "cpu"
     generator = torch.Generator(
         device=generator_device
@@ -138,7 +156,7 @@ def run_identity_restoration(
         base_array * (1.0 - boundary_weight[..., None])
         + inpainted_array * boundary_weight[..., None]
     )
-    boundary_refined = _dim_boundary(boundary_refined, focus_strength)
+    boundary_refined = _dim_boundary(boundary_refined, product_focus)
 
     aligned_product = align_product_to_mask(
         product_path=product_image,
@@ -171,7 +189,7 @@ def run_identity_restoration(
     )
     product_rgb = _enhance_identity_product(
         product_rgb,
-        focus_strength,
+        product_focus,
     )
 
     final = (
@@ -214,7 +232,7 @@ def run_identity_restoration(
             "strength": strength,
             "controlnet_scale": controlnet_scale,
             "identity_opacity": identity_opacity,
-            "focus_strength": focus_strength,
+            "product_focus": product_focus,
             "seed": seed,
         },
     )

@@ -11,20 +11,20 @@ from adcg.image_utils.blending import (
 )
 from adcg.image_utils.masks import blur_mask, ellipse_kernel
 
-def _enhance_product_details(product_rgb, focus_strength):
-    focus_strength = float(np.clip(focus_strength, 0.0, 1.0))
+def _enhance_product_details(product_rgb, product_focus):
+    product_focus = float(np.clip(product_focus, 0.0, 1.0))
     mean = np.mean(product_rgb, axis=2, keepdims=True)
-    contrast = 1.0 + focus_strength * 0.35
+    contrast = 1.0 + product_focus * 0.35
     enhanced = mean + (product_rgb - mean) * contrast
-    saturation = 1.0 + focus_strength * 0.22
+    saturation = 1.0 + product_focus * 0.22
     boosted = np.clip(mean + (enhanced - mean) * saturation, 0, 255)
-    brightness = 1.0 + focus_strength * 0.12
+    brightness = 1.0 + product_focus * 0.12
     return np.clip(boosted * brightness, 0, 255)
 
 
-def _dim_background(background, focus_strength):
-    focus_strength = float(np.clip(focus_strength, 0.0, 1.0))
-    dim_scale = 1.0 - focus_strength * 0.28
+def _dim_background(background, product_focus):
+    product_focus = float(np.clip(product_focus, 0.0, 1.0))
+    dim_scale = 1.0 - product_focus * 0.28
     return np.clip(background * dim_scale, 0, 255)
 from .diagnostics import (
     prepare_output_dir,
@@ -44,7 +44,7 @@ def run_core_refinement(
     core_opacity=0.92,
     outer_protection=7,
     background_strength=0.20,
-    focus_strength=1.0,
+    product_focus=1.0,
     shadow_offset=3,
     shadow_blur=6.0,
     shadow_strength=0.12,
@@ -99,16 +99,16 @@ def run_core_refinement(
     core_weight = blur_mask(core_mask, core_feather)
     core_weight *= mask.astype(np.float32) / 255.0
     core_weight = np.clip(
-        core_weight * core_opacity * (1.0 + focus_strength * 0.10),
+        core_weight * core_opacity * (1.0 + product_focus * 0.10),
         0.0,
         1.0,
     )
 
-    focus_strength = float(np.clip(focus_strength, 0.0, 1.0))
+    product_focus = float(np.clip(product_focus, 0.0, 1.0))
     effective_background_strength = (
-        background_strength + focus_strength * 0.60
+        background_strength + product_focus * 0.60
     )
-    blur_factor = focus_strength * 12.0
+    blur_factor = product_focus * 12.0
     blur_radius = 1 + int(np.clip(blur_factor, 0, 14))
 
     background_refined = cv2.bilateralFilter(
@@ -127,7 +127,7 @@ def run_core_refinement(
     background_refined = background_refined.astype(np.float32)
     background_refined = _dim_background(
         background_refined,
-        focus_strength,
+        product_focus,
     )
 
     background_mask = 255 - outer_mask
@@ -181,7 +181,7 @@ def run_core_refinement(
             "core_feather": core_feather,
             "core_opacity": core_opacity,
             "background_strength": background_strength,
-            "focus_strength": focus_strength,
+            "product_focus": product_focus,
             "effective_background_strength": effective_background_strength,
         },
     )

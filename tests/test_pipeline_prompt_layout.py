@@ -90,7 +90,7 @@ class PipelinePromptLayoutTests(unittest.TestCase):
         ), patch(
             "adcg.pipeline.run_prompt_generation",
             return_value=prompt_path,
-        ), patch(
+        ) as prompt_generation, patch(
             "adcg.pipeline.generate_ad_copy",
             return_value=selected_copy,
         ), patch(
@@ -99,10 +99,10 @@ class PipelinePromptLayoutTests(unittest.TestCase):
         ), patch(
             "adcg.pipeline.run_core_refinement",
             return_value=root / "core.png",
-        ), patch(
+        ) as core_refinement, patch(
             "adcg.pipeline.run_identity_restoration",
             return_value=identity_image,
-        ), patch(
+        ) as identity_restoration, patch(
             "adcg.pipeline.load_ad_copy",
             return_value=selected_copy,
         ) as copy_loader, patch(
@@ -113,8 +113,22 @@ class PipelinePromptLayoutTests(unittest.TestCase):
                 image_path=root / "product.png",
                 info_path=info_path,
                 output_dir=output_dir,
+                product_focus=0.65,
+                brand_focus=0.73,
             )
 
+        self.assertEqual(
+            prompt_generation.call_args.kwargs["product_focus"], 0.65
+        )
+        self.assertEqual(
+            prompt_generation.call_args.kwargs["brand_focus"], 0.73
+        )
+        self.assertEqual(
+            core_refinement.call_args.kwargs["product_focus"], 0.65
+        )
+        self.assertEqual(
+            identity_restoration.call_args.kwargs["product_focus"], 0.65
+        )
         copy_loader.assert_called_once_with(
             output_dir / "02_prompt" / "ad_copy.json",
             copy_index=0,
