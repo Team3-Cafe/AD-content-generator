@@ -5,6 +5,7 @@ from pathlib import Path
 from .eval import run_evaluation
 from .generation import run_generation
 from .preprocessing import run_preprocess
+from .prompt_layout import generate_prompt_layout, load_ad_copy
 from .prompting import generate_ad_copy, run_prompt_generation
 from .refinement import (
     run_core_refinement,
@@ -20,6 +21,8 @@ class PipelineResult:
     generated_image: Path
     core_refined_image: Path
     identity_restored_image: Path
+    layout_json: Path
+    final_review_json: Path
     final_image: Path
     eval_json: Path | None
 
@@ -42,15 +45,16 @@ def run_pipeline(
     output_dir.mkdir(parents=True, exist_ok=True)
 
     eval_options = dict(eval_options or {})
+    total_steps = 8 if evaluate else 7
 
-    print("[1/6] Product preprocessing")
+    print(f"[1/{total_steps}] Product preprocessing")
 
     preprocessed = run_preprocess(
         image_path=image_path,
         output_dir=output_dir / "01_preprocessed",
     )
 
-    print("[2/6] Scene prompt generation")
+    print(f"[2/{total_steps}] Scene prompt generation")
 
     prompt_json = run_prompt_generation(
         image_path=image_path,
@@ -60,7 +64,7 @@ def run_pipeline(
         focus_strength=focus_strength,
     )
 
-    print("[3/6] Advertisement copy generation")
+    print(f"[3/{total_steps}] Advertisement copy generation")
 
     product_info = json.loads(
         Path(info_path).read_text(encoding="utf-8")
@@ -112,7 +116,7 @@ def run_pipeline(
         "cpu_offload": cpu_offload,
     }
 
-    print("[4/6] Conditioned diffusion generation")
+    print(f"[4/{total_steps}] Conditioned diffusion generation")
 
     generated = run_generation(
         product_image=generation_product,
@@ -123,7 +127,7 @@ def run_pipeline(
 
     refinement_product = preprocessed["trimmed_cutout"]
 
-    print("[5/6] Core product refinement")
+    print(f"[5/{total_steps}] Core product refinement")
 
     core_refined = run_core_refinement(
         generated_image=generated["image"],
@@ -133,7 +137,7 @@ def run_pipeline(
         focus_strength=focus_strength,
     )
 
-    print("[6/6] Boundary and identity restoration")
+    print(f"[6/{total_steps}] Boundary and identity restoration")
 
     identity_restored_image = run_identity_restoration(
         input_image=core_refined,
@@ -142,12 +146,13 @@ def run_pipeline(
         prompt_json=prompt_json,
         output_dir=output_dir / "05_final",
         seed=seed,
+        focus_strength=focus_strength,
         cpu_offload=cpu_offload,
     )
 
     eval_json = None
     if evaluate:
-        print("[7/7] Quantitative evaluation")
+        print(f"[7/{total_steps}] Quantitative evaluation")
 
         eval_dir = output_dir / "06_eval"
         eval_dir.mkdir(parents=True, exist_ok=True)
@@ -168,6 +173,17 @@ def run_pipeline(
             **eval_kwargs,
         )
 
+    print(
+        f"[{total_steps}/{total_steps}] "
+        "Content-aware advertisement copy layout"
+    )
+
+    layout_result = generate_prompt_layout(
+        image_path=identity_restored_image,
+        ad_copy=load_ad_copy(copy_json, copy_index=0),
+        output_dir=output_dir / "07_prompt_layout",
+    )
+
     return PipelineResult(
         output_dir=output_dir,
         prompt_json=Path(prompt_json),
@@ -175,6 +191,8 @@ def run_pipeline(
         generated_image=Path(generated["image"]),
         core_refined_image=Path(core_refined),
         identity_restored_image=Path(identity_restored_image),
-        final_image=Path(identity_restored_image),
+        layout_json=Path(layout_result.layout_json),
+        final_review_json=Path(layout_result.final_review_json),
+        final_image=Path(layout_result.rendered_image),
         eval_json=eval_json,
     )

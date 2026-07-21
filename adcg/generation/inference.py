@@ -18,8 +18,9 @@ def run_conditioned_inference(
     controlnet_scale,
     seed,
 ):
+    generator_device = "cuda" if torch.cuda.is_available() else "cpu"
     generator = torch.Generator(
-        device="cuda"
+        device=generator_device
     ).manual_seed(seed)
 
     start_time = time.perf_counter()

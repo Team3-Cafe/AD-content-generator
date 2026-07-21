@@ -25,6 +25,8 @@ def main():
     print(f"Generated   : {result.generated_image}")
     print(f"Core refined: {result.core_refined_image}")
     print(f"Identity img: {result.identity_restored_image}")
+    print(f"Layout JSON : {result.layout_json}")
+    print(f"Final review: {result.final_review_json}")
     print(f"Final image : {result.final_image}")
 
     if result.eval_json is not None:

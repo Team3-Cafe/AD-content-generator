@@ -11,10 +11,8 @@ def load_generation_pipeline(
     controlnet_model,
     cpu_offload=False,
 ):
-    if not torch.cuda.is_available():
-        raise RuntimeError("CUDA GPU를 찾을 수 없습니다.")
-
-    dtype = torch.float16
+    has_cuda = torch.cuda.is_available()
+    dtype = torch.float16 if has_cuda else torch.float32
 
     print(f"[ControlNet 로드] {controlnet_model}")
     controlnet = ControlNetModel.from_pretrained(
@@ -37,9 +35,11 @@ def load_generation_pipeline(
     pipe.enable_attention_slicing()
     pipe.enable_vae_slicing()
 
-    if cpu_offload:
+    if cpu_offload and has_cuda:
         pipe.enable_model_cpu_offload()
-    else:
+    elif has_cuda:
         pipe.to("cuda")
+    else:
+        pipe.to("cpu")
 
     return pipe

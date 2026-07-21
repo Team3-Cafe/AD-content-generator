@@ -24,6 +24,22 @@ from .diagnostics import (
 )
 from .prompt import load_refinement_prompt
 
+def _dim_boundary(boundary, focus_strength):
+    focus_strength = float(np.clip(focus_strength, 0.0, 1.0))
+    dim_scale = 1.0 - focus_strength * 0.18
+    return np.clip(boundary * dim_scale, 0, 255)
+
+
+def _enhance_identity_product(product_rgb, focus_strength):
+    focus_strength = float(np.clip(focus_strength, 0.0, 1.0))
+    mean = np.mean(product_rgb, axis=2, keepdims=True)
+    contrast = 1.0 + focus_strength * 0.28
+    enhanced = mean + (product_rgb - mean) * contrast
+    saturation = 1.0 + focus_strength * 0.15
+    enhanced = np.clip(mean + (enhanced - mean) * saturation, 0, 255)
+    brightness = 1.0 + focus_strength * 0.12
+    return np.clip(enhanced * brightness, 0, 255)
+
 
 def run_identity_restoration(
     input_image,
@@ -34,7 +50,7 @@ def run_identity_restoration(
     base_model="digiplay/majicMIX_realistic_v7",
     controlnet_model="lllyasviel/control_v11p_sd15_canny",
     width=512,
-    height=512,
+    height=768,
     alpha_threshold=45,
     inner_radius=1.0,
     outer_radius=10.0,
@@ -48,11 +64,9 @@ def run_identity_restoration(
     guidance_scale=6.5,
     controlnet_scale=0.60,
     seed=42,
+    focus_strength=1.0,
     cpu_offload=False,
 ):
-    if not torch.cuda.is_available():
-        raise RuntimeError("CUDA GPU is required.")
-
     output_dir = prepare_output_dir(output_dir)
     size = (width, height)
 
@@ -99,8 +113,9 @@ def run_identity_restoration(
         cpu_offload=cpu_offload,
     )
 
+    generator_device = "cuda" if torch.cuda.is_available() else "cpu"
     generator = torch.Generator(
-        device="cuda"
+        device=generator_device
     ).manual_seed(seed)
 
     inpainted = pipe(
@@ -123,6 +138,7 @@ def run_identity_restoration(
         base_array * (1.0 - boundary_weight[..., None])
         + inpainted_array * boundary_weight[..., None]
     )
+    boundary_refined = _dim_boundary(boundary_refined, focus_strength)
 
     aligned_product = align_product_to_mask(
         product_path=product_image,
@@ -152,6 +168,10 @@ def run_identity_restoration(
         target_rgb=boundary_refined,
         valid_mask=valid_core,
         amount=color_match,
+    )
+    product_rgb = _enhance_identity_product(
+        product_rgb,
+        focus_strength,
     )
 
     final = (
@@ -194,6 +214,7 @@ def run_identity_restoration(
             "strength": strength,
             "controlnet_scale": controlnet_scale,
             "identity_opacity": identity_opacity,
+            "focus_strength": focus_strength,
             "seed": seed,
         },
     )

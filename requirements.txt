@@ -6,7 +6,7 @@ python-dotenv
 numpy
 Pillow
 opencv-python
-rembg[gpu]
+rembg[cpu]
 skia-python
 
 # Stable Diffusion and ControlNet pipelines
@@ -15,6 +15,7 @@ diffusers
 transformers
 accelerate
 safetensors
+protobuf<4
 
 # Image evaluation
 hpsv2 @ git+https://github.com/tgxs002/HPSv2.git@866735ecaae999fa714bd9edfa05aa2672669ee3
