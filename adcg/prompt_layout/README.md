@@ -74,7 +74,7 @@ Run independently after background generation:
       --image outputs/lift_truck_01/05_final/final_identity_restored.png \
       --ad-copy outputs/lift_truck_01/02_prompt/ad_copy.json \
       --output-dir outputs/lift_truck_01/07_prompt_layout \
-      --font assets/fonts/NotoSansKR.ttf
+      --font adcg/assets/fonts/NotoSansKR.ttf
 
 The default model is `gpt-4o`, image detail is `high`, and design temperature
 is `0.4`. Exactly three OpenAI calls are made: one art-direction call, one
@@ -82,12 +82,14 @@ draft revision call, and one final review of the completed advertisement.
 `OPENAI_API_KEY` is loaded from the project-root `.env` when present.
 
 The Pillow renderer runs without a browser runtime or additional system package.
-It automatically discovers Korean-capable system fonts, including `Noto Sans KR`,
+The repository includes `adcg/assets/fonts/NotoSansKR.ttf` under the SIL Open Font
+License, and this bundled font is the deterministic default on every machine.
+The renderer can also discover Korean-capable system fonts, including `Noto Sans KR`,
 `Noto Sans CJK KR`, `Malgun Gothic`, and `Apple SD Gothic Neo`.
 The `--font`/`--layout-font` options and `ADCG_FONT_PATH` remain optional overrides for
 deterministic branding; they are not required when a suitable system font is
-installed. A renderer cannot display Korean glyphs if neither the system nor the
-supplied font contains them.
+installed. The `--font`/`--layout-font` options and `ADCG_FONT_PATH` can still
+override the bundled default.
 The renderer supports rounded, pill, ellipse, cut-corner, and diagonal surfaces;
 image-derived color overlays; up to three surface shadow layers; character, word,
 and balanced wrapping; optical text anchoring; automatic same-group collision

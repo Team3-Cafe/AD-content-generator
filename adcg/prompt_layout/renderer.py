@@ -11,7 +11,9 @@ from PIL import Image, ImageChops, ImageColor, ImageDraw, ImageFilter, ImageFont
 
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
-PROJECT_KOREAN_FONT = PROJECT_ROOT / "assets" / "fonts" / "NotoSansKR.ttf"
+PROJECT_KOREAN_FONT = (
+    PROJECT_ROOT / "adcg" / "assets" / "fonts" / "NotoSansKR.ttf"
+)
 
 REGULAR_FONT_CANDIDATES = (
     PROJECT_KOREAN_FONT,
@@ -271,7 +273,7 @@ def _fit_text(
     if _contains_korean(text) and resolved_font is None:
         raise RuntimeError(
             "No Korean-capable font was found. Add "
-            "assets/fonts/NotoSansKR.ttf or set ADCG_FONT_PATH."
+            "adcg/assets/fonts/NotoSansKR.ttf or set ADCG_FONT_PATH."
         )
 
     selected = None

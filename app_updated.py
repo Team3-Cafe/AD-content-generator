@@ -218,6 +218,141 @@ div.stWarning, div.stInfo {
 div.stWarning *, div.stInfo * {
     color: #D35400 !important;
 }
+
+/* 역할이 분명한 접근성 중심 컬러 시스템 */
+:root {
+    --ui-ink: #24323B;
+    --ui-muted: #68747A;
+    --ui-primary: #C65D32;
+    --ui-primary-hover: #A94725;
+    --ui-secondary: #3F6B73;
+    --ui-success: #3F765B;
+    --ui-canvas: #F7F2EC;
+    --ui-surface: #FFFDF9;
+    --ui-border: #DED2C5;
+}
+.stApp {
+    background:
+        radial-gradient(circle at 92% 3%, rgba(198, 93, 50, 0.13), transparent 26rem),
+        radial-gradient(circle at 8% 92%, rgba(63, 107, 115, 0.09), transparent 30rem),
+        linear-gradient(145deg, #FBF8F4 0%, var(--ui-canvas) 100%);
+}
+[data-testid="stSidebar"] {
+    background: linear-gradient(180deg, #E8EFF0 0%, #DDE7E8 100%) !important;
+    border-right: 1px solid #C9D7D9 !important;
+}
+[data-testid="stSidebar"] h1,
+[data-testid="stSidebar"] h2,
+[data-testid="stSidebar"] h3,
+[data-testid="stSidebar"] p,
+[data-testid="stSidebar"] label {
+    color: var(--ui-ink) !important;
+}
+.step-hero {
+    background: linear-gradient(120deg, rgba(255, 253, 249, 0.96), rgba(242, 232, 221, 0.90));
+    border-color: var(--ui-border);
+    border-left: 5px solid var(--ui-primary);
+}
+.step-chip {
+    background: #F4F0EB;
+    border-color: #DCD3CA;
+    color: var(--ui-muted) !important;
+}
+.step-chip.done {
+    background: #E3EFE8;
+    border-color: #B9D2C3;
+    color: var(--ui-success) !important;
+}
+.step-chip.active {
+    background: var(--ui-primary);
+    border-color: var(--ui-primary);
+    color: #FFFFFF !important;
+    box-shadow: 0 5px 14px rgba(198, 93, 50, 0.25);
+}
+.step-hero h1,
+.block-container h1,
+.block-container h2,
+.block-container h3 {
+    color: var(--ui-ink) !important;
+}
+.step-hero p,
+.block-container [data-testid="stCaptionContainer"] p {
+    color: var(--ui-muted) !important;
+}
+[data-testid="stVerticalBlockBorderWrapper"],
+[data-testid="stForm"] {
+    background: rgba(255, 253, 249, 0.92);
+    border-color: var(--ui-border) !important;
+}
+[data-testid="stVerticalBlockBorderWrapper"]:hover {
+    border-color: #C6A98F !important;
+    box-shadow: 0 11px 28px rgba(79, 62, 48, 0.10);
+}
+[data-testid="stTextInput"] input,
+[data-testid="stTextArea"] textarea,
+div[data-baseweb="select"] > div {
+    background-color: var(--ui-surface) !important;
+    border-color: #D4C7BA !important;
+    color: var(--ui-ink) !important;
+}
+[data-testid="stTextInput"] input:focus,
+[data-testid="stTextArea"] textarea:focus {
+    border-color: var(--ui-primary) !important;
+    box-shadow: 0 0 0 1px var(--ui-primary) !important;
+}
+.stSlider [role="slider"] {
+    background-color: var(--ui-primary) !important;
+    border-color: #FFFFFF !important;
+}
+div.stButton > button,
+div[data-testid="stFormSubmitButton"] > button {
+    background: linear-gradient(135deg, var(--ui-primary), #D4774E) !important;
+    box-shadow: 0 6px 16px rgba(198, 93, 50, 0.22) !important;
+}
+div.stButton > button:hover,
+div[data-testid="stFormSubmitButton"] > button:hover {
+    background: var(--ui-primary-hover) !important;
+}
+div.stButton > button:disabled,
+div[data-testid="stFormSubmitButton"] > button:disabled {
+    background: #C9C4BE !important;
+    color: #F7F5F2 !important;
+    box-shadow: none !important;
+}
+[data-testid="stFileUploader"] button {
+    background-color: var(--ui-secondary) !important;
+}
+div[data-testid="stAlertContainer"][data-baseweb="notification"] {
+    border-radius: 11px !important;
+}
+div.stSuccess {
+    background-color: #E8F2EC !important;
+    border: 1px solid #B7D1C1 !important;
+}
+div.stSuccess * {
+    color: #315F49 !important;
+}
+div.stInfo {
+    background-color: #E8F0F2 !important;
+    border-color: #B9CFD3 !important;
+}
+div.stInfo * {
+    color: #365F67 !important;
+}
+div.stWarning {
+    background-color: #FFF3E2 !important;
+    border-color: #E9C796 !important;
+}
+div.stWarning * {
+    color: #8A5A19 !important;
+}
+div.stError {
+    background-color: #FBEAEA !important;
+    border: 1px solid #E5B7B7 !important;
+}
+div.stError * {
+    color: #8C3838 !important;
+}
 </style>
 """
 )

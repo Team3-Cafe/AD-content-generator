@@ -10,6 +10,11 @@ from adcg.prompt_layout.renderer import (
 
 
 class ProjectFontResolutionTests(unittest.TestCase):
+    def test_bundled_korean_font_exists_inside_adcg(self):
+        self.assertTrue(PROJECT_KOREAN_FONT.is_file())
+        self.assertIn("adcg", PROJECT_KOREAN_FONT.parts)
+        self.assertGreater(PROJECT_KOREAN_FONT.stat().st_size, 1_000_000)
+
     def test_project_korean_font_is_the_first_default_candidate(self):
         with (
             mock.patch.dict(os.environ, {"ADCG_FONT_PATH": ""}),
