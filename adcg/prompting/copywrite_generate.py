@@ -15,18 +15,52 @@ COPY_INPUT_FIELDS = (
     "tone",
 )
 
+COPY_LENGTH_GUIDANCE = {
+    "short": (
+        "Keep title within 12 Korean characters and subtitle within "
+        "20 Korean characters."
+    ),
+    "medium": (
+        "Keep title within 18 Korean characters and subtitle within "
+        "35 Korean characters."
+    ),
+    "long": (
+        "Keep title within 24 Korean characters and subtitle within "
+        "50 Korean characters."
+    ),
+}
+
 
 def generate_ad_copy(
     product_info: dict,
     background_prompt: str,
     model: str,
+    *,
+    copy_tone: str | None = None,
+    copy_length: str | None = None,
 ) -> dict:
     """Generate one concise, evidence-grounded Korean advertising copy set."""
+    if copy_tone is not None:
+        copy_tone = str(copy_tone).strip()
+        if not copy_tone:
+            raise ValueError("copy_tone은 비어 있을 수 없습니다.")
+
+    if copy_length is not None:
+        copy_length = str(copy_length).strip().lower()
+        if copy_length not in COPY_LENGTH_GUIDANCE:
+            raise ValueError(
+                "copy_length는 short, medium, long 중 하나여야 합니다."
+            )
+
     request_data = {
         field: product_info.get(field)
         for field in COPY_INPUT_FIELDS
     }
     request_data["background_prompt"] = background_prompt
+    if copy_tone is not None:
+        request_data["copy_tone"] = copy_tone
+    if copy_length is not None:
+        request_data["copy_length"] = copy_length
     schema = {
         "type": "object",
         "properties": {
@@ -46,6 +80,14 @@ def generate_ad_copy(
         "invitation.\n\n"
         + json.dumps(request_data, ensure_ascii=False, indent=2)
     )
+
+    if copy_tone is not None:
+        prompt += (
+            "\n\nUse this explicit copywriting tone in preference to any "
+            f"metadata tone: {copy_tone}."
+        )
+    if copy_length is not None:
+        prompt += "\n" + COPY_LENGTH_GUIDANCE[copy_length]
 
 
     started_at = perf_counter()
