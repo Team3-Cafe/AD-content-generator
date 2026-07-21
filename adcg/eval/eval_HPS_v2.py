@@ -3,10 +3,47 @@
 from __future__ import annotations
 
 import argparse
+from contextlib import contextmanager
+import importlib
 from pathlib import Path
+import sys
+from types import ModuleType
 
 from .eval_result_store import update_eval_results
 from .eval_utils import load_background_prompt
+
+
+@contextmanager
+def _headless_hpsv2_import_compatibility():
+    """Avoid HPSv2's unused turtle dependency on headless servers."""
+    try:
+        importlib.import_module("tkinter")
+    except ImportError:
+        pass
+    else:
+        yield
+        return
+
+    existing_turtle = sys.modules.get("turtle")
+    if existing_turtle is not None:
+        yield
+        return
+
+    turtle_stub = ModuleType("turtle")
+
+    def unsupported_forward(*_args, **_kwargs):
+        raise RuntimeError(
+            "HPSv2 unexpectedly tried to use turtle.forward on a "
+            "headless server"
+        )
+
+    turtle_stub.forward = unsupported_forward
+    sys.modules["turtle"] = turtle_stub
+    try:
+        yield
+    finally:
+        if sys.modules.get("turtle") is turtle_stub:
+            del sys.modules["turtle"]
 
 
 def normalize_scores(scores):
@@ -35,30 +72,31 @@ def evaluate_hps(
     if hps_version not in {"v2.0", "v2.1"}:
         raise ValueError(f"unsupported HPS version: {hps_version}")
 
-    try:
-        import hpsv2
-    except ImportError as exc:
-        raise RuntimeError(
-            "HPSv2 is not installed. Install it before enabling hps_v2."
-        ) from exc
-
     prompt = load_background_prompt(prompt_json)
-    try:
-        raw_scores = hpsv2.score(
-            [str(image_path)],
-            prompt,
-            hps_version=hps_version,
-        )
-    except FileNotFoundError as exc:
-        if exc.filename and exc.filename.endswith(
-            "bpe_simple_vocab_16e6.txt.gz"
-        ):
+    with _headless_hpsv2_import_compatibility():
+        try:
+            import hpsv2
+        except ImportError as exc:
             raise RuntimeError(
-                "The PyPI hpsv2 wheel is missing its tokenizer vocabulary. "
-                "Reinstall hpsv2 from the pinned GitHub source in "
-                "requirements.txt."
+                "HPSv2 is not installed. Install it before enabling hps_v2."
             ) from exc
-        raise
+
+        try:
+            raw_scores = hpsv2.score(
+                [str(image_path)],
+                prompt,
+                hps_version=hps_version,
+            )
+        except FileNotFoundError as exc:
+            if exc.filename and exc.filename.endswith(
+                "bpe_simple_vocab_16e6.txt.gz"
+            ):
+                raise RuntimeError(
+                    "The PyPI hpsv2 wheel is missing its tokenizer "
+                    "vocabulary. Reinstall hpsv2 from the pinned GitHub "
+                    "source in requirements.txt."
+                ) from exc
+            raise
 
     scores = normalize_scores(raw_scores)
     if len(scores) != 1:

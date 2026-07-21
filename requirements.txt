@@ -1,4 +1,4 @@
-# Supported runtime: Python 3.11
+# Supported runtime: Python 3.11-3.12
 
 # OpenAI prompting and environment configuration
 openai>=1.55,<3
