@@ -1,3 +1,5 @@
+import re
+
 PROMPT_SCHEMA_KEYS = {
     "product_analysis",
     "generation_prompt",
@@ -11,25 +13,27 @@ DEFAULT_POSITIVE = (
 )
 
 REQUIRED_NEGATIVE_TERMS = (
-    "person",
+    "duplicate product",
+    "extra product",
+    "distorted product",
+    "deformed product",
+    "merged objects",
     "people",
-    "hand",
-    "face",
-    "body",
+    "hands",
+    "faces",
+    "body parts",
     "text",
     "letters",
     "logo",
     "watermark",
     "floating product",
     "pasted cutout",
-    "harsh outline",
     "halo",
     "jagged edge",
-    "duplicate product",
-    "distorted product",
-    "merged objects",
+    "harsh outline",
+    "conflicting perspective",
+    "unsupported objects",
 )
-
 
 def clamp_float(value, minimum, maximum, default):
     try:
@@ -51,26 +55,33 @@ def normalize_string_list(value):
     ]
 
 
-def append_missing_terms(prompt, required_terms):
-    prompt = str(prompt or "").strip().strip(",")
-    prompt_lower = prompt.lower()
-
-    missing = [
-        term
-        for term in required_terms
-        if term.lower() not in prompt_lower
+def prioritize_required_terms(prompt, required_terms):
+    """Put canonical safety terms first and remove VLM duplicates."""
+    prompt_parts = [
+        part.strip()
+        for part in str(prompt or "").strip().strip(",").split(",")
+        if part.strip()
     ]
 
-    parts = []
+    def contains_required_term(part):
+        return any(
+            re.search(
+                rf"(?<![a-z0-9]){re.escape(term.lower())}(?![a-z0-9])",
+                part.lower(),
+            )
+            for term in required_terms
+        )
 
-    if prompt:
-        parts.append(prompt)
+    custom_parts = []
+    seen = set()
+    for part in prompt_parts:
+        normalized = " ".join(part.lower().split())
+        if contains_required_term(part) or normalized in seen:
+            continue
+        seen.add(normalized)
+        custom_parts.append(part)
 
-    if missing:
-        parts.append(", ".join(missing))
-
-    return ", ".join(parts)
-
+    return ", ".join([*required_terms, *custom_parts])
 
 def normalize_prompt_json(data):
     if not isinstance(data, dict):
@@ -104,7 +115,7 @@ def normalize_prompt_json(data):
     if not background_prompt:
         background_prompt = DEFAULT_POSITIVE
 
-    negative_prompt = append_missing_terms(
+    negative_prompt = prioritize_required_terms(
         raw_generation.get("negative_prompt"),
         REQUIRED_NEGATIVE_TERMS,
     )

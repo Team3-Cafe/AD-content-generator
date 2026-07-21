@@ -33,6 +33,22 @@ def fit_clip_prompt(
     """Fit one prompt to CLIP while preserving required leading terms."""
     prompt = str(prompt or "").strip().strip(",")
     required_prefix = str(required_prefix or "").strip().strip(",")
+
+    if required_prefix and prompt:
+        required_keys = {
+            " ".join(part.lower().split())
+            for part in required_prefix.split(",")
+            if part.strip()
+        }
+        prompt = ", ".join(
+            part.strip()
+            for part in prompt.split(",")
+            if (
+                part.strip()
+                and " ".join(part.lower().split()) not in required_keys
+            )
+        )
+
     combined = ", ".join(
         part for part in (required_prefix, prompt) if part
     )

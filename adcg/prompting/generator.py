@@ -94,14 +94,16 @@ background simpler and softer. Lower values may allow a more atmospheric or
 blurrier background while preserving product recognition.
 
 Brand focus:
-{brand_focus:.2f} ({everyday_percent}% authentic everyday environment / {brand_percent}% premium purpose-built set)
+{brand_focus:.2f} ({everyday_percent}% natural everyday background / {brand_percent}% premium studio-style background)
 
-Treat brand focus as a continuous background-art-direction value. Do not snap it
-to low, medium, or high presets. Use it only to balance environmental authenticity,
-staging, contextual prop density, surface refinement, realistic imperfections, and
-deliberate negative space. Preserve any explicit desired scene. Do not use brand
-focus to prescribe lighting intensity, exposure, brightness, contrast, saturation,
-white balance, shadows, highlights, blur, or foreground product appearance.
+Treat brand focus as one continuous background-style value. Do not snap it to
+low, medium, or high presets. At 0.0, make the input-appropriate background feel
+unmistakably natural and everyday. At 1.0, make that same kind of background feel
+unmistakably like a premium studio production. Adapt both endpoints to the supplied
+product and desired scene; never assume a fixed product category or location.
+Intermediate values must blend only these two background characters. Preserve the
+foreground product and do not use brand focus to change lighting, exposure,
+brightness, contrast, saturation, white balance, shadows, highlights, or blur.
 Product and store metadata:
 {json.dumps(product_info, ensure_ascii=False, indent=2)}
 

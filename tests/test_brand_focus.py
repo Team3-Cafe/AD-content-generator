@@ -16,9 +16,26 @@ class BrandFocusTests(unittest.TestCase):
         )
 
         self.assertIn("Brand focus:\n0.37", instruction)
-        self.assertIn("63% authentic everyday environment", instruction)
-        self.assertIn("37% premium purpose-built set", instruction)
+        self.assertIn("63% natural everyday background", instruction)
+        self.assertIn("37% premium studio-style background", instruction)
         self.assertIn("Do not snap", instruction)
+        self.assertIn("never assume a fixed product category", instruction)
+
+    def test_brand_focus_has_only_two_input_specific_endpoints(self):
+        self.assertIn(
+            "unmistakably natural everyday background",
+            SYSTEM_PROMPT,
+        )
+        self.assertIn(
+            "unmistakably premium studio-style background",
+            SYSTEM_PROMPT,
+        )
+        self.assertIn(
+            "Do not assume or hardcode any product category",
+            SYSTEM_PROMPT,
+        )
+        self.assertNotIn("prop density", SYSTEM_PROMPT)
+        self.assertNotIn("surface refinement", SYSTEM_PROMPT)
 
     def test_brand_focus_range_is_validated(self):
         with self.assertRaisesRegex(ValueError, "brand_focus"):
@@ -35,7 +52,7 @@ class BrandFocusTests(unittest.TestCase):
             SYSTEM_PROMPT,
         )
         self.assertIn(
-            "negative_prompt between 30 and 45 English words",
+            "negative_prompt between 15 and 25 English words",
             SYSTEM_PROMPT,
         )
 
