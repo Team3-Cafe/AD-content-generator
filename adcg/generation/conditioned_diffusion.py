@@ -3,6 +3,8 @@ from pathlib import Path
 
 import torch
 
+from adcg.brand_focus import brand_blend_weight
+
 from .canvas import (
     create_condition_canvas,
     load_metadata,
@@ -64,17 +66,34 @@ def load_prompt_data(prompt_json):
         or data.get("background_prompt")
         or ""
     ).strip()
+    everyday_prompt = str(
+        generation_prompt.get("everyday_background_prompt")
+        or background_prompt
+    ).strip()
+    studio_prompt = str(
+        generation_prompt.get("studio_background_prompt")
+        or background_prompt
+    ).strip()
 
     negative_prompt = str(
         generation_prompt.get("negative_prompt")
         or data.get("negative_prompt")
         or ""
     ).strip()
+    controls = data.get("controls") or {}
+    brand_focus = float(controls.get("brand_focus", 0.5))
 
-    if not background_prompt:
-        raise ValueError("background_prompt가 비어 있습니다.")
+    if not everyday_prompt or not studio_prompt:
+        raise ValueError("background prompt endpoint is empty.")
 
-    return data, background_prompt, negative_prompt
+    return (
+        data,
+        background_prompt or everyday_prompt,
+        everyday_prompt,
+        studio_prompt,
+        negative_prompt,
+        brand_focus,
+    )
 
 
 def _resolve_layout(config, prompt_data):
@@ -102,7 +121,10 @@ def _run_generation(config, pipe=None):
     (
         prompt_data,
         background_prompt,
+        everyday_prompt,
+        studio_prompt,
         negative_prompt,
+        brand_focus,
     ) = load_prompt_data(config["prompt_json"])
 
     metadata = load_metadata(
@@ -161,6 +183,9 @@ def _run_generation(config, pipe=None):
             run_conditioned_inference(
                 pipe=pipe,
                 prompt=background_prompt,
+                everyday_prompt=everyday_prompt,
+                studio_prompt=studio_prompt,
+                brand_focus=brand_focus,
                 negative_prompt=negative_prompt,
                 condition_canvas=canvas_result[
                     "condition_canvas"
@@ -187,6 +212,10 @@ def _run_generation(config, pipe=None):
         "product_image": config["product_image"],
         "prompt_json": config["prompt_json"],
         "background_prompt": background_prompt,
+        "everyday_background_prompt": everyday_prompt,
+        "studio_background_prompt": studio_prompt,
+        "brand_focus": brand_focus,
+        "brand_blend_weight": brand_blend_weight(brand_focus),
         "negative_prompt": negative_prompt,
         "layout": {
             **layout,

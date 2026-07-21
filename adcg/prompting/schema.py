@@ -59,12 +59,19 @@ def normalize_prompt_json(data):
     if not isinstance(raw_layout, dict):
         raw_layout = {}
 
-    background_prompt = str(
+    legacy_background_prompt = str(
         raw_generation.get("background_prompt") or ""
     ).strip()
-
-    if not background_prompt:
-        background_prompt = DEFAULT_POSITIVE
+    everyday_background_prompt = str(
+        raw_generation.get("everyday_background_prompt")
+        or legacy_background_prompt
+        or DEFAULT_POSITIVE
+    ).strip()
+    studio_background_prompt = str(
+        raw_generation.get("studio_background_prompt")
+        or legacy_background_prompt
+        or DEFAULT_POSITIVE
+    ).strip()
 
     negative_prompt = GENERATION_NEGATIVE_PROMPT
 
@@ -92,7 +99,12 @@ def normalize_prompt_json(data):
             ),
         },
         "generation_prompt": {
-            "background_prompt": background_prompt,
+            "background_prompt": (
+                legacy_background_prompt
+                or everyday_background_prompt
+            ),
+            "everyday_background_prompt": everyday_background_prompt,
+            "studio_background_prompt": studio_background_prompt,
             "negative_prompt": negative_prompt,
         },
         "layout": {

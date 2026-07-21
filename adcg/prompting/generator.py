@@ -4,6 +4,12 @@ from pathlib import Path
 from dotenv import load_dotenv
 from openai import OpenAI
 
+from adcg.brand_focus import (
+    anchor_background_prompts,
+    brand_blend_weight,
+    select_background_prompt,
+)
+
 from .encoding import extract_json, image_to_data_url
 from .schema import normalize_prompt_json
 from .system_prompt import SYSTEM_PROMPT
@@ -96,14 +102,13 @@ blurrier background while preserving product recognition.
 Brand focus:
 {brand_focus:.2f} ({everyday_percent}% natural everyday background / {brand_percent}% premium studio-style background)
 
-Treat brand focus as one continuous background-style value. Do not snap it to
-low, medium, or high presets. At 0.0, make the input-appropriate background feel
-unmistakably natural and everyday. At 1.0, make that same kind of background feel
-unmistakably like a premium studio production. Adapt both endpoints to the supplied
-product and desired scene; never assume a fixed product category or location.
-Intermediate values must blend only these two background characters. Preserve the
-foreground product and do not use brand focus to change lighting, exposure,
-brightness, contrast, saturation, white balance, shadows, highlights, or blur.
+Always produce both input-specific background endpoints. One must be unmistakably
+natural and everyday; the other must be unmistakably premium and studio-style.
+Keep both endpoints in the same kind of scene requested by the input. The runtime
+will apply the continuous brand-focus value to those endpoints, so do not weaken
+either endpoint based on the requested value. Never assume a fixed product category
+or location, and do not change lighting, exposure, brightness, contrast, saturation,
+white balance, shadows, highlights, blur, or the foreground product between them.
 Product and store metadata:
 {json.dumps(product_info, ensure_ascii=False, indent=2)}
 
@@ -195,9 +200,35 @@ def run_prompt_generation(
 
     result = extract_json(response.output_text)
     result = normalize_prompt_json(result)
+    generation_prompt = result["generation_prompt"]
+    everyday_prompt = generation_prompt[
+        "everyday_background_prompt"
+    ]
+    studio_prompt = generation_prompt[
+        "studio_background_prompt"
+    ]
+    everyday_prompt, studio_prompt = anchor_background_prompts(
+        everyday_prompt,
+        studio_prompt,
+    )
+    generation_prompt[
+        "everyday_background_prompt"
+    ] = everyday_prompt
+    generation_prompt[
+        "studio_background_prompt"
+    ] = studio_prompt
+    blend_weight = brand_blend_weight(brand_focus)
+    generation_prompt["background_prompt"] = (
+        select_background_prompt(
+            everyday_prompt,
+            studio_prompt,
+            brand_focus,
+        )
+    )
     result["controls"] = {
         "product_focus": product_focus,
         "brand_focus": brand_focus,
+        "brand_blend_weight": blend_weight,
     }
 
     output_path.parent.mkdir(

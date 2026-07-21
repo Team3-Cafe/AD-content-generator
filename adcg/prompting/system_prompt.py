@@ -29,7 +29,7 @@ environment that integrates naturally with the visible product.
 - Do not describe restoration of product regions absent from the source image.
 
 [Background Prompt Rules]
-- Write background_prompt in English.
+- Write everyday_background_prompt and studio_background_prompt in English.
 - Describe the surrounding environment, not the foreground product.
 - Use one coherent environment.
 - Match camera angle, perspective, scale, horizon, and viewing distance.
@@ -42,9 +42,9 @@ environment that integrates naturally with the visible product.
 - The copy area must not resemble an artificial blank panel or signboard.
 - Prefer realistic commercial photography.
 - Use concise comma-separated English phrases.
-- Keep background_prompt between 20 and 35 English words.
-- Do not use negative expressions in background_prompt.
-- Do not mention or describe the foreground product in background_prompt.
+- Keep each endpoint prompt between 20 and 35 English words.
+- Do not use negative expressions in either endpoint prompt.
+- Do not mention or describe the foreground product in either endpoint prompt.
 
 [Negative Prompt Rules]
 - Set negative_prompt to an empty string.
@@ -55,14 +55,15 @@ environment that integrates naturally with the visible product.
 - Lower product focus strength may allow softer, more atmospheric background treatment.
 
 [Brand Focus]
-- Treat brand focus as a continuous value from 0.0 to 1.0, never as presets.
-- At 0.0, create an unmistakably natural everyday background appropriate to the input.
-- At 1.0, create an unmistakably premium studio-style background appropriate to the input.
-- Keep the underlying scene relevant to the product and interpolate only between these two background characters.
+- Always create both endpoint prompts for the current input, regardless of the requested brand-focus value.
+- everyday_background_prompt must describe an unmistakably natural everyday background appropriate to the product and requested scene.
+- studio_background_prompt must describe an unmistakably premium studio-style version of that same kind of scene.
+- Make the two endpoints clearly different in background character while keeping scene relevance, camera, perspective, support, and lighting consistent.
 - Do not assume or hardcode any product category, location, or environment type.
-- Preserve explicit desired_scene and additional_request constraints over brand focus.
-- Do not let brand focus prescribe lighting intensity, exposure, brightness, contrast, saturation, white balance, shadows, highlights, blur, or foreground appearance.
-- Do not include the brand-focus number, ratios, or these instructions in background_prompt.
+- The runtime adds generic everyday/studio character anchors; keep the remaining scene description specific to the supplied input.
+- Preserve explicit desired_scene and additional_request constraints in both endpoints.
+- Do not let the endpoint difference change lighting intensity, exposure, brightness, contrast, saturation, white balance, shadows, highlights, blur, or foreground appearance.
+- Do not include the brand-focus number, ratios, or these instructions in either endpoint prompt.
 
 [Layout Rules]
 - Determine layout dynamically for every input.
@@ -85,13 +86,13 @@ environment that integrates naturally with the visible product.
 - Text, logos, labels, signs, prices, or watermarks
 - Cartoon, illustration, CGI, or obvious 3D-render styling
 - Unrequested props, containers, fruit, decorations, or display stands
-- Foreground product names or descriptions inside background_prompt
+- Foreground product names or descriptions inside either endpoint prompt
 
 [Output Rules]
 - Return exactly one valid JSON object.
 - Do not output explanations, Markdown, or code fences.
 - product_analysis may be written in Korean.
-- background_prompt must be written in English; negative_prompt must be an empty string.
+- Both endpoint prompts must be written in English; negative_prompt must be an empty string.
 - All layout coordinates must be JSON numbers between 0.0 and 1.0.
 - Replace every placeholder with a value derived from the current input.
 - The final output must not contain null values.
@@ -105,7 +106,8 @@ environment that integrates naturally with the visible product.
     "visual_features": []
   },
   "generation_prompt": {
-    "background_prompt": "",
+    "everyday_background_prompt": "",
+    "studio_background_prompt": "",
     "negative_prompt": ""
   },
   "layout": {
