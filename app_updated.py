@@ -33,7 +33,7 @@ def get_inference_queue():
 inference_queue = get_inference_queue()
 
 # 2. PPT 29-34 톤앤매너 프리미엄 CSS 적용
-st.markdown(
+st.html(
 """
 <style>
 /* 전체 앱 및 사이드바 배경 (웜 화이트 & 소프트 베이지) */
@@ -123,8 +123,8 @@ div.stWarning *, div.stInfo * {
     color: #D35400 !important;
 }
 </style>
-""", 
-unsafe_allow_html=True)
+"""
+)
 
 # 3. 입출력 경로 및 폴더 설정
 INPUT_DIR = Path("inputs")
@@ -173,7 +173,7 @@ with st.sidebar:
 
 # --- STEP 1: 정보 및 파일 업로드 단계 ---
 if st.session_state.step == 1:
-    st.markdown("<h4 id='step1'>STEP 01 - BASIC INPUT</h4>", unsafe_allow_html=True)
+    st.html("<h4 id='step1'>STEP 01 - BASIC INPUT</h4>")
     st.title("사장님의 상품 사진과 매장 정보를 올려주세요")
     st.caption("업로드된 데이터는 로컬 환경에 안전하게 임시 저장되어 AI 파이프라인의 인풋으로 사용됩니다.")
     st.divider()
@@ -262,7 +262,7 @@ if st.session_state.step == 1:
 
 # --- STEP 2: 파이프라인 구동 단계 (VRAM 연산) ---
 elif st.session_state.step == 2:
-    st.markdown("<h4 id='step2'>STEP 02 - GENERATION</h4>", unsafe_allow_html=True)
+    st.html("<h4 id='step2'>STEP 02 - GENERATION</h4>")
     st.title("AI 파이프라인 연산 가동 중 ⏳")
     
     with st.spinner("이미지 분석, 생성 및 상품 복원 중..."):
@@ -321,7 +321,7 @@ elif st.session_state.step == 2:
 
 # --- STEP 3: 카피라이팅 입력 및 합성 단계 ---
 elif st.session_state.step == 3:
-    st.markdown("<h4 id='step3'>STEP 03 - COPYWRITING</h4>", unsafe_allow_html=True)
+    st.html("<h4 id='step3'>STEP 03 - COPYWRITING</h4>")
     st.title("이미지에 들어갈 광고 문구를 설정해주세요")
     st.caption("이미지 생성은 완료됐으며, 아래 설정을 반영해 카피와 레이아웃을 생성합니다.")
     st.divider()
@@ -439,7 +439,7 @@ elif st.session_state.step == 3:
 
 # --- STEP 4: 카피 합성 결과 표출 단계 ---
 elif st.session_state.step == 4:
-    st.markdown("<h4 id='step4'>STEP 04 - RESULT</h4>", unsafe_allow_html=True)
+    st.html("<h4 id='step4'>STEP 04 - RESULT</h4>")
     st.title("🎉 완성된 광고 시안")
     st.divider()
 

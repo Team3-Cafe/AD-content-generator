@@ -28,11 +28,33 @@ class NegativePromptPolicyTests(unittest.TestCase):
         )
 
     def test_stage_negative_prompts_are_compact_and_distinct(self):
-        self.assertLess(len(GENERATION_NEGATIVE_PROMPT.split()), 30)
-        self.assertLess(len(IDENTITY_NEGATIVE_PROMPT.split()), 20)
+        self.assertLess(len(GENERATION_NEGATIVE_PROMPT.split()), 45)
+        self.assertLess(len(IDENTITY_NEGATIVE_PROMPT.split()), 35)
         self.assertNotEqual(GENERATION_NEGATIVE_PROMPT, IDENTITY_NEGATIVE_PROMPT)
         self.assertIn("conflicting perspective", GENERATION_NEGATIVE_PROMPT)
         self.assertIn("jagged edges", IDENTITY_NEGATIVE_PROMPT)
+
+    def test_human_suppression_is_explicit_in_both_stages(self):
+        required_terms = (
+            "person",
+            "human",
+            "worker",
+            "driver",
+            "operator",
+            "face",
+            "head",
+            "torso",
+            "arms",
+            "legs",
+            "human silhouette",
+            "mannequin",
+        )
+        for prompt in (
+            GENERATION_NEGATIVE_PROMPT,
+            IDENTITY_NEGATIVE_PROMPT,
+        ):
+            for term in required_terms:
+                self.assertIn(term, prompt)
 
 
 if __name__ == "__main__":
