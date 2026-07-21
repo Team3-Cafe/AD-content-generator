@@ -139,7 +139,7 @@ div[data-baseweb="select"] > div {
 }
 
 /* 타이틀 및 텍스트 가독성 고정 (딥 차콜) */
-h1, h2, h3, h4, h5, h6, p, span, label {
+h1, h2, h3, h4, h5, h6, p, label {
     color: #2B2B2B !important;
     font-family: 'Noto Sans KR', sans-serif;
 }
@@ -302,13 +302,39 @@ div.stWarning *, div.stInfo * {
 [data-testid="stTextArea"] textarea,
 div[data-baseweb="select"] > div {
     background-color: var(--ui-surface) !important;
-    border-color: #D4C7BA !important;
+    border: 1px solid #D4C7BA !important;
+    color: var(--ui-ink) !important;
+}
+[data-testid="stTextArea"] textarea {
+    line-height: 1.45 !important;
+    resize: none !important;
+}
+[data-testid="stTextInput"] div[data-baseweb="input"],
+[data-testid="stNumberInput"] div[data-baseweb="input"] {
+    background: var(--ui-surface) !important;
+    border: 1px solid #D4C7BA !important;
+    border-radius: 9px !important;
+    box-shadow: none !important;
+}
+[data-testid="stTextInput"] input,
+[data-testid="stNumberInput"] input {
+    background: transparent !important;
+    border: 0 !important;
+    box-shadow: none !important;
     color: var(--ui-ink) !important;
 }
 [data-testid="stTextInput"] input:focus,
+[data-testid="stNumberInput"] input:focus {
+    border: 0 !important;
+    box-shadow: none !important;
+    outline: 0 !important;
+}
 [data-testid="stTextArea"] textarea:focus {
     border-color: var(--ui-primary) !important;
     box-shadow: 0 0 0 1px var(--ui-primary) !important;
+}
+[data-testid="stWidgetLabel"] {
+    margin-bottom: 0.24rem !important;
 }
 .stSlider [role="slider"] {
     background-color: var(--ui-primary) !important;
@@ -362,6 +388,124 @@ div.stError {
 }
 div.stError * {
     color: #8C3838 !important;
+}
+
+/* Sidebar: keep the light visual system across BaseWeb controls. */
+section[data-testid="stSidebar"] {
+    min-width: 340px !important;
+    width: 340px !important;
+}
+[data-testid="stSidebar"] > div:first-child {
+    width: 340px !important;
+}
+[data-testid="stSidebar"] [data-baseweb="select"] > div,
+[data-testid="stSidebar"] [data-baseweb="input"],
+[data-testid="stSidebar"] [data-baseweb="base-input"] {
+    background: #FFFDF9 !important;
+    border-color: #C8D4D5 !important;
+    color: var(--ui-ink) !important;
+    box-shadow: none !important;
+}
+[data-testid="stSidebar"] [data-baseweb="select"] span,
+[data-testid="stSidebar"] [data-baseweb="select"] div,
+[data-testid="stSidebar"] [data-baseweb="input"] input,
+[data-testid="stSidebar"] [data-baseweb="base-input"] input {
+    color: var(--ui-ink) !important;
+    -webkit-text-fill-color: var(--ui-ink) !important;
+}
+[data-testid="stSidebar"] [data-baseweb="select"] > div:hover,
+[data-testid="stSidebar"] [data-baseweb="input"]:focus-within,
+[data-testid="stSidebar"] [data-baseweb="base-input"]:focus-within {
+    border-color: var(--ui-primary) !important;
+}
+.st-key-sidebar_model_group,
+.st-key-sidebar_layout_group,
+.st-key-sidebar_focus_group {
+    background: rgba(255, 253, 249, 0.72);
+    border: 1px solid #CAD7D8;
+    border-radius: 14px;
+    box-sizing: border-box;
+    margin-bottom: 0.55rem;
+    padding: 0.8rem 0.85rem 0.9rem;
+}
+.sidebar-section-title {
+    color: var(--ui-secondary) !important;
+    font-size: 0.7rem;
+    font-weight: 800;
+    letter-spacing: 0.09em;
+    margin: 0 0 0.45rem;
+}
+.model-status {
+    align-items: center;
+    background: rgba(255,255,255,0.62);
+    border: 1px solid #C9D7D9;
+    border-radius: 999px;
+    color: #4F6167 !important;
+    display: flex;
+    font-size: 0.77rem;
+    gap: 0.45rem;
+    line-height: 1.3;
+    margin: 0.2rem 0 0.8rem;
+    padding: 0.48rem 0.68rem;
+}
+.model-status-dot {
+    animation: processingPulse 1.6s ease-in-out infinite;
+    background: #D5A545;
+    border-radius: 999px;
+    flex: 0 0 auto;
+    height: 9px;
+    width: 9px;
+}
+.model-status.ready .model-status-dot {
+    animation: none;
+    background: #55A77A;
+}
+.focus-scale {
+    color: #64757A !important;
+    display: flex;
+    font-size: 0.68rem;
+    justify-content: space-between;
+    margin: -0.15rem 0 0.25rem;
+}
+.focus-description {
+    background: #EEF4F3;
+    border-radius: 9px;
+    color: #53676C !important;
+    font-size: 0.7rem;
+    line-height: 1.45;
+    margin: 0.2rem 0 0;
+    padding: 0.52rem 0.6rem;
+}
+.st-key-layout_mode_control [role="radiogroup"] {
+    display: grid !important;
+    gap: 0.4rem !important;
+    grid-template-columns: 1fr 1fr;
+}
+.st-key-layout_mode_control [role="radiogroup"] label {
+    background: #FFFDF9;
+    border: 1px solid #C8D4D5;
+    border-radius: 9px;
+    box-sizing: border-box;
+    justify-content: center;
+    margin: 0 !important;
+    min-height: 38px;
+    padding: 0.42rem 0.5rem;
+}
+.st-key-layout_mode_control [role="radiogroup"] label > div:first-child {
+    display: none;
+}
+.st-key-layout_mode_control [role="radiogroup"] label:has(input:checked) {
+    background: var(--ui-secondary);
+    border-color: var(--ui-secondary);
+}
+.st-key-layout_mode_control [role="radiogroup"] label:has(input:checked) p {
+    color: #FFFFFF !important;
+}
+[data-testid="stSidebar"] [data-testid="stExpander"] {
+    background: rgba(255, 253, 249, 0.58);
+    border: 1px solid #CAD7D8;
+    border-radius: 12px;
+    overflow: hidden;
 }
 
 /* STEP 3: preview and copy controls use purpose-built cards. */
@@ -529,10 +673,12 @@ div.stError * {
     box-shadow: 0 10px 24px rgba(36, 50, 59, 0.12);
 }
 [data-testid="stFileUploaderDropzone"],
-[data-testid="stTextInput"],
-[data-testid="stTextArea"],
-div[data-baseweb="select"] {
+[data-testid="stTextInput"] div[data-baseweb="input"],
+[data-testid="stNumberInput"] div[data-baseweb="input"],
+div[data-baseweb="select"] > div {
     box-sizing: border-box;
+}
+[data-testid="stFileUploaderDropzone"] {
     overflow: hidden;
 }
 @keyframes processingPulse {
@@ -622,42 +768,103 @@ with st.sidebar:
     if st.session_state.step == 1:
         st.header("⚙️ 광고 생성 설정")
         if inference_queue.model_status == "loading":
-            st.caption("🟡 GPU 모델을 백그라운드에서 준비하고 있습니다.")
+            st.html(
+                """
+                <div class="model-status">
+                    <span class="model-status-dot"></span>
+                    GPU 모델을 준비하고 있습니다
+                </div>
+                """
+            )
         elif inference_queue.model_status == "ready":
-            st.caption("🟢 GPU 모델 준비 완료")
+            st.html(
+                """
+                <div class="model-status ready">
+                    <span class="model-status-dot"></span>
+                    GPU 모델 준비 완료
+                </div>
+                """
+            )
         elif inference_queue.model_status == "failed":
             st.error(
                 "GPU 모델 준비 실패: "
                 f"{inference_queue.model_error}"
             )
-        gpt_model = st.selectbox(
-            "GPT 모델 선택", ["gpt-5.4-nano", "gpt-5.4-mini"]
-        )
-        layout_mode = st.radio(
-            "레이아웃 모드", ["layout", "preserve"]
-        )
-        product_focus = st.slider(
-            "상품 강조 강도 (Product Focus)",
-            min_value=0.0,
-            max_value=1.0,
-            value=1.0,
-            step=0.1,
-        )
-        brand_focus = st.slider(
-            "배경 연출 강도 (Brand Focus)",
-            min_value=0.0,
-            max_value=1.0,
-            value=0.5,
-            step=0.1,
-            help=(
-                "0에 가까울수록 자연스러운 일상 배경, "
-                "1에 가까울수록 고급 스튜디오 배경으로 연출합니다."
-            ),
-        )
-        st.caption(
-            "0 = 자연스러운 일상 배경 · 1 = 고급 스튜디오 배경"
-        )
-        seed = st.number_input("Seed 값", value=42, step=1)
+
+        model_options = ["gpt-5.4-nano", "gpt-5.4-mini"]
+        with st.container(key="sidebar_model_group"):
+            st.html('<p class="sidebar-section-title">AI MODEL</p>')
+            gpt_model = st.selectbox(
+                "생성 모델",
+                model_options,
+                index=model_options.index(gpt_model),
+            )
+
+        layout_options = ["layout", "preserve"]
+        with st.container(key="sidebar_layout_group"):
+            st.html('<p class="sidebar-section-title">LAYOUT</p>')
+            layout_mode = st.radio(
+                "레이아웃 구성",
+                layout_options,
+                index=layout_options.index(layout_mode),
+                format_func=lambda value: {
+                    "layout": "새롭게 구성",
+                    "preserve": "원본 유지",
+                }[value],
+                horizontal=True,
+                key="layout_mode_control",
+                help=(
+                    "새롭게 구성은 광고 장면을 적극적으로 재설계하고, "
+                    "원본 유지는 입력 이미지 구성을 더 많이 보존합니다."
+                ),
+            )
+
+        with st.container(key="sidebar_focus_group"):
+            st.html('<p class="sidebar-section-title">FOCUS</p>')
+            product_focus = st.slider(
+                "상품 강조 강도",
+                min_value=0.0,
+                max_value=1.0,
+                value=product_focus,
+                step=0.1,
+                help="값이 높을수록 상품의 형태와 존재감을 강하게 유지합니다.",
+            )
+            st.html(
+                """
+                <div class="focus-scale">
+                    <span>장면과 균형</span><span>상품 중심</span>
+                </div>
+                """
+            )
+            brand_focus = st.slider(
+                "배경 연출 강도",
+                min_value=0.0,
+                max_value=1.0,
+                value=brand_focus,
+                step=0.1,
+                help=(
+                    "0에 가까울수록 자연스러운 일상 배경, "
+                    "1에 가까울수록 고급 스튜디오 배경으로 연출합니다."
+                ),
+            )
+            st.html(
+                """
+                <div class="focus-scale">
+                    <span>자연스러운 일상</span><span>고급 스튜디오</span>
+                </div>
+                <div class="focus-description">
+                    배경의 분위기만 조절하며 상품의 조명과 밝기는 별도로 변경하지 않습니다.
+                </div>
+                """
+            )
+
+        with st.expander("고급 설정", expanded=False):
+            seed = st.number_input(
+                "랜덤 시드",
+                value=seed,
+                step=1,
+                help="같은 설정과 시드를 사용하면 유사한 결과를 재현할 수 있습니다.",
+            )
     else:
         st.header("📍 진행 상태")
         st.caption(f"현재 STEP {st.session_state.step} / 4")
@@ -672,7 +879,7 @@ if st.session_state.step == 1:
     )
 
     col_image, col_product, col_store, col_ad = st.columns(
-        [0.9, 1.0, 1.0, 1.0],
+        [0.9, 1.35, 1.15, 1.15],
         gap="large",
     )
 
@@ -693,7 +900,7 @@ if st.session_state.step == 1:
         product_description = st.text_area(
             "상품 설명",
             value="다양한 빵과 쿠키, 아이스커피로 구성된 세트",
-            height=96,
+            height=88,
         )
         seller_description = st.text_area(
             "판매자 설명",
