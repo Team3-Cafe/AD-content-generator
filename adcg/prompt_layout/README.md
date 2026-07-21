@@ -89,7 +89,8 @@ The renderer can also discover Korean-capable system fonts, including `Noto Sans
 The `--font`/`--layout-font` options and `ADCG_FONT_PATH` remain optional overrides for
 deterministic branding; they are not required when a suitable system font is
 installed. The `--font`/`--layout-font` options and `ADCG_FONT_PATH` can still
-override the bundled default.
+override the bundled default. If `ADCG_FONT_PATH` points to a missing file, the
+renderer emits a warning and safely falls back to the bundled font.
 The renderer supports rounded, pill, ellipse, cut-corner, and diagonal surfaces;
 image-derived color overlays; up to three surface shadow layers; character, word,
 and balanced wrapping; optical text anchoring; automatic same-group collision

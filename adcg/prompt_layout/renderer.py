@@ -6,6 +6,7 @@ from pathlib import Path
 import re
 import shutil
 import subprocess
+import warnings
 
 from PIL import Image, ImageChops, ImageColor, ImageDraw, ImageFilter, ImageFont
 
@@ -84,11 +85,14 @@ def _resolve_font_path(
     environment_font = os.getenv("ADCG_FONT_PATH")
     if environment_font:
         path = Path(environment_font).expanduser()
-        if not path.is_file():
-            raise FileNotFoundError(
-                f"ADCG_FONT_PATH does not exist: {path}"
-            )
-        return path
+        if path.is_file():
+            return path
+        warnings.warn(
+            f"ADCG_FONT_PATH does not exist: {path}. "
+            f"Falling back to the bundled font: {PROJECT_KOREAN_FONT}",
+            RuntimeWarning,
+            stacklevel=2,
+        )
 
     candidates = []
     candidates.extend(

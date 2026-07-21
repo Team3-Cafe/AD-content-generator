@@ -353,6 +353,107 @@ div.stError {
 div.stError * {
     color: #8C3838 !important;
 }
+
+/* STEP 3: preview and copy controls use purpose-built cards. */
+.st-key-copy_preview_panel,
+.st-key-copy_settings_panel {
+    background: rgba(255, 253, 249, 0.96);
+    border: 1px solid #D8C9BA;
+    border-radius: 18px;
+    box-shadow: 0 12px 30px rgba(57, 45, 36, 0.09);
+    padding: 1.15rem 1.2rem 1.25rem;
+}
+.st-key-copy_preview_panel {
+    background:
+        linear-gradient(145deg, rgba(238, 244, 243, 0.96), rgba(255, 253, 249, 0.98));
+    border-color: #C8D8D7;
+}
+.st-key-copy_preview_panel [data-testid="stImage"] {
+    display: flex;
+    justify-content: flex-start;
+}
+.st-key-copy_preview_panel [data-testid="stImage"] img {
+    border: 1px solid #CBD6D5;
+    border-radius: 14px;
+    box-shadow: 0 10px 26px rgba(36, 50, 59, 0.14);
+}
+.copy-panel-kicker {
+    color: var(--ui-primary) !important;
+    font-size: 0.74rem;
+    font-weight: 800;
+    letter-spacing: 0.09em;
+    margin: 0 0 0.18rem;
+}
+.copy-panel-title {
+    color: var(--ui-ink) !important;
+    font-size: 1.18rem;
+    font-weight: 800;
+    line-height: 1.35;
+    margin: 0 0 0.35rem;
+}
+.copy-panel-help {
+    color: var(--ui-muted) !important;
+    font-size: 0.84rem;
+    line-height: 1.55;
+    margin: 0 0 0.8rem;
+}
+.copy-ready-note {
+    align-items: center;
+    background: #E9F2ED;
+    border: 1px solid #BED5C7;
+    border-radius: 12px;
+    color: #315F49 !important;
+    display: flex;
+    font-size: 0.84rem;
+    font-weight: 700;
+    gap: 0.45rem;
+    margin: 0 0 0.85rem;
+    padding: 0.68rem 0.8rem;
+}
+.copy-process {
+    background: #F6F0E9;
+    border: 1px solid #E2D3C4;
+    border-radius: 12px;
+    color: #65584D !important;
+    font-size: 0.79rem;
+    line-height: 1.5;
+    margin: 0.75rem 0 0.85rem;
+    padding: 0.7rem 0.8rem;
+}
+.copy-process strong {
+    color: var(--ui-primary) !important;
+}
+.copy-running-banner {
+    background: linear-gradient(120deg, #263B43, #3F6B73);
+    border: 1px solid #527B82;
+    border-radius: 14px;
+    box-shadow: 0 10px 24px rgba(36, 50, 59, 0.18);
+    color: #FFFFFF !important;
+    margin: 0 0 0.85rem;
+    padding: 0.9rem 1rem;
+}
+.copy-running-banner strong,
+.copy-running-banner span {
+    color: #FFFFFF !important;
+}
+.copy-running-banner span {
+    display: block;
+    font-size: 0.8rem;
+    margin-top: 0.22rem;
+    opacity: 0.84;
+}
+.st-key-copy_settings_panel [data-testid="stForm"] {
+    background: transparent !important;
+    border: 0 !important;
+    box-shadow: none !important;
+    padding: 0 !important;
+}
+@media (max-width: 900px) {
+    .st-key-copy_preview_panel,
+    .st-key-copy_settings_panel {
+        padding: 0.9rem;
+    }
+}
 </style>
 """
 )
@@ -669,109 +770,201 @@ elif st.session_state.step == 3:
         )
 
     identity_ready = identity_img is not None and identity_img.is_file()
-    if identity_ready:
-        st.success("✅ 이미지 생성이 완료됐습니다. 카피 설정 후 합성을 시작하세요.")
-    else:
+    copy_running = bool(
+        st.session_state.get("copy_layout_running", False)
+    )
+
+    if not identity_ready:
         st.error(
             "카피를 합성할 이미지를 찾지 못했습니다. "
             "진행 버튼을 사용할 수 없으므로 새로운 광고를 생성해주세요."
         )
 
-    with st.form("copywriting_form"):
-        tone_col, length_col, action_col = st.columns(
-            [1.4, 0.8, 1.3],
-            gap="large",
-            vertical_alignment="bottom",
+    if copy_running:
+        st.html(
+            """
+            <div class="copy-running-banner">
+                <strong>광고 문구와 디자인을 합성하고 있습니다.</strong>
+                <span>문구 생성 → 이미지 분석 → 레이아웃 설계 → 최종 검토 순서로 진행됩니다.</span>
+            </div>
+            """
         )
-        with tone_col:
-            copy_tone = st.text_input(
-                "문구 톤",
-                value="따뜻하고 친근한",
-                help="예: 전문적이고 신뢰감 있는, 밝고 재치 있는",
-            )
-        with length_col:
-            copy_length = st.selectbox(
-                "글 길이",
-                options=["short", "medium", "long"],
-                format_func=lambda value: {
-                    "short": "짧게",
-                    "medium": "보통",
-                    "long": "길게",
-                }[value],
-            )
-        with action_col:
-            create_copy = st.form_submit_button(
-                "STEP 4: 카피 생성 및 합성 ➔",
-                use_container_width=True,
-                type="primary",
-                disabled=not identity_ready,
-            )
 
-    if identity_ready:
-        with st.expander("합성 전 이미지 확인", expanded=False):
-            st.image(
-                str(identity_img),
-                width=320,
-                caption="Copy layout 전 이미지",
+    preview_col, settings_col = st.columns(
+        [0.43, 0.57],
+        gap="large",
+        vertical_alignment="top",
+    )
+
+    with preview_col:
+        with st.container(key="copy_preview_panel"):
+            st.html(
+                """
+                <p class="copy-panel-kicker">GENERATED IMAGE</p>
+                <p class="copy-panel-title">합성할 이미지 미리보기</p>
+                <p class="copy-panel-help">
+                    피사체와 여백을 분석해 문구 배치와 색상을 설계합니다.
+                </p>
+                """
             )
+            if identity_ready:
+                st.image(
+                    str(identity_img),
+                    width=340,
+                    caption="카피 합성 전 이미지",
+                )
+                st.html(
+                    """
+                    <div class="copy-ready-note">
+                        <span>●</span> 이미지 생성 완료 · 카피 합성 준비됨
+                    </div>
+                    """
+                )
+            else:
+                st.warning("미리보기를 표시할 이미지가 없습니다.")
+
+    create_copy = False
+    pending_tone = st.session_state.get(
+        "pending_copy_tone",
+        "따뜻하고 친근한",
+    )
+    pending_length = st.session_state.get(
+        "pending_copy_length",
+        "medium",
+    )
+    length_options = ["short", "medium", "long"]
+
+    with settings_col:
+        with st.container(key="copy_settings_panel"):
+            st.html(
+                """
+                <p class="copy-panel-kicker">COPY DIRECTION</p>
+                <p class="copy-panel-title">광고 문구 생성 설정</p>
+                <p class="copy-panel-help">
+                    원하는 인상과 문구 분량을 정해주세요. 생성된 문구는 이미지에
+                    맞춘 레이아웃과 함께 최종 합성됩니다.
+                </p>
+                """
+            )
+            with st.form("copywriting_form"):
+                copy_tone = st.text_input(
+                    "문구 톤",
+                    value=pending_tone,
+                    help="예: 전문적이고 신뢰감 있는, 밝고 재치 있는",
+                    disabled=copy_running,
+                )
+                copy_length = st.selectbox(
+                    "글 길이",
+                    options=length_options,
+                    index=length_options.index(pending_length),
+                    format_func=lambda value: {
+                        "short": "짧게",
+                        "medium": "보통",
+                        "long": "길게",
+                    }[value],
+                    disabled=copy_running,
+                )
+                st.html(
+                    """
+                    <div class="copy-process">
+                        <strong>합성 과정</strong><br>
+                        문구 작성 → 이미지 여백 분석 → 타이포그래피와 컬러 설계
+                        → 완성 광고 검토
+                    </div>
+                    """
+                )
+                create_copy = st.form_submit_button(
+                    (
+                        "카피와 디자인 합성 중..."
+                        if copy_running
+                        else "STEP 4: 카피 생성 및 합성 ➔"
+                    ),
+                    use_container_width=True,
+                    type="primary",
+                    disabled=not identity_ready or copy_running,
+                )
 
     if create_copy and identity_ready:
         copy_tone = copy_tone.strip()
         if not copy_tone:
             st.error("문구 톤을 입력해주세요.")
         else:
-            try:
-                from adcg.pipelines.copy_layout import (
-                    run_copy_layout_pipeline,
-                )
+            st.session_state.pending_copy_tone = copy_tone
+            st.session_state.pending_copy_length = copy_length
+            st.session_state.copy_layout_running = True
+            st.rerun()
 
-                prompt_json = Path(
-                    st.session_state.get(
-                        "prompt_json_path",
-                        Path(st.session_state.job_output_dir)
-                        / "02_prompt"
-                        / "ad_prompt.json",
-                    )
-                )
+    if (
+        st.session_state.get("copy_layout_running", False)
+        and identity_ready
+    ):
+        copy_tone = st.session_state.pending_copy_tone
+        copy_length = st.session_state.pending_copy_length
+        try:
+            from adcg.pipelines.copy_layout import (
+                run_copy_layout_pipeline,
+            )
 
-                with st.spinner("광고 문구 생성과 레이아웃 합성 중..."):
-                    copy_result = run_copy_layout_pipeline(
-                        identity_image=identity_img,
-                        info_path=st.session_state.json_path,
-                        prompt_json=prompt_json,
-                        output_dir=st.session_state.job_output_dir,
-                        gpt_model=gpt_model,
-                        copy_count=1,
-                        copy_tone=copy_tone,
-                        copy_length=copy_length,
-                    )
-
-                st.session_state.copy_json_path = Path(
-                    copy_result.copy_json
-                )
-                st.session_state.final_image_path = Path(
-                    copy_result.final_image
-                )
-                st.session_state.step = 4
-                st.rerun()
-            except Exception as e:
-                traceback.print_exc()
-                copy_json_candidate = (
+            prompt_json = Path(
+                st.session_state.get(
+                    "prompt_json_path",
                     Path(st.session_state.job_output_dir)
                     / "02_prompt"
-                    / "ad_copy.json"
+                    / "ad_prompt.json",
                 )
-                if copy_json_candidate.is_file():
-                    st.warning(
-                        "광고 문구 생성은 완료됐지만 레이아웃 합성에서 "
-                        "중단됐습니다. VM 터미널의 상세 로그를 확인해주세요."
-                    )
-                else:
-                    st.warning(
-                        "광고 문구 생성 단계에서 중단됐습니다. "
-                        "OpenAI 설정과 VM 터미널 로그를 확인해주세요."
-                    )
-                st.exception(e)
+            )
+
+            with st.status(
+                "광고 문구와 레이아웃을 만드는 중입니다.",
+                expanded=True,
+            ) as copy_status:
+                st.write("① 상품 정보에 맞는 광고 문구를 작성하고 있습니다.")
+                st.write("② 이미지의 피사체와 안전 여백을 분석하고 있습니다.")
+                st.write("③ 타이포그래피, 컬러, 표면과 배치를 설계하고 있습니다.")
+                copy_result = run_copy_layout_pipeline(
+                    identity_image=identity_img,
+                    info_path=st.session_state.json_path,
+                    prompt_json=prompt_json,
+                    output_dir=st.session_state.job_output_dir,
+                    gpt_model=gpt_model,
+                    copy_count=1,
+                    copy_tone=copy_tone,
+                    copy_length=copy_length,
+                )
+                copy_status.update(
+                    label="카피와 레이아웃 합성이 완료됐습니다.",
+                    state="complete",
+                    expanded=False,
+                )
+
+            st.session_state.copy_json_path = Path(
+                copy_result.copy_json
+            )
+            st.session_state.final_image_path = Path(
+                copy_result.final_image
+            )
+            st.session_state.copy_layout_running = False
+            st.session_state.step = 4
+            st.rerun()
+        except Exception as e:
+            st.session_state.copy_layout_running = False
+            traceback.print_exc()
+            copy_json_candidate = (
+                Path(st.session_state.job_output_dir)
+                / "02_prompt"
+                / "ad_copy.json"
+            )
+            if copy_json_candidate.is_file():
+                st.warning(
+                    "광고 문구 생성은 완료됐지만 레이아웃 합성에서 "
+                    "중단됐습니다. VM 터미널의 상세 로그를 확인해주세요."
+                )
+            else:
+                st.warning(
+                    "광고 문구 생성 단계에서 중단됐습니다. "
+                    "OpenAI 설정과 VM 터미널 로그를 확인해주세요."
+                )
+            st.exception(e)
 
     st.divider()
     if st.button("🔄 새로운 광고 만들기", use_container_width=True):
@@ -785,6 +978,9 @@ elif st.session_state.step == 3:
             "job_id",
             "pipeline_submission",
             "generation_settings",
+            "copy_layout_running",
+            "pending_copy_tone",
+            "pending_copy_length",
         ):
             st.session_state.pop(key, None)
         st.rerun()
@@ -853,6 +1049,7 @@ elif st.session_state.step == 4:
             st.session_state.step = 3
             st.session_state.pop("copy_json_path", None)
             st.session_state.pop("final_image_path", None)
+            st.session_state.pop("copy_layout_running", None)
             st.rerun()
     with col_restart:
         if st.button("🔄 새로운 광고 만들기", use_container_width=True):
@@ -866,6 +1063,9 @@ elif st.session_state.step == 4:
                 "job_id",
                 "pipeline_submission",
                 "generation_settings",
+                "copy_layout_running",
+                "pending_copy_tone",
+                "pending_copy_length",
             ):
                 st.session_state.pop(key, None)
             st.rerun()

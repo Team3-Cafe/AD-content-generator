@@ -24,6 +24,22 @@ class ProjectFontResolutionTests(unittest.TestCase):
 
         self.assertEqual(resolved, PROJECT_KOREAN_FONT)
 
+    def test_missing_environment_font_falls_back_to_bundled_font(self):
+        missing_font = "/usr/share/fonts/not-installed/NotoSansCJK-Regular.ttc"
+        with (
+            mock.patch.dict(
+                os.environ,
+                {"ADCG_FONT_PATH": missing_font},
+            ),
+            self.assertWarnsRegex(
+                RuntimeWarning,
+                "Falling back to the bundled font",
+            ),
+        ):
+            resolved = _resolve_font_path(None, bold=False, text="한글 광고")
+
+        self.assertEqual(resolved, PROJECT_KOREAN_FONT)
+
 
 if __name__ == "__main__":
     unittest.main()
