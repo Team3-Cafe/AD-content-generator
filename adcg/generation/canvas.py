@@ -3,7 +3,9 @@ from pathlib import Path
 
 import numpy as np
 from PIL import Image
-from rembg import new_session, remove
+from rembg import remove
+
+from adcg.preprocessing.product import get_rembg_session
 
 
 RESAMPLING = getattr(Image, "Resampling", Image).LANCZOS
@@ -43,10 +45,7 @@ def load_product_cutout(
     )
 
     if use_rembg:
-        session = new_session(
-            "u2net",
-            providers=["CPUExecutionProvider"],
-        )
+        session = get_rembg_session("u2net")
         image = remove(
             image,
             session=session,

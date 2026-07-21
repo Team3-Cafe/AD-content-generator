@@ -22,6 +22,7 @@ class SplitPipelineTests(unittest.TestCase):
         }
         core_image = root / "core.png"
         identity_image = root / "identity.png"
+        shared_pipe = object()
         calls = []
 
         with patch.object(
@@ -45,7 +46,7 @@ class SplitPipelineTests(unittest.TestCase):
             side_effect=lambda **_kwargs: (
                 calls.append("generation") or generated
             ),
-        ), patch(
+        ) as generation_call, patch(
             "adcg.pipelines.image.run_core_refinement",
             side_effect=lambda **_kwargs: (
                 calls.append("core") or core_image
@@ -55,13 +56,14 @@ class SplitPipelineTests(unittest.TestCase):
             side_effect=lambda **_kwargs: (
                 calls.append("identity") or identity_image
             ),
-        ):
+        ) as identity_call:
             result = run_image_pipeline(
                 image_path=root / "product.png",
                 info_path=info_path,
                 output_dir=output_dir,
                 product_focus=0.65,
                 brand_focus=0.73,
+                diffusion_pipe=shared_pipe,
             )
 
         self.assertEqual(
@@ -71,6 +73,14 @@ class SplitPipelineTests(unittest.TestCase):
         self.assertEqual(result.info_path, info_path)
         self.assertEqual(result.prompt_json, prompt_path)
         self.assertEqual(result.identity_restored_image, identity_image)
+        self.assertIs(
+            generation_call.call_args.kwargs["pipe"],
+            shared_pipe,
+        )
+        self.assertIs(
+            identity_call.call_args.kwargs["pipe"],
+            shared_pipe,
+        )
 
     def test_copy_layout_pipeline_applies_controls_after_finished_image(self):
         selected_copy = {

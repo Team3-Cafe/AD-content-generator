@@ -3,7 +3,6 @@ from __future__ import annotations
 from dataclasses import dataclass
 from pathlib import Path
 
-from ..eval import run_evaluation
 from ..generation import run_generation
 from ..preprocessing import run_preprocess
 from ..prompting import run_prompt_generation
@@ -36,6 +35,7 @@ def run_image_pipeline(
     layout_mode="layout",
     seed=42,
     cpu_offload=False,
+    diffusion_pipe=None,
     evaluate=False,
     eval_metrics=None,
     eval_options=None,
@@ -82,6 +82,7 @@ def run_image_pipeline(
         product_image=generation_product,
         prompt_json=prompt_json,
         output_dir=output_dir / "03_generated",
+        pipe=diffusion_pipe,
         **generation_kwargs,
     )
 
@@ -108,10 +109,13 @@ def run_image_pipeline(
         seed=seed,
         product_focus=product_focus,
         cpu_offload=cpu_offload,
+        pipe=diffusion_pipe,
     )
 
     eval_json = None
     if evaluate:
+        from ..eval import run_evaluation
+
         print(f"[image 6/{total_steps}] Quantitative evaluation")
 
         eval_dir = output_dir / "06_eval"

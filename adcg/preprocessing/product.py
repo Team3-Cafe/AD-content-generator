@@ -1,4 +1,5 @@
 import json
+from functools import lru_cache
 from pathlib import Path
 
 from PIL import Image
@@ -9,6 +10,15 @@ from .geometry import crop_to_product
 from .masks import make_masks
 from .preview import save_preview
 from .validation import detect_truncation, handle_truncation
+
+
+@lru_cache(maxsize=2)
+def get_rembg_session(model="u2net"):
+    """Load each rembg model once and reuse its ONNX session."""
+    return new_session(
+        model,
+        providers=["CPUExecutionProvider"],
+    )
 
 
 def run_preprocess(
@@ -34,10 +44,7 @@ def run_preprocess(
 
     original = Image.open(image_path).convert("RGBA")
 
-    session = new_session(
-        model,
-        providers=["CPUExecutionProvider"],
-    )
+    session = get_rembg_session(model)
 
     cutout = remove(
         original,

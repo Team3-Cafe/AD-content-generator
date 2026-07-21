@@ -95,7 +95,7 @@ def _resolve_layout(config, prompt_data):
     }
 
 
-def _run_generation(config):
+def _run_generation(config, pipe=None):
     output_dir = Path(config["output_dir"])
     output_dir.mkdir(parents=True, exist_ok=True)
 
@@ -146,35 +146,40 @@ def _run_generation(config):
         edge_suppression=config["edge_suppression"],
     )
 
-    pipe = load_generation_pipeline(
-        base_model=config["base_model"],
-        controlnet_model=config["controlnet_model"],
-        cpu_offload=config["cpu_offload"],
-    )
+    owns_pipe = pipe is None
+
+    if owns_pipe:
+        pipe = load_generation_pipeline(
+            base_model=config["base_model"],
+            controlnet_model=config["controlnet_model"],
+            cpu_offload=config["cpu_offload"],
+        )
 
     print("[조건부 이미지 생성 시작]")
-    generated_image, generation_time = (
-        run_conditioned_inference(
-            pipe=pipe,
-            prompt=background_prompt,
-            negative_prompt=negative_prompt,
-            condition_canvas=canvas_result[
-                "condition_canvas"
-            ],
-            inpaint_mask=inpaint_mask,
-            control_image=control_image,
-            width=config["width"],
-            height=config["height"],
-            steps=config["steps"],
-            guidance_scale=config["guidance_scale"],
-            strength=config["strength"],
-            controlnet_scale=config["controlnet_scale"],
-            seed=config["seed"],
+    try:
+        generated_image, generation_time = (
+            run_conditioned_inference(
+                pipe=pipe,
+                prompt=background_prompt,
+                negative_prompt=negative_prompt,
+                condition_canvas=canvas_result[
+                    "condition_canvas"
+                ],
+                inpaint_mask=inpaint_mask,
+                control_image=control_image,
+                width=config["width"],
+                height=config["height"],
+                steps=config["steps"],
+                guidance_scale=config["guidance_scale"],
+                strength=config["strength"],
+                controlnet_scale=config["controlnet_scale"],
+                seed=config["seed"],
+            )
         )
-    )
-
-    del pipe
-    torch.cuda.empty_cache()
+    finally:
+        if owns_pipe:
+            del pipe
+            torch.cuda.empty_cache()
 
     experiment_data = {
         "base_model": config["base_model"],
@@ -224,6 +229,7 @@ def run_generation(
     product_image,
     prompt_json,
     output_dir,
+    pipe=None,
     **overrides,
 ):
     unknown = set(overrides) - set(GENERATION_DEFAULTS)
@@ -241,4 +247,4 @@ def run_generation(
         "output_dir": str(output_dir),
     }
 
-    return _run_generation(config)
+    return _run_generation(config, pipe=pipe)

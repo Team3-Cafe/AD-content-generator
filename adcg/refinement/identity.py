@@ -72,6 +72,7 @@ def run_identity_restoration(
     seed=42,
     product_focus=1.0,
     cpu_offload=False,
+    pipe=None,
 ):
     output_dir = prepare_output_dir(output_dir)
     size = (width, height)
@@ -113,11 +114,14 @@ def run_identity_restoration(
         prompt_json
     )
 
-    pipe = load_generation_pipeline(
-        base_model=base_model,
-        controlnet_model=controlnet_model,
-        cpu_offload=cpu_offload,
-    )
+    owns_pipe = pipe is None
+
+    if owns_pipe:
+        pipe = load_generation_pipeline(
+            base_model=base_model,
+            controlnet_model=controlnet_model,
+            cpu_offload=cpu_offload,
+        )
 
     prompt = fit_clip_prompt(
         pipe.tokenizer,
@@ -136,18 +140,23 @@ def run_identity_restoration(
         device=generator_device
     ).manual_seed(seed)
 
-    inpainted = pipe(
-        prompt=prompt,
-        negative_prompt=negative_prompt,
-        image=base_image,
-        mask_image=Image.fromarray(inpaint_mask),
-        control_image=control_image,
-        num_inference_steps=steps,
-        guidance_scale=guidance_scale,
-        strength=strength,
-        controlnet_conditioning_scale=controlnet_scale,
-        generator=generator,
-    ).images[0].convert("RGB")
+    try:
+        inpainted = pipe(
+            prompt=prompt,
+            negative_prompt=negative_prompt,
+            image=base_image,
+            mask_image=Image.fromarray(inpaint_mask),
+            control_image=control_image,
+            num_inference_steps=steps,
+            guidance_scale=guidance_scale,
+            strength=strength,
+            controlnet_conditioning_scale=controlnet_scale,
+            generator=generator,
+        ).images[0].convert("RGB")
+    finally:
+        if owns_pipe:
+            del pipe
+            torch.cuda.empty_cache()
 
     base_array = np.asarray(base_image, dtype=np.float32)
     inpainted_array = np.asarray(inpainted, dtype=np.float32)
