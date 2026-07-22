@@ -9,7 +9,7 @@ from adcg.generation.model_loader import (
     load_generation_pipeline,
 )
 from adcg.negative_prompts import IDENTITY_NEGATIVE_PROMPT
-from adcg.prompt_tokens import fit_clip_prompt
+from adcg.prompt_tokens import fit_clip_prompt, fit_clip_prompt_parts
 from adcg.image_utils.blending import (
     align_product_to_mask,
     color_match_product,
@@ -73,6 +73,7 @@ def run_identity_restoration(
     product_focus=1.0,
     cpu_offload=False,
     pipe=None,
+    generation_result_json=None,
 ):
     output_dir = prepare_output_dir(output_dir)
     size = (width, height)
@@ -111,7 +112,8 @@ def run_identity_restoration(
     )
 
     prompt = load_refinement_prompt(
-        prompt_json
+        prompt_json,
+        generation_result_json=generation_result_json,
     )
 
     owns_pipe = pipe is None
@@ -123,11 +125,16 @@ def run_identity_restoration(
             cpu_offload=cpu_offload,
         )
 
-    prompt = fit_clip_prompt(
+    prompt, positive_token_data = fit_clip_prompt_parts(
         pipe.tokenizer,
-        prompt,
+        [
+            part.strip()
+            for part in prompt.split(",")
+            if part.strip()
+        ],
         label="identity positive",
         required_prefix=POSITIVE_REQUIRED,
+        target_tokens=77,
     )
     negative_prompt = fit_clip_prompt(
         pipe.tokenizer,
@@ -241,6 +248,9 @@ def run_identity_restoration(
             "controlnet_scale": controlnet_scale,
             "identity_opacity": identity_opacity,
             "product_focus": product_focus,
+            "effective_positive_prompt": prompt,
+            "positive_prompt_tokenization": positive_token_data,
+            "negative_prompt": negative_prompt,
             "seed": seed,
         },
     )

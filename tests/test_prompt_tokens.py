@@ -2,7 +2,7 @@ import contextlib
 import io
 import unittest
 
-from adcg.prompt_tokens import fit_clip_prompt
+from adcg.prompt_tokens import fit_clip_prompt, fit_clip_prompt_parts
 
 
 class FakeTokenizer:
@@ -74,6 +74,27 @@ class PromptTokenTests(unittest.TestCase):
 
         self.assertEqual(fitted.count("halo"), 1)
         self.assertIn("scene-specific artifact", fitted)
+
+    def test_composes_whole_clauses_under_positive_target(self):
+        tokenizer = FakeTokenizer()
+        oversized = " ".join(f"detail{index}" for index in range(80))
+        prompt, metadata = fit_clip_prompt_parts(
+            tokenizer,
+            [
+                "ordinary service location",
+                "physically grounded surface",
+                oversized,
+                "available daylight",
+            ],
+            label="generation everyday positive",
+            required_prefix="everyday documentary setting",
+        )
+
+        self.assertLessEqual(metadata["token_count"], 72)
+        self.assertIn("ordinary service location", prompt)
+        self.assertIn("available daylight", prompt)
+        self.assertNotIn("detail0", prompt)
+        self.assertEqual(metadata["dropped_clauses"], [oversized])
 
 
 if __name__ == "__main__":

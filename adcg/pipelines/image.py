@@ -105,6 +105,7 @@ def run_image_pipeline(
         product_image=refinement_product,
         product_mask=generated["product_mask"],
         prompt_json=prompt_json,
+        generation_result_json=generated.get("result_json"),
         output_dir=output_dir / "05_final",
         seed=seed,
         product_focus=product_focus,

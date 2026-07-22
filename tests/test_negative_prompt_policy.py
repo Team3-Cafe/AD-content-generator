@@ -47,6 +47,9 @@ class NegativePromptPolicyTests(unittest.TestCase):
             "arms",
             "legs",
             "human silhouette",
+            "human-like figure",
+            "seated figure",
+            "occupant",
             "mannequin",
         )
         for prompt in (

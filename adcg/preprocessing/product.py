@@ -1,7 +1,9 @@
 import json
+import warnings
 from functools import lru_cache
 from pathlib import Path
 
+import onnxruntime as ort
 from PIL import Image
 from rembg import new_session, remove
 
@@ -12,13 +14,43 @@ from .preview import save_preview
 from .validation import detect_truncation, handle_truncation
 
 
+CPU_PROVIDER = "CPUExecutionProvider"
+CUDA_PROVIDER = "CUDAExecutionProvider"
+
+
+def get_rembg_providers():
+    """Prefer ONNX CUDA when installed and usable, otherwise use CPU."""
+    try:
+        available = set(ort.get_available_providers())
+    except Exception:
+        available = {CPU_PROVIDER}
+
+    if CUDA_PROVIDER in available:
+        return [CUDA_PROVIDER, CPU_PROVIDER]
+    return [CPU_PROVIDER]
+
+
 @lru_cache(maxsize=2)
 def get_rembg_session(model="u2net"):
     """Load each rembg model once and reuse its ONNX session."""
-    return new_session(
-        model,
-        providers=["CPUExecutionProvider"],
-    )
+    providers = get_rembg_providers()
+    try:
+        session = new_session(model, providers=providers)
+        print(f"[rembg] provider: {providers[0]}")
+        return session
+    except Exception as error:
+        if providers[0] != CUDA_PROVIDER:
+            raise
+
+        warnings.warn(
+            "rembg CUDA initialization failed; falling back to CPU: "
+            f"{error}",
+            RuntimeWarning,
+            stacklevel=2,
+        )
+        session = new_session(model, providers=[CPU_PROVIDER])
+        print(f"[rembg] provider: {CPU_PROVIDER} (CUDA fallback)")
+        return session
 
 
 def run_preprocess(

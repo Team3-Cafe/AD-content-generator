@@ -8,6 +8,9 @@ python-dotenv>=1.0,<2
 numpy>=1.26,<3
 Pillow>=10.4,<13
 opencv-python>=4.10,<5
+# CPU works by default. On CUDA hosts, replace onnxruntime with
+# onnxruntime-gpu so rembg can expose CUDAExecutionProvider; the code then
+# selects CUDA automatically and falls back to CPU if initialization fails.
 rembg[cpu]>=2.0.67,<3
 
 # Stable Diffusion, ControlNet, CLIP, and DINO pipelines

@@ -3,10 +3,64 @@ import time
 import torch
 
 from adcg.brand_focus import (
+    EVERYDAY_BACKGROUND_ANCHOR,
+    STUDIO_BACKGROUND_ANCHOR,
     blend_prompt_embeddings,
     brand_blend_weight,
 )
-from adcg.prompt_tokens import fit_clip_prompt
+from adcg.prompt_tokens import fit_clip_prompt, fit_clip_prompt_parts
+
+
+LEGACY_ENVIRONMENT_FIELD_PRIORITY = (
+    "location",
+    "surface",
+    "camera",
+    "lighting",
+    "composition",
+    "copy_space",
+    "atmosphere",
+)
+
+
+def _fit_background_prompt(
+    tokenizer,
+    fallback_prompt,
+    prompt_parts,
+    anchor,
+    label,
+):
+    if isinstance(prompt_parts, dict):
+        parts = [
+            prompt_parts.get(field)
+            for field in LEGACY_ENVIRONMENT_FIELD_PRIORITY
+        ]
+    elif isinstance(prompt_parts, list):
+        parts = prompt_parts
+    else:
+        parts = None
+
+    if parts is not None:
+        return fit_clip_prompt_parts(
+            tokenizer,
+            parts,
+            label=label,
+            required_prefix=anchor,
+        )
+
+    prompt = fit_clip_prompt(
+        tokenizer,
+        fallback_prompt,
+        label=label,
+    )
+    return prompt, {
+        "prompt": prompt,
+        "token_count": None,
+        "target_tokens": 77,
+        "model_limit": 77,
+        "raw_token_count": None,
+        "selected_clauses": [],
+        "dropped_clauses": [],
+    }
 
 
 def _encode_prompt(pipe, prompt, negative_prompt, guidance_scale):
@@ -39,17 +93,23 @@ def run_conditioned_inference(
     seed,
     everyday_prompt=None,
     studio_prompt=None,
+    everyday_prompt_parts=None,
+    studio_prompt_parts=None,
     brand_focus=0.5,
 ):
-    everyday_prompt = fit_clip_prompt(
+    everyday_prompt, everyday_token_data = _fit_background_prompt(
         pipe.tokenizer,
         everyday_prompt or prompt,
-        label="generation everyday positive",
+        everyday_prompt_parts,
+        EVERYDAY_BACKGROUND_ANCHOR,
+        "generation everyday positive",
     )
-    studio_prompt = fit_clip_prompt(
+    studio_prompt, studio_token_data = _fit_background_prompt(
         pipe.tokenizer,
         studio_prompt or prompt,
-        label="generation studio positive",
+        studio_prompt_parts,
+        STUDIO_BACKGROUND_ANCHOR,
+        "generation studio positive",
     )
     negative_prompt = fit_clip_prompt(
         pipe.tokenizer,
@@ -122,4 +182,8 @@ def run_conditioned_inference(
 
     elapsed = time.perf_counter() - start_time
 
-    return image, elapsed
+    return image, elapsed, {
+        "everyday": everyday_token_data,
+        "studio": studio_token_data,
+        "negative_prompt": negative_prompt,
+    }

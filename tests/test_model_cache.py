@@ -17,6 +17,9 @@ class ModelCacheTests(unittest.TestCase):
         get_rembg_session.cache_clear()
 
         with patch(
+            "adcg.preprocessing.product.ort.get_available_providers",
+            return_value=["CPUExecutionProvider"],
+        ), patch(
             "adcg.preprocessing.product.new_session",
             return_value=session,
         ) as load_session:
@@ -28,6 +31,54 @@ class ModelCacheTests(unittest.TestCase):
         load_session.assert_called_once_with(
             "u2net",
             providers=["CPUExecutionProvider"],
+        )
+
+    def test_rembg_prefers_cuda_when_provider_is_available(self):
+        session = object()
+        get_rembg_session.cache_clear()
+
+        with patch(
+            "adcg.preprocessing.product.ort.get_available_providers",
+            return_value=[
+                "CUDAExecutionProvider",
+                "CPUExecutionProvider",
+            ],
+        ), patch(
+            "adcg.preprocessing.product.new_session",
+            return_value=session,
+        ) as load_session:
+            selected = get_rembg_session("u2net")
+
+        self.assertIs(selected, session)
+        load_session.assert_called_once_with(
+            "u2net",
+            providers=[
+                "CUDAExecutionProvider",
+                "CPUExecutionProvider",
+            ],
+        )
+
+    def test_rembg_falls_back_to_cpu_when_cuda_initialization_fails(self):
+        cpu_session = object()
+        get_rembg_session.cache_clear()
+
+        with patch(
+            "adcg.preprocessing.product.ort.get_available_providers",
+            return_value=[
+                "CUDAExecutionProvider",
+                "CPUExecutionProvider",
+            ],
+        ), patch(
+            "adcg.preprocessing.product.new_session",
+            side_effect=[RuntimeError("CUDA unavailable"), cpu_session],
+        ) as load_session, self.assertWarns(RuntimeWarning):
+            selected = get_rembg_session("u2net")
+
+        self.assertIs(selected, cpu_session)
+        self.assertEqual(load_session.call_count, 2)
+        self.assertEqual(
+            load_session.call_args_list[1].kwargs["providers"],
+            ["CPUExecutionProvider"],
         )
 
     def test_generation_uses_injected_pipeline_without_reloading(self):
@@ -76,7 +127,15 @@ class ModelCacheTests(unittest.TestCase):
             ), patch(
                 "adcg.generation.conditioned_diffusion."
                 "run_conditioned_inference",
-                return_value=("generated-image", 0.1),
+                return_value=(
+                    "generated-image",
+                    0.1,
+                    {
+                        "everyday": {"prompt": "everyday"},
+                        "studio": {"prompt": "studio"},
+                        "negative_prompt": "negative",
+                    },
+                ),
             ) as inference, patch(
                 "adcg.generation.conditioned_diffusion."
                 "save_generation_result",

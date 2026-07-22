@@ -3,7 +3,7 @@ from pathlib import Path
 
 import torch
 
-from adcg.brand_focus import brand_blend_weight
+from adcg.brand_focus import brand_blend_weight, select_background_prompt
 
 from .canvas import (
     create_condition_canvas,
@@ -74,6 +74,21 @@ def load_prompt_data(prompt_json):
         generation_prompt.get("studio_background_prompt")
         or background_prompt
     ).strip()
+    everyday_prompt_parts = generation_prompt.get(
+        "everyday_prompt_parts"
+    )
+    studio_prompt_parts = generation_prompt.get(
+        "studio_prompt_parts"
+    )
+    # Backward compatibility for prompt JSON created by the previous schema.
+    if everyday_prompt_parts is None:
+        everyday_prompt_parts = generation_prompt.get(
+            "everyday_environment"
+        )
+    if studio_prompt_parts is None:
+        studio_prompt_parts = generation_prompt.get(
+            "studio_environment"
+        )
 
     negative_prompt = str(
         generation_prompt.get("negative_prompt")
@@ -91,6 +106,8 @@ def load_prompt_data(prompt_json):
         background_prompt or everyday_prompt,
         everyday_prompt,
         studio_prompt,
+        everyday_prompt_parts,
+        studio_prompt_parts,
         negative_prompt,
         brand_focus,
     )
@@ -123,6 +140,8 @@ def _run_generation(config, pipe=None):
         background_prompt,
         everyday_prompt,
         studio_prompt,
+        everyday_prompt_parts,
+        studio_prompt_parts,
         negative_prompt,
         brand_focus,
     ) = load_prompt_data(config["prompt_json"])
@@ -179,12 +198,14 @@ def _run_generation(config, pipe=None):
 
     print("[조건부 이미지 생성 시작]")
     try:
-        generated_image, generation_time = (
+        generated_image, generation_time, prompt_token_data = (
             run_conditioned_inference(
                 pipe=pipe,
                 prompt=background_prompt,
                 everyday_prompt=everyday_prompt,
                 studio_prompt=studio_prompt,
+                everyday_prompt_parts=everyday_prompt_parts,
+                studio_prompt_parts=studio_prompt_parts,
                 brand_focus=brand_focus,
                 negative_prompt=negative_prompt,
                 condition_canvas=canvas_result[
@@ -214,6 +235,20 @@ def _run_generation(config, pipe=None):
         "background_prompt": background_prompt,
         "everyday_background_prompt": everyday_prompt,
         "studio_background_prompt": studio_prompt,
+        "everyday_prompt_parts": everyday_prompt_parts,
+        "studio_prompt_parts": studio_prompt_parts,
+        "effective_everyday_background_prompt": prompt_token_data[
+            "everyday"
+        ]["prompt"],
+        "effective_studio_background_prompt": prompt_token_data[
+            "studio"
+        ]["prompt"],
+        "effective_background_prompt": select_background_prompt(
+            prompt_token_data["everyday"]["prompt"],
+            prompt_token_data["studio"]["prompt"],
+            brand_focus,
+        ),
+        "prompt_tokenization": prompt_token_data,
         "brand_focus": brand_focus,
         "brand_blend_weight": brand_blend_weight(brand_focus),
         "negative_prompt": negative_prompt,

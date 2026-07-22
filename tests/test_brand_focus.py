@@ -13,42 +13,49 @@ from adcg.brand_focus import (
     select_background_prompt,
 )
 from adcg.prompting.generator import (
+    build_brand_environment_instruction,
     build_user_instruction,
     run_prompt_generation,
 )
-from adcg.prompting.schema import normalize_prompt_json
-from adcg.prompting.system_prompt import SYSTEM_PROMPT
+from adcg.prompting.schema import (
+    normalize_prompt_json,
+    normalize_scene_plan_json,
+)
+from adcg.prompting.system_prompt import (
+    BRAND_TREATMENT_SYSTEM_PROMPT,
+    SYSTEM_PROMPT,
+)
 
 
 class BrandFocusTests(unittest.TestCase):
-    def test_continuous_value_is_passed_to_scene_planner(self):
+    def test_scene_planner_defers_brand_environment_design(self):
         instruction = build_user_instruction(
             product_info={},
             product_focus=0.6,
             brand_focus=0.37,
         )
 
-        self.assertIn("Brand focus:\n0.37", instruction)
-        self.assertIn("63% natural everyday background", instruction)
-        self.assertIn("37% premium studio-style background", instruction)
-        self.assertIn("Always produce both", instruction)
-        self.assertIn("Never assume a fixed product category", instruction)
+        self.assertNotIn("Brand focus:", instruction)
+        self.assertIn("later text-only LLM call", instruction)
+        self.assertIn("do not lock its location, lighting, or camera", instruction)
 
-    def test_brand_focus_has_only_two_input_specific_endpoints(self):
+    def test_second_call_can_redesign_brand_environment(self):
         self.assertIn(
-            "unmistakably natural everyday background",
+            "Do not lock the location, lighting design, or camera treatment",
             SYSTEM_PROMPT,
         )
         self.assertIn(
-            "unmistakably premium studio-style version",
-            SYSTEM_PROMPT,
+            "supplied everyday_direction and studio_direction",
+            BRAND_TREATMENT_SYSTEM_PROMPT,
         )
         self.assertIn(
-            "Do not assume or hardcode any product category",
-            SYSTEM_PROMPT,
+            "force the same fixed set of design categories",
+            BRAND_TREATMENT_SYSTEM_PROMPT,
         )
-        self.assertNotIn("prop density", SYSTEM_PROMPT)
-        self.assertNotIn("surface refinement", SYSTEM_PROMPT)
+        self.assertIn(
+            "everyday_prompt_parts",
+            BRAND_TREATMENT_SYSTEM_PROMPT,
+        )
 
     def test_anchors_are_domain_neutral_and_preserve_input_scene(self):
         everyday, studio = anchor_background_prompts(
@@ -126,22 +133,80 @@ class BrandFocusTests(unittest.TestCase):
             legacy_data["studio_background_prompt"],
             "legacy room",
         )
-    def test_run_prompt_generation_selects_exact_endpoints(self):
-        response_data = {
-            "product_analysis": {},
+
+    def test_first_response_schema_keeps_neutral_scene_reference(self):
+        plan = normalize_scene_plan_json({
+            "product_analysis": {"objects": ["forklift"]},
             "generation_prompt": {
-                "everyday_background_prompt": "authentic everyday room with ordinary context",
-                "studio_background_prompt": "premium studio room with deliberate presentation",
-                "negative_prompt": "",
+                "base_background_prompt": "support surface and open copy area",
+            },
+            "layout": {},
+        })
+        self.assertEqual(
+            plan["generation_prompt"]["base_background_prompt"],
+            "support surface and open copy area",
+        )
+
+    def test_run_prompt_generation_selects_exact_endpoints(self):
+        scene_data = {
+            "product_analysis": {
+                "protected_subject_terms": [
+                    "forklift",
+                    "forklift truck",
+                    "fork tines",
+                    "marker lights",
+                ],
+            },
+            "generation_prompt": {
+                "base_background_prompt": (
+                    "support beneath forklift, coherent perspective, "
+                    "open copy area"
+                ),
             },
             "layout": {},
         }
-        response = SimpleNamespace(
-            output_text=json.dumps(response_data),
+        brand_data = {
+            "everyday_prompt_parts": [
+                "active neighborhood service yard",
+                "weathered concrete with ordinary wear",
+                "eye-level documentary framing",
+                "ambient available daylight",
+                "forklift side profile left foreground",
+                "functional loosely organized workspace",
+                "open wall area on left",
+                "candid practical daily operation",
+            ],
+            "studio_prompt_parts": [
+                "purpose-built luxury exhibition stage",
+                "seamless polished dark platform",
+                "low-angle telephoto hero framing",
+                "sculpted high-contrast studio illumination",
+                "forklift hero placement",
+                "precisely controlled symmetrical presentation",
+                "architectural negative space above",
+                "exclusive premium campaign finish",
+            ],
+        }
+        everyday_raw = ", ".join(
+            part
+            for part in brand_data["everyday_prompt_parts"]
+            if "forklift" not in part
         )
+        studio_raw = ", ".join(
+            part
+            for part in brand_data["studio_prompt_parts"]
+            if "forklift" not in part
+        )
+        calls = []
+
+        def create(**kwargs):
+            calls.append(kwargs)
+            payload = scene_data if len(calls) % 2 else brand_data
+            return SimpleNamespace(output_text=json.dumps(payload))
+
         client = SimpleNamespace(
             responses=SimpleNamespace(
-                create=lambda **_kwargs: response,
+                create=create,
             ),
         )
 
@@ -188,9 +253,7 @@ class BrandFocusTests(unittest.TestCase):
             )
         )
         self.assertIn(
-            response_data["generation_prompt"][
-                "everyday_background_prompt"
-            ],
+            everyday_raw,
             everyday["generation_prompt"]["background_prompt"],
         )
         self.assertTrue(
@@ -199,10 +262,28 @@ class BrandFocusTests(unittest.TestCase):
             )
         )
         self.assertIn(
-            response_data["generation_prompt"][
-                "studio_background_prompt"
-            ],
+            studio_raw,
             studio["generation_prompt"]["background_prompt"],
+        )
+        self.assertNotIn(
+            "forklift",
+            everyday["generation_prompt"]["background_prompt"].casefold(),
+        )
+        self.assertNotIn(
+            "forklift",
+            studio["generation_prompt"]["background_prompt"].casefold(),
+        )
+        self.assertEqual(
+            everyday["generation_prompt"]["removed_subject_prompt_parts"][
+                "everyday"
+            ],
+            ["forklift side profile left foreground"],
+        )
+        self.assertEqual(
+            everyday["generation_prompt"]["removed_subject_prompt_parts"][
+                "base"
+            ],
+            ["support beneath forklift"],
         )
         self.assertEqual(
             everyday["controls"]["brand_blend_weight"],
@@ -212,6 +293,12 @@ class BrandFocusTests(unittest.TestCase):
             studio["controls"]["brand_blend_weight"],
             1.0,
         )
+        self.assertEqual(everyday["prompt_stages"]["llm_calls"], 2)
+        self.assertEqual(len(calls), 4)
+        self.assertIsInstance(calls[0]["input"], list)
+        self.assertIsInstance(calls[1]["input"], str)
+        self.assertIn("everyday_direction:", calls[1]["input"])
+        self.assertIn("studio_direction:", calls[1]["input"])
     def test_brand_focus_range_is_validated(self):
         with self.assertRaisesRegex(ValueError, "brand_focus"):
             run_prompt_generation(
@@ -223,12 +310,16 @@ class BrandFocusTests(unittest.TestCase):
 
     def test_vlm_prompt_contains_word_budgets(self):
         self.assertIn(
-            "each endpoint prompt between 20 and 35 English words",
+            "base_background_prompt between 12 and 18 English words",
             SYSTEM_PROMPT,
         )
         self.assertIn(
-            "Set negative_prompt to an empty string",
-            SYSTEM_PROMPT,
+            "Return two ordered lists",
+            BRAND_TREATMENT_SYSTEM_PROMPT,
+        )
+        self.assertIn(
+            "force the same fixed set of design categories",
+            BRAND_TREATMENT_SYSTEM_PROMPT,
         )
 
 

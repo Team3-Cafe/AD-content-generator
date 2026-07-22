@@ -34,6 +34,64 @@ def normalize_string_list(value):
     ]
 
 
+def _normalize_analysis(raw_analysis):
+    raw_analysis = raw_analysis if isinstance(raw_analysis, dict) else {}
+    return {
+        "objects": normalize_string_list(raw_analysis.get("objects")),
+        "protected_subject_terms": normalize_string_list(
+            raw_analysis.get("protected_subject_terms")
+        ),
+        "colors": normalize_string_list(raw_analysis.get("colors")),
+        "camera_angle": str(raw_analysis.get("camera_angle") or "").strip(),
+        "visual_features": normalize_string_list(
+            raw_analysis.get("visual_features")
+        ),
+    }
+
+
+def _normalize_layout(raw_layout):
+    raw_layout = raw_layout if isinstance(raw_layout, dict) else {}
+    return {
+        "product_position": str(
+            raw_layout.get("product_position") or "lower_center"
+        ).strip(),
+        "product_x": clamp_float(
+            raw_layout.get("product_x"), 0.10, 0.90, 0.50
+        ),
+        "product_y": clamp_float(
+            raw_layout.get("product_y"), 0.20, 0.92, 0.70
+        ),
+        "product_scale": clamp_float(
+            raw_layout.get("product_scale"), 0.20, 0.75, 0.45
+        ),
+        "headline_position": str(
+            raw_layout.get("headline_position") or "top_center"
+        ).strip(),
+    }
+
+
+def normalize_scene_plan_json(data):
+    """Normalize the first, image-aware LLM response."""
+    if not isinstance(data, dict):
+        raise ValueError("GPT 응답의 최상위 값이 JSON 객체가 아닙니다.")
+    for key in PROMPT_SCHEMA_KEYS:
+        if key not in data:
+            raise ValueError(f"프롬프트 JSON 필수 키가 없습니다: {key}")
+
+    raw_generation = data.get("generation_prompt")
+    raw_generation = raw_generation if isinstance(raw_generation, dict) else {}
+    base_prompt = str(
+        raw_generation.get("base_background_prompt")
+        or raw_generation.get("background_prompt")
+        or DEFAULT_POSITIVE
+    ).strip()
+    return {
+        "product_analysis": _normalize_analysis(data.get("product_analysis")),
+        "generation_prompt": {"base_background_prompt": base_prompt},
+        "layout": _normalize_layout(data.get("layout")),
+    }
+
+
 def normalize_prompt_json(data):
     if not isinstance(data, dict):
         raise ValueError(
@@ -46,58 +104,34 @@ def normalize_prompt_json(data):
                 f"프롬프트 JSON 필수 키가 없습니다: {key}"
             )
 
-    raw_analysis = data.get("product_analysis")
     raw_generation = data.get("generation_prompt")
-    raw_layout = data.get("layout")
-
-    if not isinstance(raw_analysis, dict):
-        raw_analysis = {}
 
     if not isinstance(raw_generation, dict):
         raw_generation = {}
 
-    if not isinstance(raw_layout, dict):
-        raw_layout = {}
-
     legacy_background_prompt = str(
         raw_generation.get("background_prompt") or ""
+    ).strip()
+    base_background_prompt = str(
+        raw_generation.get("base_background_prompt") or ""
     ).strip()
     everyday_background_prompt = str(
         raw_generation.get("everyday_background_prompt")
         or legacy_background_prompt
+        or base_background_prompt
         or DEFAULT_POSITIVE
     ).strip()
     studio_background_prompt = str(
         raw_generation.get("studio_background_prompt")
         or legacy_background_prompt
+        or base_background_prompt
         or DEFAULT_POSITIVE
     ).strip()
 
     negative_prompt = GENERATION_NEGATIVE_PROMPT
 
-    product_position = str(
-        raw_layout.get("product_position") or "lower_center"
-    ).strip()
-
-    headline_position = str(
-        raw_layout.get("headline_position") or "top_center"
-    ).strip()
-
     return {
-        "product_analysis": {
-            "objects": normalize_string_list(
-                raw_analysis.get("objects")
-            ),
-            "colors": normalize_string_list(
-                raw_analysis.get("colors")
-            ),
-            "camera_angle": str(
-                raw_analysis.get("camera_angle") or ""
-            ).strip(),
-            "visual_features": normalize_string_list(
-                raw_analysis.get("visual_features")
-            ),
-        },
+        "product_analysis": _normalize_analysis(data.get("product_analysis")),
         "generation_prompt": {
             "background_prompt": (
                 legacy_background_prompt
@@ -105,28 +139,8 @@ def normalize_prompt_json(data):
             ),
             "everyday_background_prompt": everyday_background_prompt,
             "studio_background_prompt": studio_background_prompt,
+            "base_background_prompt": base_background_prompt,
             "negative_prompt": negative_prompt,
         },
-        "layout": {
-            "product_position": product_position,
-            "product_x": clamp_float(
-                raw_layout.get("product_x"),
-                minimum=0.10,
-                maximum=0.90,
-                default=0.50,
-            ),
-            "product_y": clamp_float(
-                raw_layout.get("product_y"),
-                minimum=0.20,
-                maximum=0.92,
-                default=0.70,
-            ),
-            "product_scale": clamp_float(
-                raw_layout.get("product_scale"),
-                minimum=0.20,
-                maximum=0.75,
-                default=0.45,
-            ),
-            "headline_position": headline_position,
-        },
+        "layout": _normalize_layout(data.get("layout")),
     }

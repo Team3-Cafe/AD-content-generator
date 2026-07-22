@@ -1,8 +1,10 @@
 EVERYDAY_BACKGROUND_ANCHOR = (
-    "authentic unstaged everyday background, natural real-world setting"
+    "ordinary lived-in everyday environment, candid unstyled documentary "
+    "realism, visible practical wear"
 )
 STUDIO_BACKGROUND_ANCHOR = (
-    "premium purpose-built studio-style background, staged commercial setting"
+    "exclusive purpose-built advertising studio, immaculate premium set, "
+    "dramatic hero presentation"
 )
 
 
