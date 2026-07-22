@@ -3,6 +3,7 @@ from pathlib import Path
 
 
 POSITIVE_REQUIRED = (
+    "unattended product-only scene, empty surroundings, "
     "seamless product boundary, matched ambient lighting, "
     "realistic contact with the supporting surface, "
     "natural edge colors, commercial product photography"

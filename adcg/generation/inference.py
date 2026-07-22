@@ -21,6 +21,10 @@ LEGACY_ENVIRONMENT_FIELD_PRIORITY = (
     "atmosphere",
 )
 
+PRODUCT_ONLY_ANCHOR = (
+    "unattended product-only scene, empty surroundings, isolated subject"
+)
+
 
 def _fit_background_prompt(
     tokenizer,
@@ -29,6 +33,8 @@ def _fit_background_prompt(
     anchor,
     label,
 ):
+    required_anchor = f"{PRODUCT_ONLY_ANCHOR}, {anchor}"
+
     if isinstance(prompt_parts, dict):
         parts = [
             prompt_parts.get(field)
@@ -44,13 +50,14 @@ def _fit_background_prompt(
             tokenizer,
             parts,
             label=label,
-            required_prefix=anchor,
+            required_prefix=required_anchor,
         )
 
     prompt = fit_clip_prompt(
         tokenizer,
         fallback_prompt,
         label=label,
+        required_prefix=PRODUCT_ONLY_ANCHOR,
     )
     return prompt, {
         "prompt": prompt,

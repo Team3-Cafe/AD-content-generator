@@ -29,7 +29,7 @@ GENERATION_DEFAULTS = {
     "layout_mode": "layout",
     "product_x": None,
     "product_y": None,
-    "product_scale": None,
+    "product_scale": 0.70,
     "mask_margin": 4,
     "mask_blur": 2.0,
     "contact_ratio": 0.06,
@@ -127,7 +127,10 @@ def _resolve_layout(config, prompt_data):
     return {
         "product_x": resolve("product_x", 0.50),
         "product_y": resolve("product_y", 0.70),
-        "product_scale": resolve("product_scale", 0.45),
+        # Product size is a runtime composition policy. Do not silently fall
+        # back to the VLM-authored JSON value, which makes identical runs use
+        # unexpectedly different foreground sizes.
+        "product_scale": float(config["product_scale"]),
     }
 
 
@@ -151,6 +154,10 @@ def _run_generation(config, pipe=None):
     )
     truncation = metadata.get("truncation", {})
     layout = _resolve_layout(config, prompt_data)
+    print(
+        f"[Layout] product_scale={layout['product_scale']:.2f} "
+        "(runtime policy)"
+    )
 
     print("[상품 누끼 로드]")
     product = load_product_cutout(

@@ -119,9 +119,11 @@ concrete visual prompt parts rather than repeating the direction text.
   composes them under the CLIP token budget.
 - Put the most important and scene-defining parts first.
 - Return 5 to 9 parts per direction, normally 2 to 8 English words per part.
-- The everyday treatment must express an ordinary active environment,
-  naturally occurring use, functional organization, and non-presentational
-  character appropriate to the supplied scene.
+- The everyday treatment must express an ordinary unoccupied real-world
+  environment, functional context, practical organization, and
+  non-presentational character appropriate to the supplied scene.
+- Keep both treatments visibly unoccupied and product-only. Do not imply
+  staffing, customers, passengers, operators, or active human use.
 - The studio treatment must express a purpose-built presentation environment,
   pristine finish, deliberate organization, and premium set character.
 - Make the two lists concretely and visibly different. Never create two
