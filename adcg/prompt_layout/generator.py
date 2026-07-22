@@ -92,6 +92,37 @@ def _normalize_feature_review_metadata(
     return normalizations
 
 
+def _normalize_target_layout_roles(review: dict, layout: dict) -> list[dict]:
+    """Remove VLM-invented copy roles while preserving missing-role errors."""
+    expected_roles = {
+        str(item["role"]) for item in layout["elements"]
+    }
+    elements = review["target_layout"]["elements"]
+    kept = [
+        item
+        for item in elements
+        if str(item["role"]) in expected_roles
+    ]
+    removed_roles = [
+        str(item["role"])
+        for item in elements
+        if str(item["role"]) not in expected_roles
+    ]
+    review["target_layout"]["elements"] = kept
+    if not removed_roles:
+        return []
+    return [{
+        "feature": "target_layout.elements",
+        "before": {"roles": [str(item["role"]) for item in elements]},
+        "after": {"roles": [str(item["role"]) for item in kept]},
+        "reason": (
+            "removed copy roles invented by the VLM because their source "
+            "copy is empty"
+        ),
+        "removed_roles": removed_roles,
+    }]
+
+
 def _review_audit_warnings(review: dict) -> list[str]:
     """Report diagnosis coverage issues without rejecting a valid target."""
     warnings = []
@@ -581,7 +612,8 @@ def _enforce_final_review_revision(review: dict, layout: dict) -> dict:
     """Validate the VLM's complete absolute target before applying it."""
     review["needs_revision"] = True
     review["feedback_normalizations"] = (
-        _normalize_feature_review_metadata(review, layout)
+        _normalize_target_layout_roles(review, layout)
+        + _normalize_feature_review_metadata(review, layout)
     )
     review["audit_warnings"] = _review_audit_warnings(review)
     review["deliberation_warnings"] = _design_deliberation_warnings(review)
@@ -616,7 +648,8 @@ def _enforce_final_polish(polish: dict, layout: dict) -> dict:
     """Validate a complete polish target without forcing a new redesign."""
     polish["needs_revision"] = True
     polish["feedback_normalizations"] = (
-        _normalize_feature_review_metadata(polish, layout)
+        _normalize_target_layout_roles(polish, layout)
+        + _normalize_feature_review_metadata(polish, layout)
     )
     consistency_issues = _review_consistency_issues(polish, layout)
     if consistency_issues:

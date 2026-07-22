@@ -20,8 +20,8 @@ from .result import save_generation_result
 GENERATION_DEFAULTS = {
     "base_model": "digiplay/majicMIX_realistic_v7",
     "controlnet_model": "lllyasviel/control_v11p_sd15_canny",
-    "width": 512,
-    "height": 768,
+    "width": 576,
+    "height": 1024,
     "steps": 35,
     "guidance_scale": 8.0,
     "strength": 1.0,
