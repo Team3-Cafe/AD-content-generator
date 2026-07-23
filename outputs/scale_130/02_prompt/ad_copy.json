@@ -1,0 +1,18 @@
+{
+  "model": "gpt-5.4-nano",
+  "copy_count": 1,
+  "controls": {
+    "copy_tone": null,
+    "copy_length": null
+  },
+  "copies": [
+    {
+      "title": "전문성과 안전을 갖춘 지게차 운전 인력 지원",
+      "subtitle": "경력 3년 이상 숙련 운전사를 현장에 맞춰 신속 배치(전문 자격·안전 교육 수료, 즉시 출동 가능)",
+      "price": "",
+      "cta": "",
+      "model": "gpt-5.4-nano",
+      "latency_sec": 3.65
+    }
+  ]
+}

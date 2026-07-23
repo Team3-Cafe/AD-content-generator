@@ -1,0 +1,37 @@
+{
+  "input": "C:\\Users\\jgi01\\Desktop\\project\\outputs\\scale_070\\04_core_refined\\final_core_ring_refined.png",
+  "output": "C:\\Users\\jgi01\\Desktop\\project\\outputs\\scale_070\\05_final\\final_identity_restored.png",
+  "base_model": "digiplay/majicMIX_realistic_v7",
+  "controlnet_model": "lllyasviel/control_v11p_sd15_canny",
+  "steps": 30,
+  "strength": 0.38,
+  "controlnet_scale": 0.6,
+  "identity_opacity": 0.92,
+  "product_focus": 0.0,
+  "effective_positive_prompt": "unattended product-only scene, empty surroundings, seamless product boundary, matched ambient lighting, realistic contact with the supporting surface, natural edge colors, commercial product photography, unattended product-only scene, empty surroundings, isolated subject, exclusive purpose-built advertising studio, immaculate premium set, dramatic hero presentation, premium light-gray seamless cyclorama, high-key studio lighting grid",
+  "positive_prompt_tokenization": {
+    "prompt": "unattended product-only scene, empty surroundings, seamless product boundary, matched ambient lighting, realistic contact with the supporting surface, natural edge colors, commercial product photography, unattended product-only scene, empty surroundings, isolated subject, exclusive purpose-built advertising studio, immaculate premium set, dramatic hero presentation, premium light-gray seamless cyclorama, high-key studio lighting grid",
+    "token_count": 77,
+    "target_tokens": 77,
+    "model_limit": 77,
+    "raw_token_count": 105,
+    "selected_clauses": [
+      "unattended product-only scene",
+      "empty surroundings",
+      "isolated subject",
+      "exclusive purpose-built advertising studio",
+      "immaculate premium set",
+      "dramatic hero presentation",
+      "premium light-gray seamless cyclorama",
+      "high-key studio lighting grid"
+    ],
+    "dropped_clauses": [
+      "polished dark graphite floor reflection",
+      "precise soft shadow grounding",
+      "clean minimal floor-to-wall cove",
+      "micro-texture studio backdrop finish"
+    ]
+  },
+  "negative_prompt": "person, human, people, worker, driver, operator, passenger, pedestrian, bystander, face, head, torso, arms, legs, human silhouette, human-like figure, seated figure, occupant, mannequin, human reflection, skin, clothing, haloed or jagged edges, pasted cutout, deformed boundary",
+  "seed": 42
+}

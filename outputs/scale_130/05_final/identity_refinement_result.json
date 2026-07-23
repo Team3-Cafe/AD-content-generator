@@ -1,0 +1,40 @@
+{
+  "input": "C:\\Users\\jgi01\\Desktop\\project\\outputs\\scale_130\\04_core_refined\\final_core_ring_refined.png",
+  "output": "C:\\Users\\jgi01\\Desktop\\project\\outputs\\scale_130\\05_final\\final_identity_restored.png",
+  "base_model": "digiplay/majicMIX_realistic_v7",
+  "controlnet_model": "lllyasviel/control_v11p_sd15_canny",
+  "steps": 30,
+  "strength": 0.38,
+  "controlnet_scale": 0.6,
+  "identity_opacity": 0.92,
+  "product_focus": 0.0,
+  "effective_positive_prompt": "unattended product-only scene, empty surroundings, seamless product boundary, matched ambient lighting, realistic contact with the supporting surface, natural edge colors, commercial product photography, unattended product-only scene, empty surroundings, isolated subject, ordinary lived-in everyday environment, candid unstyled documentary realism, visible practical wear, dim logistics yard floor, uneven daylight, faded lane markings",
+  "positive_prompt_tokenization": {
+    "prompt": "unattended product-only scene, empty surroundings, seamless product boundary, matched ambient lighting, realistic contact with the supporting surface, natural edge colors, commercial product photography, unattended product-only scene, empty surroundings, isolated subject, ordinary lived-in everyday environment, candid unstyled documentary realism, visible practical wear, dim logistics yard floor, uneven daylight, faded lane markings",
+    "token_count": 76,
+    "target_tokens": 77,
+    "model_limit": 77,
+    "raw_token_count": 103,
+    "selected_clauses": [
+      "unattended product-only scene",
+      "empty surroundings",
+      "isolated subject",
+      "ordinary lived-in everyday environment",
+      "candid unstyled documentary realism",
+      "visible practical wear",
+      "dim logistics yard floor",
+      "uneven daylight",
+      "faded lane markings"
+    ],
+    "dropped_clauses": [
+      "tangled shipping pallets stacked far background",
+      "dusty concrete texture",
+      "rolling garage door",
+      "warehouse wall panels",
+      "slight haze",
+      "natural color cast"
+    ]
+  },
+  "negative_prompt": "person, human, people, worker, driver, operator, passenger, pedestrian, bystander, face, head, torso, arms, legs, human silhouette, human-like figure, seated figure, occupant, mannequin, human reflection, skin, clothing, haloed or jagged edges, pasted cutout, deformed boundary",
+  "seed": 42
+}

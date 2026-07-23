@@ -1,0 +1,1406 @@
+{
+  "model": "gpt-4o",
+  "stage": "final_independent_redesign",
+  "needs_revision": true,
+  "diagnosis": {
+    "primary_issue": "band_proportion",
+    "feature_reviews": {
+      "typography": {
+        "verdict": "revise",
+        "evidence": "The typography is bold and clear but lacks differentiation between the title and subtitle, making it hard to distinguish hierarchy.",
+        "recommended_change": "Increase contrast between title and subtitle by varying weight and size.",
+        "affected_targets": [
+          "title_typography",
+          "subtitle_typography"
+        ]
+      },
+      "hierarchy": {
+        "verdict": "revise",
+        "evidence": "The hierarchy is unclear due to similar typography for title and subtitle, which makes it difficult to identify the primary message.",
+        "recommended_change": "Establish a clear visual hierarchy by emphasizing the title over the subtitle.",
+        "affected_targets": [
+          "title_geometry",
+          "title_typography",
+          "subtitle_geometry",
+          "subtitle_typography"
+        ]
+      },
+      "spacing": {
+        "verdict": "revise",
+        "evidence": "The spacing is tight, especially between the title and subtitle, which affects readability.",
+        "recommended_change": "Increase spacing between elements to improve readability.",
+        "affected_targets": [
+          "title_geometry",
+          "subtitle_geometry"
+        ]
+      },
+      "price_composition": {
+        "verdict": "keep",
+        "evidence": "No price composition is present, which is appropriate given the absence of price information.",
+        "recommended_change": "",
+        "affected_targets": []
+      },
+      "band_proportion": {
+        "verdict": "revise",
+        "evidence": "The black band is overly dominant and consumes too much visual space, detracting from the product image.",
+        "recommended_change": "Reduce the band size to focus more on the product image.",
+        "affected_targets": [
+          "headline_surface"
+        ]
+      },
+      "accent_rule": {
+        "verdict": "keep",
+        "evidence": "No accent rule is present, which maintains a clean design.",
+        "recommended_change": "",
+        "affected_targets": []
+      },
+      "placement": {
+        "verdict": "revise",
+        "evidence": "The placement of the text in the black band at the top limits the visibility of the product.",
+        "recommended_change": "Reposition the text to allow more focus on the product.",
+        "affected_targets": [
+          "title_geometry",
+          "subtitle_geometry"
+        ]
+      },
+      "color": {
+        "verdict": "revise",
+        "evidence": "The color scheme is high contrast but lacks harmony with the product image.",
+        "recommended_change": "Use a color palette that complements the product image.",
+        "affected_targets": [
+          "color_palette"
+        ]
+      },
+      "contrast": {
+        "verdict": "revise",
+        "evidence": "The high contrast between text and background is effective, but the overall design feels disconnected from the product image.",
+        "recommended_change": "Integrate text with the product image using complementary colors.",
+        "affected_targets": [
+          "color_palette"
+        ]
+      },
+      "cta": {
+        "verdict": "keep",
+        "evidence": "No CTA is present, which is appropriate given the absence of actionable copy.",
+        "recommended_change": "",
+        "affected_targets": []
+      },
+      "product_visibility": {
+        "verdict": "revise",
+        "evidence": "The large black band at the top obscures the product, reducing its visibility.",
+        "recommended_change": "Enhance product visibility by reducing the prominence of the text band.",
+        "affected_targets": [
+          "headline_surface",
+          "overall_composition"
+        ]
+      }
+    },
+    "design_observations": [
+      {
+        "assessment": "strength",
+        "category": "typography",
+        "target": "title",
+        "evidence": "The title uses bold typography, making it stand out clearly against the background.",
+        "design_implication": "Ensures the title is easily readable.",
+        "recommended_action": "build_on",
+        "impact": "medium"
+      },
+      {
+        "assessment": "weakness",
+        "category": "hierarchy",
+        "target": "subtitle",
+        "evidence": "The subtitle is visually similar to the title, causing confusion in message prioritization.",
+        "design_implication": "Reduces clarity of the message hierarchy.",
+        "recommended_action": "redesign",
+        "impact": "high"
+      },
+      {
+        "assessment": "weakness",
+        "category": "spacing",
+        "target": "headline_group",
+        "evidence": "The spacing between the title and subtitle is minimal, affecting readability.",
+        "design_implication": "Creates a cramped appearance that hinders readability.",
+        "recommended_action": "redesign",
+        "impact": "medium"
+      },
+      {
+        "assessment": "strength",
+        "category": "contrast",
+        "target": "overall",
+        "evidence": "The text has high contrast against the background, ensuring readability.",
+        "design_implication": "Text remains legible even from a distance.",
+        "recommended_action": "build_on",
+        "impact": "medium"
+      },
+      {
+        "assessment": "weakness",
+        "category": "band_proportion",
+        "target": "headline_band",
+        "evidence": "The black band is too large and visually dominant, overshadowing the product image.",
+        "design_implication": "Distracts from the product which should be the focal point.",
+        "recommended_action": "redesign",
+        "impact": "high"
+      },
+      {
+        "assessment": "strength",
+        "category": "product_visibility",
+        "target": "product",
+        "evidence": "The product is centrally located, which should ideally draw focus.",
+        "design_implication": "Ensures the product is a key visual element.",
+        "recommended_action": "build_on",
+        "impact": "high"
+      },
+      {
+        "assessment": "strength",
+        "category": "color",
+        "target": "background",
+        "evidence": "The dark background provides a neutral base that can be built upon with accent colors.",
+        "design_implication": "Allows for flexibility in text and accent color choices.",
+        "recommended_action": "build_on",
+        "impact": "medium"
+      },
+      {
+        "assessment": "weakness",
+        "category": "placement",
+        "target": "headline_group",
+        "evidence": "The text placement at the top limits the visual space for the product.",
+        "design_implication": "Reduces the impact of the product image.",
+        "recommended_action": "redesign",
+        "impact": "high"
+      },
+      {
+        "assessment": "strength",
+        "category": "typography",
+        "target": "subtitle",
+        "evidence": "The subtitle is concise and informative, providing necessary details.",
+        "design_implication": "Conveys essential information effectively.",
+        "recommended_action": "preserve",
+        "impact": "low"
+      },
+      {
+        "assessment": "strength",
+        "category": "contrast",
+        "target": "headline_group",
+        "evidence": "The text color contrasts well with the black background, ensuring legibility.",
+        "design_implication": "Maintains readability in varied lighting conditions.",
+        "recommended_action": "preserve",
+        "impact": "medium"
+      },
+      {
+        "assessment": "weakness",
+        "category": "color",
+        "target": "headline_group",
+        "evidence": "The color palette feels disconnected from the product image, lacking visual harmony.",
+        "design_implication": "Creates a disjointed visual experience.",
+        "recommended_action": "redesign",
+        "impact": "medium"
+      }
+    ],
+    "correction_summary": "Revise typography, hierarchy, spacing, band proportion, placement, color, and contrast to improve clarity, harmony, and product focus."
+  },
+  "redesign_plan": {
+    "concept": "Create a visually integrated design that emphasizes the product while maintaining clear and readable text.",
+    "composition_strategy": "Use a single consolidated copy zone with reduced band size to enhance product focus.",
+    "hierarchy_strategy": "Emphasize the title with larger and bolder typography, and differentiate the subtitle with a lighter weight.",
+    "typography_strategy": "Select a high-contrast title/subtitle scale with varied weights for differentiation.",
+    "surface_strategy": "Implement a content-width headline surface with reduced opacity to maintain focus on the product.",
+    "color_strategy": "Use a complementary color palette that harmonizes with the product image.",
+    "product_visibility_strategy": "Position text to avoid overlap with the product, enhancing visibility."
+  },
+  "design_exploration": {
+    "typography": {
+      "visible_evidence": "The current typography is bold but lacks differentiation between title and subtitle.",
+      "design_objective": "Enhance differentiation between title and subtitle for better hierarchy.",
+      "candidate_evaluations": [
+        {
+          "direction": "single-weight editorial restraint",
+          "expected_benefit": "Consistent visual tone.",
+          "visual_risk": "Lack of hierarchy.",
+          "cross_feature_compatibility": "Compatible with open editorial spacing."
+        },
+        {
+          "direction": "high-contrast title/subtitle scale",
+          "expected_benefit": "Clear hierarchy and emphasis on the title.",
+          "visual_risk": "Potential imbalance if not executed carefully.",
+          "cross_feature_compatibility": "Works well with compact spacing."
+        }
+      ],
+      "selected_direction": "high-contrast title/subtitle scale",
+      "selection_reason": "Provides clear differentiation and emphasis on key information.",
+      "interacts_with": [
+        "hierarchy",
+        "spacing"
+      ],
+      "target_layout_commitments": [
+        "title_typography",
+        "subtitle_typography"
+      ]
+    },
+    "hierarchy": {
+      "visible_evidence": "The hierarchy is unclear due to similar typography for title and subtitle.",
+      "design_objective": "Establish a clear visual hierarchy by emphasizing the title over the subtitle.",
+      "candidate_evaluations": [
+        {
+          "direction": "title dominant",
+          "expected_benefit": "Clear focus on the main message.",
+          "visual_risk": "Subtitle may become less noticeable.",
+          "cross_feature_compatibility": "Aligns with high-contrast typography."
+        },
+        {
+          "direction": "balanced equal-weight groups",
+          "expected_benefit": "Equal emphasis on all information.",
+          "visual_risk": "Lack of focus on primary message.",
+          "cross_feature_compatibility": "May conflict with high-contrast typography."
+        }
+      ],
+      "selected_direction": "title dominant",
+      "selection_reason": "Ensures the main message is prioritized and easily identifiable.",
+      "interacts_with": [
+        "typography",
+        "spacing"
+      ],
+      "target_layout_commitments": [
+        "title_geometry",
+        "title_typography",
+        "subtitle_geometry",
+        "subtitle_typography"
+      ]
+    },
+    "spacing": {
+      "visible_evidence": "The spacing is tight, especially between the title and subtitle.",
+      "design_objective": "Increase spacing between elements to improve readability.",
+      "candidate_evaluations": [
+        {
+          "direction": "open editorial spacing",
+          "expected_benefit": "Improved readability and visual appeal.",
+          "visual_risk": "May require more space than available.",
+          "cross_feature_compatibility": "Compatible with high-contrast typography."
+        },
+        {
+          "direction": "compact campaign spacing",
+          "expected_benefit": "Efficient use of space while maintaining readability.",
+          "visual_risk": "Potentially cramped if not balanced well.",
+          "cross_feature_compatibility": "Aligns with title dominant hierarchy."
+        }
+      ],
+      "selected_direction": "compact campaign spacing",
+      "selection_reason": "Balances space efficiency with readability.",
+      "interacts_with": [
+        "typography",
+        "hierarchy"
+      ],
+      "target_layout_commitments": [
+        "title_geometry",
+        "subtitle_geometry"
+      ]
+    },
+    "price_composition": {
+      "visible_evidence": "No price composition is present, which is appropriate given the absence of price information.",
+      "design_objective": "Maintain clarity by omitting unnecessary price elements.",
+      "candidate_evaluations": [
+        {
+          "direction": "omit price composition because no price copy exists",
+          "expected_benefit": "Focus remains on relevant information.",
+          "visual_risk": "None as price is not part of the copy.",
+          "cross_feature_compatibility": "N/A"
+        },
+        {
+          "direction": "include placeholder for future use",
+          "expected_benefit": "Prepares for potential future content.",
+          "visual_risk": "Clutters current design without need.",
+          "cross_feature_compatibility": "N/A"
+        }
+      ],
+      "selected_direction": "omit price composition because no price copy exists",
+      "selection_reason": "Keeps the design focused and uncluttered.",
+      "interacts_with": [
+        "typography"
+      ],
+      "target_layout_commitments": []
+    },
+    "band_proportion": {
+      "visible_evidence": "The black band is overly dominant and consumes too much visual space.",
+      "design_objective": "Reduce the band size to focus more on the product image.",
+      "candidate_evaluations": [
+        {
+          "direction": "content-width headline only",
+          "expected_benefit": "Reduces visual dominance and enhances product focus.",
+          "visual_risk": "May reduce text visibility if not executed well.",
+          "cross_feature_compatibility": "Works with compact campaign spacing."
+        },
+        {
+          "direction": "full-width headline band",
+          "expected_benefit": "Ensures text visibility.",
+          "visual_risk": "Continues to overshadow product image.",
+          "cross_feature_compatibility": "May conflict with product visibility strategy."
+        }
+      ],
+      "selected_direction": "content-width headline only",
+      "selection_reason": "Balances text visibility with product focus.",
+      "interacts_with": [
+        "product_visibility",
+        "placement"
+      ],
+      "target_layout_commitments": [
+        "headline_surface"
+      ]
+    },
+    "accent_rule": {
+      "visible_evidence": "No accent rule is present, maintaining a clean design.",
+      "design_objective": "Maintain simplicity without unnecessary accents.",
+      "candidate_evaluations": [
+        {
+          "direction": "no accent",
+          "expected_benefit": "Keeps design clean and focused.",
+          "visual_risk": "None as accents are not needed.",
+          "cross_feature_compatibility": "N/A"
+        },
+        {
+          "direction": "short title underline",
+          "expected_benefit": "Adds subtle emphasis to the title.",
+          "visual_risk": "May clutter the design.",
+          "cross_feature_compatibility": "Could conflict with clean design objective."
+        }
+      ],
+      "selected_direction": "no accent",
+      "selection_reason": "Preserves simplicity and focus on core elements.",
+      "interacts_with": [
+        "typography"
+      ],
+      "target_layout_commitments": []
+    },
+    "placement": {
+      "visible_evidence": "The placement of the text in the black band at the top limits the visibility of the product.",
+      "design_objective": "Reposition the text to allow more focus on the product.",
+      "candidate_evaluations": [
+        {
+          "direction": "top headline and bottom offer",
+          "expected_benefit": "Balances text and product visibility.",
+          "visual_risk": "Potential disconnection between elements.",
+          "cross_feature_compatibility": "Aligns with content-width headline surface."
+        },
+        {
+          "direction": "single consolidated copy zone",
+          "expected_benefit": "Creates a cohesive visual group.",
+          "visual_risk": "May limit flexibility in layout.",
+          "cross_feature_compatibility": "Works with compact campaign spacing."
+        }
+      ],
+      "selected_direction": "single consolidated copy zone",
+      "selection_reason": "Ensures a cohesive and focused design.",
+      "interacts_with": [
+        "band_proportion",
+        "product_visibility"
+      ],
+      "target_layout_commitments": [
+        "title_geometry",
+        "subtitle_geometry"
+      ]
+    },
+    "color": {
+      "visible_evidence": "The color scheme is high contrast but lacks harmony with the product image.",
+      "design_objective": "Use a color palette that complements the product image.",
+      "candidate_evaluations": [
+        {
+          "direction": "complementary contrast",
+          "expected_benefit": "Enhances visual interest and harmony.",
+          "visual_risk": "Potential clash if not balanced well.",
+          "cross_feature_compatibility": "Works with high-contrast typography."
+        },
+        {
+          "direction": "analogous harmony",
+          "expected_benefit": "Creates a soothing and cohesive look.",
+          "visual_risk": "May lack visual impact.",
+          "cross_feature_compatibility": "Aligns with clean design objective."
+        }
+      ],
+      "selected_direction": "complementary contrast",
+      "selection_reason": "Provides visual interest while maintaining harmony.",
+      "interacts_with": [
+        "contrast",
+        "typography"
+      ],
+      "target_layout_commitments": [
+        "color_palette"
+      ]
+    },
+    "contrast": {
+      "visible_evidence": "The high contrast between text and background is effective, but the overall design feels disconnected from the product image.",
+      "design_objective": "Integrate text with the product image using complementary colors.",
+      "candidate_evaluations": [
+        {
+          "direction": "direct high-contrast text",
+          "expected_benefit": "Ensures readability.",
+          "visual_risk": "May feel disconnected from the product.",
+          "cross_feature_compatibility": "Works with complementary color strategy."
+        },
+        {
+          "direction": "local scrim behind text",
+          "expected_benefit": "Softens the transition between text and image.",
+          "visual_risk": "Potentially reduces text clarity.",
+          "cross_feature_compatibility": "Aligns with content-width headline surface."
+        }
+      ],
+      "selected_direction": "direct high-contrast text",
+      "selection_reason": "Maintains readability while integrating with the product image.",
+      "interacts_with": [
+        "color",
+        "typography"
+      ],
+      "target_layout_commitments": [
+        "color_palette"
+      ]
+    },
+    "cta": {
+      "visible_evidence": "No CTA is present, which is appropriate given the absence of actionable copy.",
+      "design_objective": "Maintain focus on existing content without unnecessary elements.",
+      "candidate_evaluations": [
+        {
+          "direction": "omit CTA and reserve no CTA-specific space",
+          "expected_benefit": "Keeps design focused on provided content.",
+          "visual_risk": "None as CTA is not needed.",
+          "cross_feature_compatibility": "N/A"
+        },
+        {
+          "direction": "include placeholder for future CTA",
+          "expected_benefit": "Prepares for potential future content.",
+          "visual_risk": "Clutters current design without need.",
+          "cross_feature_compatibility": "N/A"
+        }
+      ],
+      "selected_direction": "omit CTA and reserve no CTA-specific space",
+      "selection_reason": "Keeps the design focused and uncluttered.",
+      "interacts_with": [
+        "typography"
+      ],
+      "target_layout_commitments": []
+    },
+    "product_visibility": {
+      "visible_evidence": "The large black band at the top obscures the product, reducing its visibility.",
+      "design_objective": "Enhance product visibility by reducing the prominence of the text band.",
+      "candidate_evaluations": [
+        {
+          "direction": "strict no-overlap",
+          "expected_benefit": "Ensures product remains the focal point.",
+          "visual_risk": "May limit text placement options.",
+          "cross_feature_compatibility": "Aligns with content-width headline surface."
+        },
+        {
+          "direction": "use negative space above subject",
+          "expected_benefit": "Enhances product focus while maintaining text visibility.",
+          "visual_risk": "Potential imbalance if not executed well.",
+          "cross_feature_compatibility": "Works with single consolidated copy zone."
+        }
+      ],
+      "selected_direction": "use negative space above subject",
+      "selection_reason": "Balances product focus with text visibility.",
+      "interacts_with": [
+        "band_proportion",
+        "placement"
+      ],
+      "target_layout_commitments": [
+        "headline_surface",
+        "overall_composition"
+      ]
+    }
+  },
+  "coherence_review": {
+    "composition_thesis": "Create a cohesive design that emphasizes the product while maintaining clear and readable text.",
+    "cross_feature_decisions": [
+      {
+        "features": [
+          "typography",
+          "hierarchy"
+        ],
+        "relationship": "Typography supports hierarchy by differentiating title and subtitle."
+      },
+      {
+        "features": [
+          "spacing",
+          "placement"
+        ],
+        "relationship": "Compact spacing and single consolidated copy zone ensure cohesive layout."
+      },
+      {
+        "features": [
+          "color",
+          "contrast"
+        ],
+        "relationship": "Complementary contrast integrates text with product image."
+      }
+    ],
+    "tensions_resolved": [
+      "Balancing product visibility with text placement by using negative space above subject."
+    ],
+    "final_coherence_check": "The selected directions form a cohesive and visually integrated advertisement."
+  },
+  "target_layout": {
+    "elements": [
+      {
+        "role": "title",
+        "x": 48,
+        "y": 80,
+        "width": 480,
+        "height": 100,
+        "font_size": 36,
+        "font_weight": 700,
+        "tracking": 0,
+        "wrap_mode": "word",
+        "min_font_size": 24,
+        "optical_align": true,
+        "text_align": "center",
+        "max_lines": 1,
+        "color": "#F0AA16",
+        "line_height": 1.2,
+        "shadow_offset": 0,
+        "shadow_color": "#000000",
+        "stroke_width": 0,
+        "stroke_color": "#000000"
+      },
+      {
+        "role": "subtitle",
+        "x": 48,
+        "y": 180,
+        "width": 480,
+        "height": 120,
+        "font_size": 24,
+        "font_weight": 400,
+        "tracking": 0,
+        "wrap_mode": "word",
+        "min_font_size": 18,
+        "optical_align": true,
+        "text_align": "center",
+        "max_lines": 3,
+        "color": "#CFCBCA",
+        "line_height": 1.4,
+        "shadow_offset": 0,
+        "shadow_color": "#000000",
+        "stroke_width": 0,
+        "stroke_color": "#000000"
+      }
+    ],
+    "surfaces": [
+      {
+        "group": "headline",
+        "enabled": true,
+        "x": 48,
+        "y": 60,
+        "width": 480,
+        "height": 260,
+        "effect": {
+          "fill_type": "solid",
+          "fill_colors": [
+            "#1C1C1C",
+            "keep"
+          ],
+          "fill_stops": [
+            0,
+            1
+          ],
+          "gradient_angle": 0,
+          "shape": "rounded_rect",
+          "overlay_color": "#000000",
+          "overlay_opacity": 0.6,
+          "opacity": 0.8,
+          "corner_radius": 10,
+          "backdrop_blur": 5,
+          "blend_mode": "normal",
+          "border_enabled": false,
+          "border_color": "#000000",
+          "border_width": 0,
+          "border_opacity": 0,
+          "shadow_enabled": false,
+          "shadow_color": "#000000",
+          "shadow_offset_x": 0,
+          "shadow_offset_y": 0,
+          "shadow_blur": 0,
+          "shadow_opacity": 0,
+          "shadow_layers": []
+        }
+      }
+    ],
+    "accent_rule": {
+      "present": false,
+      "x": 0,
+      "y": 0,
+      "width": 576,
+      "height": 2,
+      "color": "#000000"
+    },
+    "price_composition": {
+      "number_scale": 1.0,
+      "unit_scale": 1.0,
+      "number_baseline_shift": 0,
+      "unit_baseline_shift": 0,
+      "baseline_mode": "shared"
+    }
+  },
+  "reason": "The redesign focuses on enhancing product visibility and text clarity through strategic placement, typography, and color choices.",
+  "feedback_normalizations": [],
+  "audit_warnings": [
+    "completed-ad audit is missing design categories: accent_rule, cta, price_composition"
+  ],
+  "deliberation_warnings": [],
+  "material_feedback_warnings": [],
+  "consistency_validated": true,
+  "deliberation_validated": true,
+  "revision_mode": "completed_ad_rebuild",
+  "requested_material_changes": {
+    "active_systems": [
+      "composition",
+      "typography",
+      "surface",
+      "color"
+    ],
+    "systems": {
+      "composition": [
+        "subtitle_geometry",
+        "title_geometry"
+      ],
+      "typography": [
+        "subtitle_typography",
+        "title_typography"
+      ],
+      "surface": [
+        "headline_surface"
+      ],
+      "color": [
+        "color_palette"
+      ],
+      "price": [],
+      "accent": []
+    },
+    "changed_targets": [
+      "color_palette",
+      "headline_surface",
+      "overall_composition",
+      "subtitle_geometry",
+      "subtitle_typography",
+      "title_geometry",
+      "title_typography"
+    ],
+    "material_property_count": 30,
+    "thresholds": {
+      "horizontal_geometry_px": 9,
+      "vertical_geometry_px": 15,
+      "font_size_px": 2,
+      "surface_opacity": 0.04,
+      "price_scale": 0.06,
+      "price_baseline": 0.025
+    }
+  },
+  "review_attempts": 1,
+  "design_candidate_pool": {
+    "usage": "These are affordances, not templates or limits. Compare, combine, alter, or reject them and author exact values when a better design is visible.",
+    "typography": [
+      "single-weight editorial restraint",
+      "high-contrast title/subtitle scale",
+      "compact industrial grotesk",
+      "wide-tracked premium display",
+      "dense headline with quiet support copy",
+      "price-led numeric display",
+      "soft hierarchy with moderate weights",
+      "outlined or shadow-assisted overlay"
+    ],
+    "hierarchy": [
+      "title dominant",
+      "price dominant",
+      "product dominant with restrained copy",
+      "title and price dual anchors",
+      "progressive title-subtitle-offer sequence",
+      "compact headline with isolated offer",
+      "balanced equal-weight groups"
+    ],
+    "spacing": [
+      "open editorial spacing",
+      "compact campaign spacing",
+      "tight internal loose external",
+      "loose internal compact external",
+      "rhythmic stepped gaps",
+      "group overlap with clear padding",
+      "edge-anchored negative space",
+      "full-width bands with asymmetric insets"
+    ],
+    "price_composition": [
+      "omit price composition because no price copy exists"
+    ],
+    "band_proportion": [
+      "no surfaces",
+      "content-width headline only",
+      "content-width offer only",
+      "two independent content surfaces",
+      "full-width headline band",
+      "full-width offer band",
+      "asymmetric partial-width surface",
+      "thin scrim",
+      "large translucent field",
+      "overlapping surface and open text group"
+    ],
+    "accent_rule": [
+      "no accent",
+      "short title underline",
+      "long group divider",
+      "vertical side rule",
+      "price-adjacent rule",
+      "offset asymmetric dash",
+      "full-width hairline",
+      "small color block used as punctuation"
+    ],
+    "placement": {
+      "safe_region_candidates_px": [
+        {
+          "x": 96,
+          "y": 341,
+          "width": 96,
+          "height": 171,
+          "quietness": 0.984,
+          "luminance": 0.0877,
+          "mean_color": "#171616"
+        },
+        {
+          "x": 0,
+          "y": 341,
+          "width": 96,
+          "height": 171,
+          "quietness": 0.9821,
+          "luminance": 0.0717,
+          "mean_color": "#131212"
+        },
+        {
+          "x": 480,
+          "y": 341,
+          "width": 96,
+          "height": 171,
+          "quietness": 0.9812,
+          "luminance": 0.0844,
+          "mean_color": "#161615"
+        },
+        {
+          "x": 0,
+          "y": 853,
+          "width": 96,
+          "height": 171,
+          "quietness": 0.9746,
+          "luminance": 0.1138,
+          "mean_color": "#1E1D1D"
+        },
+        {
+          "x": 96,
+          "y": 853,
+          "width": 96,
+          "height": 171,
+          "quietness": 0.9736,
+          "luminance": 0.15,
+          "mean_color": "#272626"
+        },
+        {
+          "x": 288,
+          "y": 853,
+          "width": 96,
+          "height": 171,
+          "quietness": 0.9692,
+          "luminance": 0.2548,
+          "mean_color": "#43413F"
+        },
+        {
+          "x": 192,
+          "y": 853,
+          "width": 96,
+          "height": 171,
+          "quietness": 0.969,
+          "luminance": 0.2013,
+          "mean_color": "#343333"
+        },
+        {
+          "x": 384,
+          "y": 853,
+          "width": 96,
+          "height": 171,
+          "quietness": 0.965,
+          "luminance": 0.2671,
+          "mean_color": "#4B433C"
+        }
+      ],
+      "composition_models": [
+        "top headline and bottom offer",
+        "top headline and mid-side offer",
+        "side-stacked copy column",
+        "opposing-corner groups",
+        "single consolidated copy zone",
+        "asymmetric floating groups",
+        "edge-anchored editorial layout",
+        "open overlay without surfaces",
+        "split horizontal bands",
+        "product-adjacent offer anchor"
+      ]
+    },
+    "color": {
+      "swatches": [
+        "#1C1C1C",
+        "#323130",
+        "#4B4B49",
+        "#5F6364",
+        "#888888",
+        "#A2A19F",
+        "#F0AA16",
+        "#5F4427",
+        "#7D541E",
+        "#CFCBCA",
+        "#BA8018",
+        "#0A0A0A"
+      ],
+      "dominant_colors": [
+        "#1C1C1C",
+        "#2A2B2A",
+        "#232323",
+        "#131313",
+        "#323130",
+        "#393939",
+        "#41413F",
+        "#4B4B49",
+        "#0A0A0A",
+        "#52575A",
+        "#5F6364",
+        "#747474"
+      ],
+      "accent_candidates": [
+        "#7D541E",
+        "#BA8018",
+        "#5F4427",
+        "#384A53",
+        "#F0AA16",
+        "#52575A",
+        "#5F6364",
+        "#41413F"
+      ],
+      "tonal_variants": {
+        "#1C1C1C": [
+          "#454545",
+          "#6B6B6B",
+          "#999999",
+          "#171717",
+          "#121212",
+          "#0D0D0D"
+        ],
+        "#2A2B2A": [
+          "#505150",
+          "#757575",
+          "#9FA09F",
+          "#222322",
+          "#1B1C1B",
+          "#131313"
+        ],
+        "#232323": [
+          "#4B4B4B",
+          "#707070",
+          "#9C9C9C",
+          "#1D1D1D",
+          "#171717",
+          "#101010"
+        ],
+        "#131313": [
+          "#3D3D3D",
+          "#666666",
+          "#959595",
+          "#101010",
+          "#0C0C0C",
+          "#090909"
+        ],
+        "#323130": [
+          "#575655",
+          "#7A7978",
+          "#A3A2A2",
+          "#292827",
+          "#20201F",
+          "#161616"
+        ],
+        "#393939": [
+          "#5D5D5D",
+          "#7E7E7E",
+          "#A6A6A6",
+          "#2F2F2F",
+          "#252525",
+          "#1A1A1A"
+        ]
+      },
+      "harmony_sets": [
+        {
+          "type": "analogous",
+          "colors": [
+            "#7D251E",
+            "#7D541E",
+            "#767D1E"
+          ]
+        },
+        {
+          "type": "complementary",
+          "colors": [
+            "#7D541E",
+            "#1E477D"
+          ]
+        },
+        {
+          "type": "split_complementary",
+          "colors": [
+            "#7D541E",
+            "#1E767D",
+            "#251E7D"
+          ]
+        },
+        {
+          "type": "tonal",
+          "colors": [
+            "#C4B29A",
+            "#7D541E",
+            "#38260E"
+          ]
+        }
+      ],
+      "strategies": [
+        "image-tonal monochrome",
+        "product-color accent",
+        "analogous harmony",
+        "complementary contrast",
+        "split-complementary accent",
+        "warm-neutral editorial",
+        "cool industrial",
+        "dark translucent overlay",
+        "light translucent overlay",
+        "independent headline and offer palettes"
+      ]
+    },
+    "contrast": [
+      "direct high-contrast text",
+      "local scrim behind text",
+      "subtle text shadow",
+      "thin text stroke",
+      "opaque surface",
+      "translucent blurred surface",
+      "gradient fading toward image",
+      "relocate text to a quieter region",
+      "dark-on-light and light-on-dark split treatment"
+    ],
+    "cta": [
+      "omit CTA and reserve no CTA-specific space"
+    ],
+    "product_visibility": {
+      "subject_region_normalized": {
+        "x": 0.25,
+        "y": 0.5,
+        "width": 0.5,
+        "height": 0.5
+      },
+      "strategies": [
+        "strict no-overlap",
+        "allow only transparent scrim near subject edge",
+        "place copy on opposing side",
+        "frame subject with two copy groups",
+        "use negative space above subject",
+        "use negative space below subject",
+        "keep high-contrast accents away from product silhouette",
+        "align copy to subject edge without covering it"
+      ]
+    },
+    "text_composition_options": {
+      "wrap_modes": [
+        "character",
+        "word",
+        "balanced"
+      ],
+      "optical_alignment": [
+        true,
+        false
+      ],
+      "price_baselines": [
+        "shared",
+        "cap_height",
+        "optical_center"
+      ]
+    },
+    "alignment_combinations": [
+      {
+        "headline": "left",
+        "offer": "left"
+      },
+      {
+        "headline": "left",
+        "offer": "center"
+      },
+      {
+        "headline": "left",
+        "offer": "right"
+      },
+      {
+        "headline": "center",
+        "offer": "left"
+      },
+      {
+        "headline": "center",
+        "offer": "center"
+      },
+      {
+        "headline": "center",
+        "offer": "right"
+      },
+      {
+        "headline": "right",
+        "offer": "left"
+      },
+      {
+        "headline": "right",
+        "offer": "center"
+      },
+      {
+        "headline": "right",
+        "offer": "right"
+      }
+    ],
+    "surface_effect_components": {
+      "fill_types": [
+        "none",
+        "solid",
+        "linear_gradient",
+        "radial_gradient",
+        "scrim"
+      ],
+      "blend_modes": [
+        "normal",
+        "multiply",
+        "screen",
+        "overlay"
+      ],
+      "shapes": [
+        "rounded_rect",
+        "pill",
+        "ellipse",
+        "cut_corner",
+        "diagonal"
+      ],
+      "edge_treatments": [
+        "square",
+        "rounded",
+        "bordered",
+        "shadowed",
+        "blurred"
+      ],
+      "shadow_systems": [
+        "none",
+        "ambient",
+        "directional",
+        "two-layer depth",
+        "three-layer depth"
+      ],
+      "color_overlays": [
+        "none",
+        "tonal glaze",
+        "accent wash",
+        "contrast tint"
+      ],
+      "width_modes": [
+        "none",
+        "content_width",
+        "partial_width",
+        "full_width"
+      ]
+    },
+    "copy_roles": [
+      "title",
+      "subtitle"
+    ]
+  },
+  "applied_target_layout": {
+    "elements": [
+      {
+        "role": "title",
+        "x": 48,
+        "y": 80,
+        "width": 480,
+        "height": 100,
+        "font_size": 21,
+        "font_weight": 700,
+        "tracking": 0,
+        "wrap_mode": "word",
+        "min_font_size": 24,
+        "optical_align": true,
+        "text_align": "center",
+        "max_lines": 1,
+        "line_height": 1.2,
+        "color": "#F0AA16",
+        "shadow_offset": 0,
+        "shadow_color": "#000000",
+        "stroke_width": 0,
+        "stroke_color": "#000000"
+      },
+      {
+        "role": "subtitle",
+        "x": 48,
+        "y": 187,
+        "width": 480,
+        "height": 120,
+        "font_size": 24,
+        "font_weight": 400,
+        "tracking": 0,
+        "wrap_mode": "word",
+        "min_font_size": 18,
+        "optical_align": true,
+        "text_align": "center",
+        "max_lines": 3,
+        "line_height": 1.4,
+        "color": "#CFCBCA",
+        "shadow_offset": 0,
+        "shadow_color": "#000000",
+        "stroke_width": 0,
+        "stroke_color": "#000000"
+      }
+    ],
+    "surfaces": [
+      {
+        "group": "headline",
+        "x": 0,
+        "y": 60,
+        "width": 576,
+        "height": 260,
+        "fill_type": "solid",
+        "fill_colors": [
+          "#1C1C1C",
+          "#0A0A0A"
+        ],
+        "fill_stops": [
+          0.0,
+          1.0
+        ],
+        "gradient_angle": 0.0,
+        "shape": "rounded_rect",
+        "overlay_color": "#000000",
+        "overlay_opacity": 0.6,
+        "opacity": 0.8,
+        "corner_radius": 10,
+        "backdrop_blur": 5,
+        "blend_mode": "normal",
+        "border_enabled": false,
+        "border_color": "#000000",
+        "border_width": 0,
+        "border_opacity": 0.0,
+        "shadow_enabled": false,
+        "shadow_color": "#000000",
+        "shadow_offset_x": 0,
+        "shadow_offset_y": 0,
+        "shadow_blur": 0,
+        "shadow_opacity": 0.0,
+        "shadow_layers": []
+      }
+    ],
+    "accent_rule": {
+      "present": false
+    }
+  },
+  "applied_material_changes": {
+    "active_systems": [
+      "composition",
+      "typography",
+      "surface",
+      "color"
+    ],
+    "systems": {
+      "composition": [
+        "subtitle_geometry",
+        "title_geometry"
+      ],
+      "typography": [
+        "subtitle_typography",
+        "title_typography"
+      ],
+      "surface": [
+        "headline_surface"
+      ],
+      "color": [
+        "color_palette"
+      ],
+      "price": [],
+      "accent": []
+    },
+    "changed_targets": [
+      "color_palette",
+      "headline_surface",
+      "overall_composition",
+      "subtitle_geometry",
+      "subtitle_typography",
+      "title_geometry",
+      "title_typography"
+    ],
+    "material_property_count": 29,
+    "thresholds": {
+      "horizontal_geometry_px": 9,
+      "vertical_geometry_px": 15,
+      "font_size_px": 2,
+      "surface_opacity": 0.04,
+      "price_scale": 0.06,
+      "price_baseline": 0.025
+    }
+  },
+  "applied_changes": [
+    {
+      "target": "title",
+      "changes": {
+        "x": {
+          "before": 89,
+          "after": 48
+        },
+        "y": {
+          "before": 154,
+          "after": 80
+        },
+        "width": {
+          "before": 461,
+          "after": 480
+        },
+        "height": {
+          "before": 68,
+          "after": 100
+        },
+        "font_size": {
+          "before": 20,
+          "after": 21
+        },
+        "font_weight": {
+          "before": 900,
+          "after": 700
+        },
+        "wrap_mode": {
+          "before": "character",
+          "after": "word"
+        },
+        "min_font_size": {
+          "before": 10,
+          "after": 24
+        },
+        "line_height": {
+          "before": 1.1,
+          "after": 1.2
+        }
+      }
+    },
+    {
+      "target": "subtitle",
+      "changes": {
+        "x": {
+          "before": 89,
+          "after": 48
+        },
+        "y": {
+          "before": 234,
+          "after": 187
+        },
+        "width": {
+          "before": 461,
+          "after": 480
+        },
+        "height": {
+          "before": 67,
+          "after": 120
+        },
+        "font_size": {
+          "before": 22,
+          "after": 24
+        },
+        "font_weight": {
+          "before": 500,
+          "after": 400
+        },
+        "wrap_mode": {
+          "before": "balanced",
+          "after": "word"
+        },
+        "min_font_size": {
+          "before": 10,
+          "after": 18
+        },
+        "max_lines": {
+          "before": 2,
+          "after": 3
+        },
+        "line_height": {
+          "before": 1.25,
+          "after": 1.4
+        },
+        "color": {
+          "before": "#F0AA16",
+          "after": "#CFCBCA"
+        }
+      }
+    },
+    {
+      "target": "headline_surface",
+      "changes": {
+        "y": {
+          "before": 138,
+          "after": 60
+        },
+        "height": {
+          "before": 179,
+          "after": 260
+        },
+        "fill_type": {
+          "before": "scrim",
+          "after": "solid"
+        },
+        "fill_colors": {
+          "before": [
+            "#000000",
+            "#0A0A0A"
+          ],
+          "after": [
+            "#1C1C1C",
+            "#0A0A0A"
+          ]
+        },
+        "gradient_angle": {
+          "before": 90.0,
+          "after": 0.0
+        },
+        "overlay_opacity": {
+          "before": 0.5,
+          "after": 0.6
+        },
+        "shadow_enabled": {
+          "before": true,
+          "after": false
+        },
+        "shadow_offset_x": {
+          "before": 2,
+          "after": 0
+        },
+        "shadow_offset_y": {
+          "before": 2,
+          "after": 0
+        },
+        "shadow_blur": {
+          "before": 5,
+          "after": 0
+        },
+        "shadow_opacity": {
+          "before": 0.5,
+          "after": 0.0
+        }
+      }
+    }
+  ],
+  "constraints_applied": [
+    {
+      "target": "headline_surface",
+      "reason": "full_canvas_width_headline_surface",
+      "requested": {
+        "x": 48,
+        "y": 60,
+        "width": 480,
+        "height": 260
+      },
+      "applied": {
+        "x": 0,
+        "y": 60,
+        "width": 576,
+        "height": 260
+      }
+    }
+  ]
+}

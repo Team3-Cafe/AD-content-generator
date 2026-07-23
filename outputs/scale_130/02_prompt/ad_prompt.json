@@ -1,0 +1,83 @@
+{
+  "product_analysis": {
+    "objects": [
+      "{'count': 1, 'name': 'forklift truck', 'visible_parts': ['fork mast and upright frame', 'fork tines', 'cab/seat area with steering controls', 'hood and engine cover area', 'front and rear wheels with rubber tires'], 'overall_shape': 'industrial vehicle with vertical mast and forward fork assembly', 'colors': ['yellow body', 'dark gray/black tires', 'gray/blue-gray mast and frame', 'black seat and dashboard area', 'small amber/orange lights on the overhead frame'], 'materials': ['painted metal', 'rubber tires', 'glass windscreen (dimly visible)'], 'arrangement_and_angle': 'side profile facing left; forks extending forward and slightly downward'}"
+    ],
+    "protected_subject_terms": [
+      "forklift",
+      "forklift truck",
+      "industrial lift truck",
+      "fork mast",
+      "fork tines",
+      "overhead guard",
+      "front wheels",
+      "rear wheels",
+      "yellow forklift body"
+    ],
+    "colors": [
+      "yellow",
+      "blue-gray",
+      "dark gray",
+      "black",
+      "amber"
+    ],
+    "camera_angle": "side elevation view (truck shown in lateral profile)",
+    "visual_features": [
+      "yellow body with dark gray/black cabin controls area",
+      "blue-gray vertical mast with fork carriage",
+      "two fork tines extending left",
+      "pneumatic tires with deep tread",
+      "amber/orange corner lights on overhead frame",
+      "wheel hubs and axle components visible"
+    ]
+  },
+  "generation_prompt": {
+    "background_prompt": "ordinary lived-in everyday environment, candid unstyled documentary realism, visible practical wear, dim logistics yard floor, uneven daylight, tangled shipping pallets stacked far background, faded lane markings, dusty concrete texture, rolling garage door, warehouse wall panels, slight haze, natural color cast, soft shadows, modest contrast, shallow depth, neutral open copy space right side, handheld camera feel, ordinary perspective",
+    "everyday_background_prompt": "ordinary lived-in everyday environment, candid unstyled documentary realism, visible practical wear, dim logistics yard floor, uneven daylight, tangled shipping pallets stacked far background, faded lane markings, dusty concrete texture, rolling garage door, warehouse wall panels, slight haze, natural color cast, soft shadows, modest contrast, shallow depth, neutral open copy space right side, handheld camera feel, ordinary perspective",
+    "studio_background_prompt": "exclusive purpose-built advertising studio, immaculate premium set, dramatic hero presentation, premium studio sweep backdrop, deep charcoal, clean gradient floor, satin matte finish, precision rim lighting along edges, softbox top light, controlled highlights, light dust-free atmosphere, ultra crisp focus, subtle floor reflection under vehicle shape, intentional negative space upper right, architectural set symmetry, premium staging",
+    "base_background_prompt": "warehouse floor surface with lane lines, neutral pallets far back, low detail copy space",
+    "negative_prompt": "person, human, people, worker, driver, operator, passenger, pedestrian, bystander, face, head, torso, arms, legs, human silhouette, human-like figure, seated figure, occupant, mannequin, human reflection, human shadow, skin, clothing, duplicate or deformed products, merged objects, text, logos, or watermarks, floating objects, conflicting perspective, unsupported objects",
+    "everyday_prompt_parts": [
+      "dim logistics yard floor, uneven daylight",
+      "tangled shipping pallets stacked far background",
+      "faded lane markings, dusty concrete texture",
+      "rolling garage door, warehouse wall panels",
+      "slight haze, natural color cast",
+      "soft shadows, modest contrast, shallow depth",
+      "neutral open copy space right side",
+      "handheld camera feel, ordinary perspective"
+    ],
+    "studio_prompt_parts": [
+      "premium studio sweep backdrop, deep charcoal",
+      "clean gradient floor, satin matte finish",
+      "precision rim lighting along edges",
+      "softbox top light, controlled highlights",
+      "light dust-free atmosphere, ultra crisp focus",
+      "subtle floor reflection under vehicle shape",
+      "intentional negative space upper right",
+      "architectural set symmetry, premium staging"
+    ],
+    "removed_subject_prompt_parts": {
+      "base": [],
+      "everyday": [],
+      "studio": []
+    }
+  },
+  "layout": {
+    "product_position": "left-center, dominant foreground with full side profile visible",
+    "product_x": 0.35,
+    "product_y": 0.55,
+    "product_scale": 0.75,
+    "headline_position": "upper right area, avoid mast and wheel silhouettes"
+  },
+  "controls": {
+    "product_focus": 0.0,
+    "brand_focus": 0.0,
+    "brand_blend_weight": 0.0
+  },
+  "prompt_stages": {
+    "llm_calls": 2,
+    "scene_planner_model": "gpt-5.4-nano",
+    "brand_prompt_model": "gpt-5.4-nano"
+  }
+}
