@@ -1,0 +1,81 @@
+{
+  "product_analysis": {
+    "objects": [
+      "{'name': 'forklift truck', 'count': 1, 'visible_parts': ['fork mast', 'forks', 'cab frame', 'seat area', 'front wheels', 'rear wheels', 'front body housing'], 'primary_colors': ['yellow', 'dark blue/gray', 'black', 'silver gray'], 'shape_and_arrangement': 'Side view of a forklift with upright mast and two forward steel forks at the left, cab frame and operator seat toward the right, four wheels visible with treaded tires.', 'materials': ['painted steel', 'rubber tires', 'plastic/metal panels'], 'orientation': 'Forks extend to the left; machine faces right; mast vertical.'}"
+    ],
+    "protected_subject_terms": [
+      "forklift truck",
+      "electric forklift",
+      "counterbalance forklift",
+      "fork carriage",
+      "fork mast",
+      "forks",
+      "operator cab frame",
+      "CHL 80 forklift"
+    ],
+    "colors": [
+      "yellow",
+      "dark blue/gray",
+      "black",
+      "silver gray"
+    ],
+    "camera_angle": "Three-quarter side view at wheel height, machine facing right.",
+    "visual_features": [
+      "Two upright fork arms with vertical mast",
+      "Treaded tires with dark wheel hubs",
+      "Operator seat and steering/control column visible behind the frame",
+      "On side panel, white text 'CHL 80' is visible"
+    ]
+  },
+  "generation_prompt": {
+    "background_prompt": "exclusive purpose-built advertising studio, immaculate premium set, dramatic hero presentation, premium light-gray seamless cyclorama, high-key studio lighting grid, polished dark graphite floor reflection, precise soft shadow grounding, clean minimal floor-to-wall cove, micro-texture studio backdrop finish, controlled vignette, crisp contrast, extra negative space on right, ultra-clean premium advertising look",
+    "everyday_background_prompt": "ordinary lived-in everyday environment, candid unstyled documentary realism, visible practical wear, ordinary logistics workshop corner, dull gray concrete floor, unpainted cinderblock wall backdrop, faint warehouse shelving silhouettes, dim practical overhead fluorescent light, slight scuffs and dust on surfaces, workbench silhouette near edge, wide copy space on right wall, soft natural haze, low contrast",
+    "studio_background_prompt": "exclusive purpose-built advertising studio, immaculate premium set, dramatic hero presentation, premium light-gray seamless cyclorama, high-key studio lighting grid, polished dark graphite floor reflection, precise soft shadow grounding, clean minimal floor-to-wall cove, micro-texture studio backdrop finish, controlled vignette, crisp contrast, extra negative space on right, ultra-clean premium advertising look",
+    "base_background_prompt": "warehouse floor concrete, faint shelving silhouettes, neutral walls, minimal clutter, copy-space on right side",
+    "negative_prompt": "person, human, people, worker, driver, operator, passenger, pedestrian, bystander, face, head, torso, arms, legs, human silhouette, human-like figure, seated figure, occupant, mannequin, human reflection, human shadow, skin, clothing, duplicate or deformed products, merged objects, text, logos, or watermarks, floating objects, conflicting perspective, unsupported objects",
+    "everyday_prompt_parts": [
+      "ordinary logistics workshop corner",
+      "dull gray concrete floor",
+      "unpainted cinderblock wall backdrop",
+      "faint warehouse shelving silhouettes",
+      "dim practical overhead fluorescent light",
+      "slight scuffs and dust on surfaces",
+      "workbench silhouette near edge",
+      "wide copy space on right wall",
+      "soft natural haze, low contrast"
+    ],
+    "studio_prompt_parts": [
+      "premium light-gray seamless cyclorama",
+      "high-key studio lighting grid",
+      "polished dark graphite floor reflection",
+      "precise soft shadow grounding",
+      "clean minimal floor-to-wall cove",
+      "micro-texture studio backdrop finish",
+      "controlled vignette, crisp contrast",
+      "extra negative space on right",
+      "ultra-clean premium advertising look"
+    ],
+    "removed_subject_prompt_parts": {
+      "base": [],
+      "everyday": [],
+      "studio": []
+    }
+  },
+  "layout": {
+    "product_position": "Place the forklift in the lower-left/middle area, facing right; keep ample copy space to the right.",
+    "product_x": 0.33,
+    "product_y": 0.62,
+    "product_scale": 0.62,
+    "headline_position": "right-center, above the floor line, leaving clear space near the forklift body"
+  },
+  "controls": {
+    "product_focus": 0.0,
+    "brand_focus": 1.0,
+    "brand_blend_weight": 1.0
+  },
+  "prompt_stages": {
+    "llm_calls": 2,
+    "scene_planner_model": "gpt-5.4-nano",
+    "brand_prompt_model": "gpt-5.4-nano"
+  }
+}

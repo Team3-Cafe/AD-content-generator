@@ -1,0 +1,368 @@
+{
+  "source_image": "C:\\Users\\jgi01\\Desktop\\project\\outputs\\scale_050\\05_final\\final_identity_restored.png",
+  "computed_image_space": {
+    "image": "C:\\Users\\jgi01\\Desktop\\project\\outputs\\scale_050\\05_final\\final_identity_restored.png",
+    "canvas": {
+      "width": 576,
+      "height": 1024,
+      "aspect_ratio": 0.5625
+    },
+    "palette": {
+      "dark": "#0F0F13",
+      "light": "#F5F3F6",
+      "accent": "#C38A1D",
+      "swatches": [
+        "#2C2C2F",
+        "#454548",
+        "#68676B",
+        "#0F0F13",
+        "#7F7E82",
+        "#9B9DA4",
+        "#B9B9C3",
+        "#F5F3F6",
+        "#F1AD22",
+        "#C38A1D",
+        "#7A520F"
+      ],
+      "dominant_colors": [
+        "#2C2C2F",
+        "#343337",
+        "#3C3C3F",
+        "#242426",
+        "#454548",
+        "#4F4E51",
+        "#68676B",
+        "#1B1B1F",
+        "#57565A",
+        "#5F5F62",
+        "#0F0F13",
+        "#737276"
+      ],
+      "accent_candidates": [
+        "#C38A1D",
+        "#7A520F",
+        "#F1AD22",
+        "#3C3C3F",
+        "#454548",
+        "#57565A",
+        "#9B9DA4",
+        "#4F4E51"
+      ],
+      "tonal_variants": {
+        "#2C2C2F": [
+          "#525254",
+          "#767678",
+          "#A0A0A1",
+          "#242427",
+          "#1D1D1F",
+          "#141415"
+        ],
+        "#343337": [
+          "#59585B",
+          "#7B7A7D",
+          "#A4A3A5",
+          "#2B2A2D",
+          "#222124",
+          "#171719"
+        ],
+        "#3C3C3F": [
+          "#5F5F62",
+          "#808082",
+          "#A7A7A9",
+          "#313134",
+          "#272729",
+          "#1B1B1C"
+        ],
+        "#242426": [
+          "#4B4B4D",
+          "#717172",
+          "#9C9C9D",
+          "#1E1E1F",
+          "#171719",
+          "#101011"
+        ],
+        "#454548": [
+          "#666669",
+          "#868688",
+          "#ABABAD",
+          "#39393B",
+          "#2D2D2F",
+          "#1F1F20"
+        ],
+        "#4F4E51": [
+          "#6F6E70",
+          "#8D8C8E",
+          "#B0AFB1",
+          "#414042",
+          "#333335",
+          "#242324"
+        ]
+      },
+      "harmony_sets": [
+        {
+          "type": "analogous",
+          "colors": [
+            "#C3371D",
+            "#C38A1D",
+            "#A9C31D"
+          ]
+        },
+        {
+          "type": "complementary",
+          "colors": [
+            "#C38A1D",
+            "#1D56C3"
+          ]
+        },
+        {
+          "type": "split_complementary",
+          "colors": [
+            "#C38A1D",
+            "#1DA9C3",
+            "#371DC3"
+          ]
+        },
+        {
+          "type": "tonal",
+          "colors": [
+            "#E4CA99",
+            "#C38A1D",
+            "#583E0D"
+          ]
+        }
+      ]
+    },
+    "overall_luminance": 0.2812,
+    "quiet_regions": [
+      {
+        "column": 1,
+        "row": 4,
+        "bbox": {
+          "x": 0.1667,
+          "y": 0.667,
+          "width": 0.1667,
+          "height": 0.166
+        },
+        "luminance": 0.2862,
+        "contrast": 0.0536,
+        "edge_density": 0.0246,
+        "quietness": 0.9574,
+        "mean_color": "#49484B"
+      },
+      {
+        "column": 0,
+        "row": 2,
+        "bbox": {
+          "x": 0.0,
+          "y": 0.333,
+          "width": 0.1667,
+          "height": 0.167
+        },
+        "luminance": 0.1061,
+        "contrast": 0.0836,
+        "edge_density": 0.0099,
+        "quietness": 0.9549,
+        "mean_color": "#1C1A1D"
+      },
+      {
+        "column": 5,
+        "row": 3,
+        "bbox": {
+          "x": 0.8333,
+          "y": 0.5,
+          "width": 0.1667,
+          "height": 0.167
+        },
+        "luminance": 0.2194,
+        "contrast": 0.0612,
+        "edge_density": 0.024,
+        "quietness": 0.9544,
+        "mean_color": "#39373A"
+      },
+      {
+        "column": 5,
+        "row": 5,
+        "bbox": {
+          "x": 0.8333,
+          "y": 0.833,
+          "width": 0.1667,
+          "height": 0.167
+        },
+        "luminance": 0.1474,
+        "contrast": 0.0561,
+        "edge_density": 0.0296,
+        "quietness": 0.9525,
+        "mean_color": "#262528"
+      },
+      {
+        "column": 5,
+        "row": 4,
+        "bbox": {
+          "x": 0.8333,
+          "y": 0.667,
+          "width": 0.1667,
+          "height": 0.166
+        },
+        "luminance": 0.2035,
+        "contrast": 0.0666,
+        "edge_density": 0.0261,
+        "quietness": 0.9505,
+        "mean_color": "#353336"
+      },
+      {
+        "column": 5,
+        "row": 2,
+        "bbox": {
+          "x": 0.8333,
+          "y": 0.333,
+          "width": 0.1667,
+          "height": 0.167
+        },
+        "luminance": 0.1345,
+        "contrast": 0.0949,
+        "edge_density": 0.0119,
+        "quietness": 0.9484,
+        "mean_color": "#232125"
+      },
+      {
+        "column": 0,
+        "row": 5,
+        "bbox": {
+          "x": 0.0,
+          "y": 0.833,
+          "width": 0.1667,
+          "height": 0.167
+        },
+        "luminance": 0.1482,
+        "contrast": 0.0647,
+        "edge_density": 0.0321,
+        "quietness": 0.9468,
+        "mean_color": "#262528"
+      },
+      {
+        "column": 4,
+        "row": 4,
+        "bbox": {
+          "x": 0.6667,
+          "y": 0.667,
+          "width": 0.1667,
+          "height": 0.166
+        },
+        "luminance": 0.3206,
+        "contrast": 0.0871,
+        "edge_density": 0.0216,
+        "quietness": 0.9446,
+        "mean_color": "#525154"
+      }
+    ],
+    "horizontal_bands": [
+      {
+        "index": 0,
+        "y": 0.0,
+        "height": 0.083,
+        "luminance": 0.3441,
+        "contrast": 0.5558,
+        "edge_density": 0.0238
+      },
+      {
+        "index": 1,
+        "y": 0.083,
+        "height": 0.084,
+        "luminance": 0.4401,
+        "contrast": 0.3398,
+        "edge_density": 0.0214
+      },
+      {
+        "index": 2,
+        "y": 0.167,
+        "height": 0.083,
+        "luminance": 0.3138,
+        "contrast": 0.2722,
+        "edge_density": 0.0229
+      },
+      {
+        "index": 3,
+        "y": 0.25,
+        "height": 0.083,
+        "luminance": 0.1965,
+        "contrast": 0.1786,
+        "edge_density": 0.0173
+      },
+      {
+        "index": 4,
+        "y": 0.333,
+        "height": 0.084,
+        "luminance": 0.1374,
+        "contrast": 0.0958,
+        "edge_density": 0.0113
+      },
+      {
+        "index": 5,
+        "y": 0.417,
+        "height": 0.083,
+        "luminance": 0.2436,
+        "contrast": 0.1758,
+        "edge_density": 0.0161
+      },
+      {
+        "index": 6,
+        "y": 0.5,
+        "height": 0.083,
+        "luminance": 0.3014,
+        "contrast": 0.2496,
+        "edge_density": 0.0619
+      },
+      {
+        "index": 7,
+        "y": 0.583,
+        "height": 0.084,
+        "luminance": 0.2833,
+        "contrast": 0.3005,
+        "edge_density": 0.0635
+      },
+      {
+        "index": 8,
+        "y": 0.667,
+        "height": 0.083,
+        "luminance": 0.289,
+        "contrast": 0.2064,
+        "edge_density": 0.0301
+      },
+      {
+        "index": 9,
+        "y": 0.75,
+        "height": 0.083,
+        "luminance": 0.2989,
+        "contrast": 0.2043,
+        "edge_density": 0.0246
+      },
+      {
+        "index": 10,
+        "y": 0.833,
+        "height": 0.084,
+        "luminance": 0.2683,
+        "contrast": 0.1891,
+        "edge_density": 0.0297
+      },
+      {
+        "index": 11,
+        "y": 0.917,
+        "height": 0.083,
+        "luminance": 0.2583,
+        "contrast": 0.2218,
+        "edge_density": 0.0431
+      }
+    ]
+  },
+  "vlm_scene_analysis": {
+    "composition_summary": "The image features a forklift in a dimly lit studio setting. The background is dark with a smooth gradient, and the forklift is centrally positioned on the floor, which reflects some light.",
+    "safe_space_description": "The top half of the image is mostly empty, providing ample space for text overlay without obstructing the forklift.",
+    "subject_region": {
+      "x": 0.25,
+      "y": 0.5,
+      "width": 0.5,
+      "height": 0.25
+    },
+    "visual_flow": "The viewer's eye is drawn from the top lights down to the forklift, with the dark background providing a strong contrast."
+  }
+}

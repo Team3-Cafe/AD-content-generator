@@ -1,0 +1,104 @@
+{
+  "model": "gpt-4o",
+  "copy": {
+    "title": "전문 지게차 운전 인력, 현장에 신속 배치",
+    "subtitle": "경력 3년 이상 숙련 운전사 + 전문 자격증 보유 및 안전 교육 수료, 기업 현장 맞춤형 인력 공급",
+    "price": "협의 후 결정"
+  },
+  "scene_analysis": {
+    "composition_summary": "The image features a forklift in a spacious, industrial setting with a smooth, reflective floor and a dark wall background. The lighting is even, creating a professional and clean atmosphere.",
+    "safe_space_description": "The upper portion of the image above the forklift provides ample negative space for text placement, ensuring legibility without obstructing the subject.",
+    "subject_region": {
+      "x": 0.1,
+      "y": 0.6,
+      "width": 0.8,
+      "height": 0.4
+    },
+    "visual_flow": "The viewer's eye is drawn from the forklift upward into the negative space, creating a natural flow for text placement."
+  },
+  "art_direction": {
+    "mood": "professional",
+    "headline_alignment": "center",
+    "offer_alignment": "right",
+    "spacing_density": "balanced",
+    "headline_surface": "content_width",
+    "offer_surface": "none",
+    "accent_role": "none",
+    "headline_effect": {
+      "fill_type": "scrim",
+      "fill_colors": [
+        "#151818",
+        "#EDEBEE"
+      ],
+      "fill_stops": [
+        0,
+        1
+      ],
+      "gradient_angle": 90,
+      "shape": "rounded_rect",
+      "overlay_color": "#151818",
+      "overlay_opacity": 0.6,
+      "opacity": 1,
+      "corner_radius": 10,
+      "backdrop_blur": 5,
+      "blend_mode": "normal",
+      "border_enabled": false,
+      "border_color": "#000000",
+      "border_width": 0,
+      "border_opacity": 0,
+      "shadow_enabled": true,
+      "shadow_color": "#000000",
+      "shadow_offset_x": 0,
+      "shadow_offset_y": 2,
+      "shadow_blur": 5,
+      "shadow_opacity": 0.5,
+      "shadow_layers": []
+    },
+    "offer_effect": {
+      "fill_type": "solid",
+      "fill_colors": [
+        "#BF841A",
+        "#BF841A"
+      ],
+      "fill_stops": [
+        0,
+        1
+      ],
+      "gradient_angle": 0,
+      "shape": "cut_corner",
+      "overlay_color": "#BF841A",
+      "overlay_opacity": 0.8,
+      "opacity": 1,
+      "corner_radius": 5,
+      "backdrop_blur": 0,
+      "blend_mode": "normal",
+      "border_enabled": false,
+      "border_color": "#000000",
+      "border_width": 0,
+      "border_opacity": 0,
+      "shadow_enabled": true,
+      "shadow_color": "#000000",
+      "shadow_offset_x": 0,
+      "shadow_offset_y": 2,
+      "shadow_blur": 5,
+      "shadow_opacity": 0.5,
+      "shadow_layers": []
+    }
+  },
+  "color_direction": {
+    "headline_text": "#EDEBEE",
+    "offer_text": "#151818",
+    "cta_text": "#BF841A"
+  },
+  "composition": {
+    "headline_x_ratio": 0.5,
+    "headline_y_ratio": 0.2,
+    "offer_x_ratio": 0.9,
+    "offer_y_ratio": 0.8,
+    "headline_content_width_ratio": 0.8,
+    "offer_content_width_ratio": 0.55,
+    "offer_arrangement": "horizontal",
+    "title_scale": 1.2
+  },
+  "rationale": "The professional mood is emphasized by the clean and minimalistic design. Centering the headline in the upper negative space ensures visibility and balance. The right-aligned offer text complements the visual flow, drawing attention to the forklift. The use of scrim and solid color effects enhances readability while maintaining a cohesive look."
+}

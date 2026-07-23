@@ -1,0 +1,276 @@
+{
+  "model": "gpt-4o",
+  "source_image": "C:\\Users\\jgi01\\Desktop\\project\\outputs\\scale_110\\05_final\\final_identity_restored.png",
+  "latency_sec": 58.18,
+  "copy": {
+    "title": "경력 3년 이상 지게차 운전 인력, 즉시 배치",
+    "subtitle": "전문 자격·안전 교육 수료 인력으로 기업 현장에 맞춰 신속 공급(물류창고/제조/건설)"
+  },
+  "design_rationale": "The professional mood is emphasized by using a clean, neutral color palette that complements the industrial setting. The left alignment of the headline takes advantage of the open space, ensuring readability. The right alignment of the offer group balances the composition, utilizing the image's natural flow. Solid background surfaces with subtle shadows enhance text legibility without overpowering the image.",
+  "final_review_reason": "The redesign plan focuses on enhancing the title's prominence and maintaining product visibility, while the target layout implements these changes with improved typography, spacing, and placement.",
+  "revision_reason": "The design needed adjustments in text contrast, headline surface proportion, and color palette to enhance readability and visual appeal.",
+  "canvas": {
+    "width": 576,
+    "height": 1024
+  },
+  "elements": [
+    {
+      "id": "copy-title",
+      "role": "title",
+      "design_group": "headline",
+      "content": "경력 3년 이상 지게차 운전 인력, 즉시 배치",
+      "x": 30,
+      "y": 100,
+      "width": 516,
+      "height": 100,
+      "font_size": 29,
+      "font_weight": 700,
+      "tracking": 0,
+      "wrap_mode": "word",
+      "min_font_size": 24,
+      "optical_align": true,
+      "text_align": "left",
+      "vertical_align": "center",
+      "max_lines": 1,
+      "line_height": 1.2,
+      "color": "#886216",
+      "shadow_offset": 2,
+      "shadow_color": "#000000",
+      "stroke_width": 0,
+      "stroke_color": "#000000",
+      "z_index": 2
+    },
+    {
+      "id": "copy-subtitle",
+      "role": "subtitle",
+      "design_group": "headline",
+      "content": "전문 자격·안전 교육 수료 인력으로 기업 현장에 맞춰 신속 공급(물류창고/제조/건설)",
+      "x": 30,
+      "y": 210,
+      "width": 516,
+      "height": 80,
+      "font_size": 24,
+      "font_weight": 400,
+      "tracking": 0,
+      "wrap_mode": "word",
+      "min_font_size": 18,
+      "optical_align": true,
+      "text_align": "left",
+      "vertical_align": "center",
+      "max_lines": 2,
+      "line_height": 1.4,
+      "color": "#121212",
+      "shadow_offset": 1,
+      "shadow_color": "#000000",
+      "stroke_width": 0,
+      "stroke_color": "#000000",
+      "z_index": 2
+    }
+  ],
+  "underlays": [
+    {
+      "id": "surface-headline",
+      "design_group": "headline",
+      "x": 0,
+      "y": 80,
+      "width": 576,
+      "height": 230,
+      "fill_type": "solid",
+      "fill_colors": [
+        "#E7E6E4",
+        "#E7E6E4"
+      ],
+      "fill_stops": [
+        0.0,
+        1.0
+      ],
+      "gradient_angle": 0.0,
+      "shape": "rounded_rect",
+      "overlay_color": "#FFFFFF",
+      "overlay_opacity": 0.5,
+      "opacity": 0.8,
+      "border_radius": 10,
+      "backdrop_blur": 5,
+      "blend_mode": "normal",
+      "border_enabled": false,
+      "border_color": "#000000",
+      "border_width": 0,
+      "border_opacity": 0.0,
+      "shadow_enabled": true,
+      "shadow_color": "#000000",
+      "shadow_offset_x": 0,
+      "shadow_offset_y": 2,
+      "shadow_blur": 10,
+      "shadow_opacity": 0.2,
+      "shadow_layers": [],
+      "z_index": 0
+    }
+  ],
+  "warnings": [],
+  "design_groups": {
+    "headline": {
+      "x": 30,
+      "y": 100,
+      "width": 516,
+      "height": 190
+    },
+    "protected_subject": {
+      "x": 173,
+      "y": 512,
+      "width": 230,
+      "height": 512
+    }
+  },
+  "design_tokens": {
+    "palette": {
+      "dark": "#121212",
+      "light": "#E7E6E4",
+      "accent": "#C89020",
+      "swatches": [
+        "#7D7A75",
+        "#C0BCB9",
+        "#63615E",
+        "#95928D",
+        "#474D4F",
+        "#303230",
+        "#EFA914",
+        "#E7E6E4",
+        "#121212",
+        "#C89020",
+        "#8E651F",
+        "#5C3E18"
+      ],
+      "dominant_colors": [
+        "#7D7A75",
+        "#6F6D6A",
+        "#C0BCB9",
+        "#8A8782",
+        "#63615E",
+        "#95928D",
+        "#B2AEAB",
+        "#A49F9B",
+        "#565858",
+        "#474D4F",
+        "#303230",
+        "#3D403F"
+      ],
+      "accent_candidates": [
+        "#C89020",
+        "#8E651F",
+        "#5C3E18",
+        "#EFA914",
+        "#474D4F",
+        "#7D7A75",
+        "#8A8782",
+        "#A49F9B"
+      ],
+      "tonal_variants": {
+        "#7D7A75": [
+          "#94928E",
+          "#AAA9A5",
+          "#C4C3C1",
+          "#666460",
+          "#514F4C",
+          "#383735"
+        ],
+        "#6F6D6A": [
+          "#898785",
+          "#A1A09E",
+          "#BEBDBC",
+          "#5B5957",
+          "#484745",
+          "#323130"
+        ],
+        "#C0BCB9": [
+          "#CBC8C6",
+          "#D6D3D2",
+          "#E3E1E0",
+          "#9D9A98",
+          "#7D7A78",
+          "#565553"
+        ],
+        "#8A8782": [
+          "#9F9D98",
+          "#B3B1AE",
+          "#CAC9C7",
+          "#716F6B",
+          "#5A5854",
+          "#3E3D3A"
+        ],
+        "#63615E": [
+          "#7F7D7B",
+          "#9A9896",
+          "#B9B8B7",
+          "#51504D",
+          "#403F3D",
+          "#2D2C2A"
+        ],
+        "#95928D": [
+          "#A8A6A2",
+          "#BAB8B5",
+          "#CFCECC",
+          "#7A7874",
+          "#615F5C",
+          "#43423F"
+        ]
+      },
+      "harmony_sets": [
+        {
+          "type": "analogous",
+          "colors": [
+            "#C83C20",
+            "#C89020",
+            "#ACC820"
+          ]
+        },
+        {
+          "type": "complementary",
+          "colors": [
+            "#C89020",
+            "#2058C8"
+          ]
+        },
+        {
+          "type": "split_complementary",
+          "colors": [
+            "#C89020",
+            "#20ACC8",
+            "#3C20C8"
+          ]
+        },
+        {
+          "type": "tonal",
+          "colors": [
+            "#E6CD9B",
+            "#C89020",
+            "#5A410E"
+          ]
+        }
+      ]
+    },
+    "headline_alignment": "left",
+    "offer_alignment": "left",
+    "offer_arrangement": "vertical",
+    "redesign_concept": "Create a clean and focused design that emphasizes the title while maintaining product visibility.",
+    "headline_band": {},
+    "offer_band": {}
+  },
+  "final_review_constraints": [
+    {
+      "target": "headline_surface",
+      "reason": "full_canvas_width_headline_surface",
+      "requested": {
+        "x": 20,
+        "y": 80,
+        "width": 536,
+        "height": 230
+      },
+      "applied": {
+        "x": 0,
+        "y": 80,
+        "width": 576,
+        "height": 230
+      }
+    }
+  ]
+}

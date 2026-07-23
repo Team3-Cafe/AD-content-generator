@@ -1,0 +1,119 @@
+{
+  "model": "gpt-4o",
+  "copy": {
+    "title": "경력 3년 이상 지게차 운전 인력, 즉시 배치",
+    "subtitle": "전문 자격 보유·안전 교육 수료 운전사가 기업 현장에 맞춰 신속하게 공급됩니다."
+  },
+  "scene_analysis": {
+    "composition_summary": "The image features a forklift in a dimly lit studio setting. The background is dark with a smooth gradient, and the forklift is centrally positioned on the floor, which reflects some light.",
+    "safe_space_description": "The top half of the image is mostly empty, providing ample space for text overlay without obstructing the forklift.",
+    "subject_region": {
+      "x": 0.25,
+      "y": 0.5,
+      "width": 0.5,
+      "height": 0.25
+    },
+    "visual_flow": "The viewer's eye is drawn from the top lights down to the forklift, with the dark background providing a strong contrast."
+  },
+  "art_direction": {
+    "mood": "professional",
+    "headline_alignment": "center",
+    "offer_alignment": "center",
+    "spacing_density": "balanced",
+    "headline_surface": "content_width",
+    "offer_surface": "none",
+    "accent_role": "none",
+    "headline_effect": {
+      "fill_type": "solid",
+      "fill_colors": [
+        "#F5F3F6",
+        "#C38A1D"
+      ],
+      "fill_stops": [
+        0,
+        1
+      ],
+      "gradient_angle": 0,
+      "shape": "rounded_rect",
+      "overlay_color": "#0F0F13",
+      "overlay_opacity": 0.7,
+      "opacity": 0.9,
+      "corner_radius": 10,
+      "backdrop_blur": 0,
+      "blend_mode": "normal",
+      "border_enabled": false,
+      "border_color": "#000000",
+      "border_width": 0,
+      "border_opacity": 0,
+      "shadow_enabled": true,
+      "shadow_color": "#000000",
+      "shadow_offset_x": 2,
+      "shadow_offset_y": 2,
+      "shadow_blur": 5,
+      "shadow_opacity": 0.5,
+      "shadow_layers": [
+        {
+          "color": "#000000",
+          "offset_x": 2,
+          "offset_y": 2,
+          "blur": 5,
+          "opacity": 0.5
+        }
+      ]
+    },
+    "offer_effect": {
+      "fill_type": "solid",
+      "fill_colors": [
+        "#0F0F13",
+        "#C38A1D"
+      ],
+      "fill_stops": [
+        0,
+        1
+      ],
+      "gradient_angle": 0,
+      "shape": "rounded_rect",
+      "overlay_color": "#0F0F13",
+      "overlay_opacity": 0.7,
+      "opacity": 0.9,
+      "corner_radius": 10,
+      "backdrop_blur": 0,
+      "blend_mode": "normal",
+      "border_enabled": false,
+      "border_color": "#000000",
+      "border_width": 0,
+      "border_opacity": 0,
+      "shadow_enabled": true,
+      "shadow_color": "#000000",
+      "shadow_offset_x": 2,
+      "shadow_offset_y": 2,
+      "shadow_blur": 5,
+      "shadow_opacity": 0.5,
+      "shadow_layers": [
+        {
+          "color": "#000000",
+          "offset_x": 2,
+          "offset_y": 2,
+          "blur": 5,
+          "opacity": 0.5
+        }
+      ]
+    }
+  },
+  "color_direction": {
+    "headline_text": "#F5F3F6",
+    "offer_text": "#C38A1D",
+    "cta_text": "#C38A1D"
+  },
+  "composition": {
+    "headline_x_ratio": 0.5,
+    "headline_y_ratio": 0.2,
+    "offer_x_ratio": 0.5,
+    "offer_y_ratio": 0.3,
+    "headline_content_width_ratio": 0.8,
+    "offer_content_width_ratio": 0.8,
+    "offer_arrangement": "vertical",
+    "title_scale": 1.2
+  },
+  "rationale": "The professional mood is reinforced by the central alignment of the text, which complements the symmetry of the image. The use of a solid fill with a slight shadow ensures readability against the dark background. The headline and offer are visually connected through consistent styling, maintaining focus on the forklift while delivering the message effectively."
+}

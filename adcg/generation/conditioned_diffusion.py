@@ -29,7 +29,7 @@ GENERATION_DEFAULTS = {
     "layout_mode": "layout",
     "product_x": None,
     "product_y": None,
-    "product_scale": 0.70,
+    "product_scale": None,
     "mask_margin": 4,
     "mask_blur": 2.0,
     "contact_ratio": 0.06,

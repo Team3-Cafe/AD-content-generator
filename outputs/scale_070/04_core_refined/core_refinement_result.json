@@ -1,0 +1,10 @@
+{
+  "input": "C:\\Users\\jgi01\\Desktop\\project\\outputs\\scale_070\\03_generated\\final.png",
+  "output": "C:\\Users\\jgi01\\Desktop\\project\\outputs\\scale_070\\04_core_refined\\final_core_ring_refined.png",
+  "core_erode": 10,
+  "core_feather": 7.0,
+  "core_opacity": 0.92,
+  "background_strength": 0.2,
+  "product_focus": 0.0,
+  "effective_background_strength": 0.2
+}

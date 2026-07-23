@@ -1,0 +1,103 @@
+{
+  "model": "gpt-4o",
+  "copy": {
+    "title": "경력 3년 이상 숙련 지게차 운전 인력, 현장에 즉시 배치",
+    "subtitle": "전문 자격 보유·안전 교육 수료 운전사로 기업 현장 맞춤형 신속 공급(물류창고/제조공장/건설 현장)"
+  },
+  "scene_analysis": {
+    "composition_summary": "The image features a forklift prominently placed in the lower half against a dark, industrial background with overhead lights.",
+    "safe_space_description": "The upper portion of the image is mostly empty with a gradient dark background, providing ample space for text placement.",
+    "subject_region": {
+      "x": 0.25,
+      "y": 0.5,
+      "width": 0.5,
+      "height": 0.5
+    },
+    "visual_flow": "The eye is drawn from the top center where the lights are, down to the forklift, creating a vertical visual flow."
+  },
+  "art_direction": {
+    "mood": "professional",
+    "headline_alignment": "center",
+    "offer_alignment": "right",
+    "spacing_density": "balanced",
+    "headline_surface": "content_width",
+    "offer_surface": "none",
+    "accent_role": "none",
+    "headline_effect": {
+      "fill_type": "scrim",
+      "fill_colors": [
+        "#000000",
+        "#0A0A0A"
+      ],
+      "fill_stops": [
+        0,
+        1
+      ],
+      "gradient_angle": 90,
+      "shape": "rounded_rect",
+      "overlay_color": "#000000",
+      "overlay_opacity": 0.5,
+      "opacity": 0.8,
+      "corner_radius": 10,
+      "backdrop_blur": 5,
+      "blend_mode": "normal",
+      "border_enabled": false,
+      "border_color": "#000000",
+      "border_width": 0,
+      "border_opacity": 0,
+      "shadow_enabled": true,
+      "shadow_color": "#000000",
+      "shadow_offset_x": 2,
+      "shadow_offset_y": 2,
+      "shadow_blur": 5,
+      "shadow_opacity": 0.5,
+      "shadow_layers": []
+    },
+    "offer_effect": {
+      "fill_type": "solid",
+      "fill_colors": [
+        "#1C1C1C",
+        "#323130"
+      ],
+      "fill_stops": [
+        0,
+        1
+      ],
+      "gradient_angle": 0,
+      "shape": "rounded_rect",
+      "overlay_color": "#1C1C1C",
+      "overlay_opacity": 0.5,
+      "opacity": 0.9,
+      "corner_radius": 5,
+      "backdrop_blur": 0,
+      "blend_mode": "normal",
+      "border_enabled": false,
+      "border_color": "#000000",
+      "border_width": 0,
+      "border_opacity": 0,
+      "shadow_enabled": true,
+      "shadow_color": "#000000",
+      "shadow_offset_x": 1,
+      "shadow_offset_y": 1,
+      "shadow_blur": 3,
+      "shadow_opacity": 0.3,
+      "shadow_layers": []
+    }
+  },
+  "color_direction": {
+    "headline_text": "#CFCBCA",
+    "offer_text": "#F0AA16",
+    "cta_text": "#F0AA16"
+  },
+  "composition": {
+    "headline_x_ratio": 0.5,
+    "headline_y_ratio": 0.15,
+    "offer_x_ratio": 0.8,
+    "offer_y_ratio": 0.85,
+    "headline_content_width_ratio": 0.8,
+    "offer_content_width_ratio": 0.6,
+    "offer_arrangement": "horizontal",
+    "title_scale": 1.2
+  },
+  "rationale": "The headline is placed in the upper center to utilize the empty space and draw attention immediately. A scrim effect ensures readability against the dark background. The offer is aligned to the right to balance the composition and maintain focus on the forklift, using a solid effect for clarity."
+}
