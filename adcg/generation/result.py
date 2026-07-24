@@ -2,22 +2,6 @@ import json
 from pathlib import Path
 
 
-def _json_safe(value):
-    if isinstance(value, Path):
-        return str(value)
-
-    if isinstance(value, dict):
-        return {
-            key: _json_safe(item)
-            for key, item in value.items()
-        }
-
-    if isinstance(value, (list, tuple)):
-        return [_json_safe(item) for item in value]
-
-    return value
-
-
 def save_generation_result(
     output_dir,
     product,
@@ -26,80 +10,121 @@ def save_generation_result(
     control_image,
     generated_image,
     experiment_data,
+    depth_control_image=None,
 ):
     output_dir = Path(output_dir)
     output_dir.mkdir(parents=True, exist_ok=True)
 
-    paths = {
-        "product_cutout": (
-            output_dir / "product_cutout_trimmed.png"
-        ),
-        "product_resized": (
-            output_dir / "product_resized.png"
-        ),
-        "product_layer": (
-            output_dir / "product_layer.png"
-        ),
-        "condition_canvas": (
-            output_dir / "condition_canvas.png"
-        ),
-        "product_mask": (
-            output_dir / "product_alpha_mask.png"
-        ),
-        "background_mask": (
-            output_dir / "background_inpaint_mask.png"
-        ),
-        "canny_control": (
-            output_dir / "product_canny_control.png"
-        ),
-        "generated": (
-            output_dir / "generated_with_cutout_condition.png"
-        ),
-        "final": output_dir / "final.png",
-        "result_json": (
-            output_dir / "experiment_result.json"
-        ),
-    }
+    product_path = (
+        output_dir / "product_cutout_trimmed.png"
+    )
+    resized_path = (
+        output_dir / "product_resized.png"
+    )
+    product_layer_path = (
+        output_dir / "product_layer.png"
+    )
+    condition_canvas_path = (
+        output_dir / "condition_canvas.png"
+    )
+    product_mask_path = (
+        output_dir / "product_alpha_mask.png"
+    )
+    inpaint_mask_path = (
+        output_dir / "background_inpaint_mask.png"
+    )
+    canny_path = (
+        output_dir / "product_canny_control.png"
+    )
+    depth_path = (
+        output_dir / "product_depth_control.png"
+    )
+    generated_path = (
+        output_dir
+        / "generated_with_cutout_condition.png"
+    )
+    final_path = output_dir / "final.png"
+    metadata_path = (
+        output_dir / "experiment_result.json"
+    )
 
-    product.save(paths["product_cutout"])
+    product.convert("RGBA").save(product_path)
+
     canvas_result["resized_product"].save(
-        paths["product_resized"]
+        resized_path
     )
     canvas_result["product_layer"].save(
-        paths["product_layer"]
+        product_layer_path
     )
     canvas_result["condition_canvas"].save(
-        paths["condition_canvas"]
+        condition_canvas_path
     )
     canvas_result["product_mask"].save(
-        paths["product_mask"]
+        product_mask_path
     )
-    inpaint_mask.save(paths["background_mask"])
-    control_image.save(paths["canny_control"])
-    generated_image.save(paths["generated"])
-    generated_image.save(paths["final"])
+
+    inpaint_mask.convert("L").save(
+        inpaint_mask_path
+    )
+    control_image.convert("RGB").save(
+        canny_path
+    )
+
+    if depth_control_image is not None:
+        depth_control_image.convert("RGB").save(
+            depth_path
+        )
+        saved_depth_path = depth_path
+    else:
+        saved_depth_path = None
+
+    generated_image.convert("RGB").save(
+        generated_path
+    )
+    generated_image.convert("RGB").save(
+        final_path
+    )
+
+    experiment_data = dict(experiment_data)
 
     experiment_data["outputs"] = {
-        key: str(path)
-        for key, path in paths.items()
-        if key != "result_json"
+        "product": str(product_path),
+        "resized_product": str(resized_path),
+        "product_layer": str(product_layer_path),
+        "condition_canvas": str(
+            condition_canvas_path
+        ),
+        "product_mask": str(product_mask_path),
+        "inpaint_mask": str(inpaint_mask_path),
+        "canny_control": str(canny_path),
+        "depth_control": (
+            str(saved_depth_path)
+            if saved_depth_path is not None
+            else None
+        ),
+        "generated": str(generated_path),
+        "final": str(final_path),
     }
 
-    paths["result_json"].write_text(
+    metadata_path.write_text(
         json.dumps(
-            _json_safe(experiment_data),
+            experiment_data,
             ensure_ascii=False,
             indent=2,
         ),
         encoding="utf-8",
     )
 
+    print(f"[DONE] generated: {final_path}")
+
     return {
-        "image": paths["final"],
-        "generated_image": paths["generated"],
-        "product_mask": paths["product_mask"],
-        "condition_canvas": paths["condition_canvas"],
-        "canny_control": paths["canny_control"],
-        "background_mask": paths["background_mask"],
-        "result_json": paths["result_json"],
+        "image": final_path,
+        "generated_image": generated_path,
+        "product_layer": product_layer_path,
+        "product_mask": product_mask_path,
+        "condition_canvas": condition_canvas_path,
+        "inpaint_mask": inpaint_mask_path,
+        "canny_control": canny_path,
+        "depth_control": saved_depth_path,
+        "metadata": metadata_path,
     }
