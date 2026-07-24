@@ -28,6 +28,7 @@ class AppConfig:
     output_dir: Path
     gpt_model: str
     product_focus: float
+    product_scale: float | None
     brand_focus: float
     layout_mode: str
     copy_count: int
@@ -70,6 +71,15 @@ def build_parser() -> argparse.ArgumentParser:
         help=(
             "Continuous background art direction from 0.0 (authentic "
             "everyday environment) to 1.0 (premium purpose-built set)."
+        ),
+    )
+    image_generation.add_argument(
+        "--product-scale",
+        type=float,
+        default=None,
+        help=(
+            "Product width relative to the canvas short side. "
+            "When omitted, aspect-aware automatic sizing is used."
         ),
     )
     image_generation.add_argument(
@@ -228,6 +238,9 @@ def parse_config(argv: list[str] | None = None) -> AppConfig:
     if args.product_focus < 0.0 or args.product_focus > 1.0:
         parser.error("--product-focus는 0.0부터 1.0 사이여야 합니다.")
 
+    if args.product_scale is not None and args.product_scale <= 0.0:
+        parser.error("--product-scale must be greater than 0.0")
+
     if args.brand_focus < 0.0 or args.brand_focus > 1.0:
         parser.error("--brand-focus는 0.0부터 1.0 사이여야 합니다.")
 
@@ -237,6 +250,7 @@ def parse_config(argv: list[str] | None = None) -> AppConfig:
         output_dir=output_dir,
         gpt_model=args.gpt_model,
         product_focus=args.product_focus,
+        product_scale=args.product_scale,
         brand_focus=args.brand_focus,
         layout_mode=args.layout_mode,
         copy_count=args.copy_count,
@@ -259,6 +273,7 @@ if __name__ == "__main__":
         "output_dir": str(config.output_dir),
         "gpt_model": config.gpt_model,
         "product_focus": config.product_focus,
+        "product_scale": config.product_scale,
         "brand_focus": config.brand_focus,
         "copy_count": config.copy_count,
         "seed": config.seed,

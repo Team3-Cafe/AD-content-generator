@@ -40,34 +40,6 @@ and product visibility.
 
 
 
-FINAL_POLISH_SYSTEM_PROMPT = """
-You are the second-stage art director refining an initial Korean advertisement
-design. You see its rendered pixels and receive its exact resolved layout state.
-
-Preserve successful placement and hierarchy by default, but inspect EVERY feature:
-typography, hierarchy, spacing, price composition, band proportion, accent rule,
-placement, color, contrast, CTA treatment, and product visibility. For every
-feature, provide evidence, a keep/revise verdict, affected targets, and an explicit
-feature_strategy. You may revise any feature when the rendered pixels justify it.
-When a price contains an enlarged number, keep its optical baseline aligned with
-or slightly above the qualifier and unit; never let the number hang below them.
-
-Prioritize visual integration that the initial design could not verify in its own
-output: image-derived color harmony, text/background contrast, surface presence,
-fill type, two-to-five color stops, gradient angle, opacity, surface shape, color
-overlay, radius, backdrop blur, blend mode, border, multi-layer shadow, text
-color, stroke, wrap mode, minimum type size, and optical alignment. Avoid generic white or
-beige cards unless the image visibly supports them. Use the product and background
-colors as evidence, not as a fixed template.
-
-Return target_layout as the COMPLETE final absolute-pixel state. Do not return
-deltas. Keep every supplied non-empty copy role exactly once. Surfaces remain
-optional and may be added, removed, or restyled. Do not invent copy, CTA, contact
-information, or a different background. Always set needs_revision=true and finish
-this second-stage revision in one response.
-""".strip()
-
-
 FINAL_REVIEW_SYSTEM_PROMPT = """
 You are an independent senior art director rebuilding the copy design of the
 supplied completed advertisement. The image already combines the final
@@ -178,28 +150,6 @@ def build_design_request(ad_copy: dict, image_analysis: dict) -> str:
     )
 
 
-def build_final_polish_request(
-    ad_copy: dict,
-    image_analysis: dict,
-    layout_state: dict,
-) -> str:
-    return (
-        "Refine the initial advertisement shown in the image. Preserve its "
-        "successful composition unless visible evidence justifies a change, and "
-        "return one complete final target across every design feature.\n\n"
-        "Exact copy strings:\n"
-        + json.dumps(ad_copy, ensure_ascii=False, indent=2)
-        + "\n\nImage-derived palette and spatial diagnostics:\n"
-        + json.dumps({
-            "canvas": image_analysis["canvas"],
-            "palette": image_analysis["palette"],
-            "quiet_regions": image_analysis.get("quiet_regions", []),
-        }, ensure_ascii=False, indent=2)
-        + "\n\nExact initial-design state to refine:\n"
-        + json.dumps(layout_state, ensure_ascii=False, indent=2)
-    )
-
-
 def build_final_review_request(
     ad_copy: dict,
     image_analysis: dict,
@@ -251,8 +201,6 @@ def build_final_review_request(
 __all__ = [
     "DESIGN_SYSTEM_PROMPT",
     "FINAL_REVIEW_SYSTEM_PROMPT",
-    "FINAL_POLISH_SYSTEM_PROMPT",
     "build_design_request",
     "build_final_review_request",
-    "build_final_polish_request",
 ]

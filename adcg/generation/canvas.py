@@ -67,6 +67,45 @@ def load_product_cutout(
     return image.crop(bbox)
 
 
+def _scaled_product_size(
+    product,
+    width,
+    height,
+    product_scale,
+):
+    max_width = max(1, int(width * 0.94))
+    max_height = max(1, int(height * 0.86))
+
+    if product_scale is None:
+        auto_width = max(1, int(width * 0.78))
+        auto_height = max(1, int(height * 0.78))
+        ratio = min(
+            auto_width / product.width,
+            auto_height / product.height,
+        )
+    else:
+        product_scale = float(product_scale)
+        if product_scale <= 0:
+            raise ValueError("product_scale must be greater than zero.")
+        short_side = min(width, height)
+        target_width = max(1, int(short_side * product_scale))
+        ratio = target_width / product.width
+
+    resized_width = max(1, int(product.width * ratio))
+    resized_height = max(1, int(product.height * ratio))
+
+    fit_ratio = min(
+        1.0,
+        max_width / resized_width,
+        max_height / resized_height,
+    )
+    if fit_ratio < 1.0:
+        resized_width = max(1, int(resized_width * fit_ratio))
+        resized_height = max(1, int(resized_height * fit_ratio))
+
+    return resized_width, resized_height
+
+
 def _layout_geometry(
     product,
     width,
@@ -75,18 +114,12 @@ def _layout_geometry(
     product_y,
     product_scale,
 ):
-    target_width = max(1, int(width * product_scale))
-    ratio = target_width / product.width
-
-    resized_width = target_width
-    resized_height = max(1, int(product.height * ratio))
-
-    max_height = int(height * 0.86)
-
-    if resized_height > max_height:
-        ratio = max_height / product.height
-        resized_width = max(1, int(product.width * ratio))
-        resized_height = max_height
+    resized_width, resized_height = _scaled_product_size(
+        product,
+        width,
+        height,
+        product_scale,
+    )
 
     left = int(width * product_x) - resized_width // 2
     top = int(height * product_y) - resized_height // 2
@@ -154,7 +187,7 @@ def create_condition_canvas(
     layout_mode="layout",
     product_x=0.5,
     product_y=0.7,
-    product_scale=0.45,
+    product_scale=None,
     metadata=None,
 ):
     metadata = load_metadata(metadata)
@@ -208,8 +241,23 @@ def create_condition_canvas(
         product_layer,
     )
 
+    short_side = max(1, min(width, height))
     placement = {
         "mode": layout_mode,
+        "sizing_mode": (
+            "preserve"
+            if layout_mode == "preserve"
+            else (
+                "auto"
+                if product_scale is None
+                else "manual_short_axis"
+            )
+        ),
+        "requested_product_scale": product_scale,
+        "effective_product_scale": round(
+            resized_width / short_side,
+            4,
+        ),
         "left": left,
         "top": top,
         "width": resized_width,

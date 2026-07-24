@@ -62,6 +62,7 @@ class SplitPipelineTests(unittest.TestCase):
                 info_path=info_path,
                 output_dir=output_dir,
                 product_focus=0.65,
+                product_scale=0.55,
                 brand_focus=0.73,
                 diffusion_pipe=shared_pipe,
             )
@@ -76,6 +77,10 @@ class SplitPipelineTests(unittest.TestCase):
         self.assertIs(
             generation_call.call_args.kwargs["pipe"],
             shared_pipe,
+        )
+        self.assertEqual(
+            generation_call.call_args.kwargs["product_scale"],
+            0.55,
         )
         self.assertIs(
             identity_call.call_args.kwargs["pipe"],
@@ -112,9 +117,6 @@ class SplitPipelineTests(unittest.TestCase):
 
             layout_result = SimpleNamespace(
                 layout_json=output_dir / "07_prompt_layout" / "layout.json",
-                final_review_json=(
-                    output_dir / "07_prompt_layout" / "final_review.json"
-                ),
                 rendered_image=(
                     output_dir / "07_prompt_layout" / "final_ad.png"
                 ),
@@ -170,15 +172,12 @@ class SplitPipelineTests(unittest.TestCase):
             output_dir=root / "output",
             info_path=root / "info.json",
             prompt_json=root / "prompt.json",
-            generated_image=root / "generated.png",
-            core_refined_image=root / "core.png",
             identity_restored_image=root / "identity.png",
             eval_json=None,
         )
         copy_result = SimpleNamespace(
             copy_json=root / "copy.json",
             layout_json=root / "layout.json",
-            final_review_json=root / "review.json",
             final_image=root / "final.png",
         )
         calls = []

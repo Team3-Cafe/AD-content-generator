@@ -1,6 +1,7 @@
 import json
 from pathlib import Path
 import tempfile
+from types import SimpleNamespace
 import unittest
 from unittest.mock import patch
 
@@ -82,7 +83,11 @@ class ModelCacheTests(unittest.TestCase):
         )
 
     def test_generation_uses_injected_pipeline_without_reloading(self):
-        shared_pipe = object()
+        shared_pipe = SimpleNamespace(
+            controlnet=SimpleNamespace(
+                nets=[object(), object()],
+            )
+        )
 
         with tempfile.TemporaryDirectory() as temp_dir:
             root = Path(temp_dir)
@@ -101,7 +106,11 @@ class ModelCacheTests(unittest.TestCase):
                 "product_mask": "product-mask",
                 "product_layer": "product-layer",
                 "condition_canvas": "condition-canvas",
-                "placement": {},
+                "placement": {
+                    "requested_product_scale": None,
+                    "effective_product_scale": 0.5,
+                    "sizing_mode": "auto",
+                },
             }
             outputs = {
                 "image": root / "generated.png",
@@ -110,8 +119,8 @@ class ModelCacheTests(unittest.TestCase):
 
             with patch(
                 "adcg.generation.conditioned_diffusion."
-                "load_product_cutout",
-                return_value="product",
+                "_load_product",
+                return_value=SimpleNamespace(width=400, height=200),
             ), patch(
                 "adcg.generation.conditioned_diffusion."
                 "create_condition_canvas",
@@ -124,6 +133,10 @@ class ModelCacheTests(unittest.TestCase):
                 "adcg.generation.conditioned_diffusion."
                 "create_canny_control",
                 return_value="control-image",
+            ), patch(
+                "adcg.generation.conditioned_diffusion."
+                "create_depth_control",
+                return_value="depth-control-image",
             ), patch(
                 "adcg.generation.conditioned_diffusion."
                 "run_conditioned_inference",
@@ -158,6 +171,14 @@ class ModelCacheTests(unittest.TestCase):
         self.assertIs(
             inference.call_args.kwargs["pipe"],
             shared_pipe,
+        )
+        self.assertEqual(
+            inference.call_args.kwargs["control_image"],
+            ["control-image", "depth-control-image"],
+        )
+        self.assertEqual(
+            inference.call_args.kwargs["controlnet_scale"],
+            [0.3, 0.3],
         )
         load_pipeline.assert_not_called()
         empty_cache.assert_not_called()

@@ -93,11 +93,8 @@ def normalize_scene_plan_json(data):
 
 
 def normalize_negative_prompt(value):
-    return prepend_missing_terms(
-        value,
-        REQUIRED_NEGATIVE_TERMS,
-    )
-    
+    return GENERATION_NEGATIVE_PROMPT
+
 
 def normalize_prompt_json(data):
     if not isinstance(data, dict):

@@ -142,11 +142,12 @@ def _resolve_layout(
             "product_y",
             0.70,
         ),
-        "product_scale": _resolve_number(
-            config,
-            layout,
-            "product_scale",
-            0.45,
+        # None selects aspect-aware automatic sizing. Numeric values are
+        # interpreted against the canvas short axis, never the VLM JSON.
+        "product_scale": (
+            None
+            if config.get("product_scale") is None
+            else float(config["product_scale"])
         ),
     }
 
@@ -311,25 +312,28 @@ def _run_generation(config):
         product=product,
         width=int(config["width"]),
         height=int(config["height"]),
+        layout_mode=config["layout_mode"],
         product_x=layout["product_x"],
         product_y=layout["product_y"],
         product_scale=layout["product_scale"],
-        alpha_threshold=int(
-            config["alpha_threshold"]
-        ),
+        metadata=config.get("preprocess_metadata"),
     )
 
-    inpaint_mask = (
-        create_background_inpaint_mask(
-            product_mask=canvas_result[
-                "product_mask"
-            ],
-            margin=int(config["mask_margin"]),
-            blur=float(config["mask_blur"]),
-            contact_ratio=float(
-                config["contact_ratio"]
-            ),
-        )
+    placement = canvas_result["placement"]
+    layout["requested_product_scale"] = layout["product_scale"]
+    layout["product_scale"] = placement["effective_product_scale"]
+    print(
+        f"[Layout] product_scale="
+        f"{placement['requested_product_scale']!r} "
+        f"-> effective={placement['effective_product_scale']:.4f} "
+        f"({placement['sizing_mode']})"
+    )
+
+    inpaint_mask = create_background_inpaint_mask(
+        product_mask=canvas_result["product_mask"],
+        boundary_width=config["mask_margin"],
+        blur=config["mask_blur"],
+        contact_ratio=config["contact_ratio"],
     )
 
     canny_control = create_canny_control(
