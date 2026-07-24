@@ -21,6 +21,8 @@ RUN_CORE = next(
 )
 FUNCTION_NAMES = {
     "_background_blur_radius",
+    "_far_blur_radius",
+    "_background_proximity_weight",
     "_blur_background_only",
 }
 FUNCTIONS = [
@@ -35,6 +37,8 @@ exec(
     NAMESPACE,
 )
 BLUR_RADIUS = NAMESPACE["_background_blur_radius"]
+FAR_BLUR_RADIUS = NAMESPACE["_far_blur_radius"]
+PROXIMITY_WEIGHT = NAMESPACE["_background_proximity_weight"]
 BLUR_BACKGROUND = NAMESPACE["_blur_background_only"]
 
 
@@ -75,6 +79,28 @@ class ProductFocusBlurTests(unittest.TestCase):
         self.assertTrue(
             np.allclose(blurred[..., 2][background], 100.0, atol=0.01)
         )
+
+    def test_blur_is_stronger_near_product_without_a_guard_gap(self):
+        product = np.zeros((101, 101), dtype=np.uint8)
+        product[45:56, 45:56] = 255
+
+        proximity, falloff = PROXIMITY_WEIGHT(
+            product,
+            product_focus=0.7,
+            minimum_falloff=14,
+        )
+
+        self.assertEqual(float(proximity[50, 50]), 0.0)
+        self.assertGreater(float(proximity[44, 50]), 0.95)
+        self.assertGreater(
+            float(proximity[40, 50]),
+            float(proximity[20, 50]),
+        )
+        self.assertGreaterEqual(falloff, 14)
+
+    def test_near_product_uses_larger_blur_radius(self):
+        near_radius = BLUR_RADIUS(0.7)
+        self.assertLess(FAR_BLUR_RADIUS(near_radius), near_radius)
 
 
 if __name__ == "__main__":

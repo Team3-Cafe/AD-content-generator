@@ -34,6 +34,7 @@ class SplitPipelineTests(unittest.TestCase):
                 or {
                     "full_cutout": root / "full.png",
                     "trimmed_cutout": root / "trimmed.png",
+                    "original_size": (1600, 1067),
                 }
             ),
         ), patch(
@@ -81,6 +82,14 @@ class SplitPipelineTests(unittest.TestCase):
         self.assertEqual(
             generation_call.call_args.kwargs["product_scale"],
             0.55,
+        )
+        self.assertEqual(
+            generation_call.call_args.kwargs["width"],
+            768,
+        )
+        self.assertEqual(
+            generation_call.call_args.kwargs["height"],
+            512,
         )
         self.assertIs(
             identity_call.call_args.kwargs["pipe"],

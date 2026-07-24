@@ -13,6 +13,30 @@ from ..refinement import (
 )
 
 
+def _aspect_aware_generation_size(
+    source_size,
+    short_side=512,
+    max_long_side=1024,
+    multiple=8,
+):
+    source_width, source_height = (int(value) for value in source_size)
+    if source_width <= 0 or source_height <= 0:
+        raise ValueError("Source image dimensions must be greater than zero.")
+
+    scale = min(
+        float(short_side) / min(source_width, source_height),
+        float(max_long_side) / max(source_width, source_height),
+    )
+
+    def align(value):
+        return max(multiple, int(round(value / multiple)) * multiple)
+
+    return (
+        align(source_width * scale),
+        align(source_height * scale),
+    )
+
+
 @dataclass(frozen=True)
 class ImagePipelineResult:
     """Artifacts produced before advertisement copy is requested."""
@@ -63,6 +87,9 @@ def run_image_pipeline(
             output_dir / "01_preprocessed"
         ),
     )
+    generation_width, generation_height = _aspect_aware_generation_size(
+        preprocessed["original_size"],
+    )
 
     print(
         f"[image 2/{total_steps}] "
@@ -92,6 +119,8 @@ def run_image_pipeline(
         )
 
     generation_kwargs = {
+        "width": generation_width,
+        "height": generation_height,
         "layout_mode": layout_mode,
         "brand_focus": brand_focus,
         "product_scale": product_scale,

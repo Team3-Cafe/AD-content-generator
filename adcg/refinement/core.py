@@ -33,6 +33,40 @@ def _background_blur_radius(product_focus):
     return 1 + int(product_focus * 51.0)
 
 
+def _far_blur_radius(near_blur_radius):
+    return max(1, int(round(float(near_blur_radius) * 0.35)))
+
+
+def _background_proximity_weight(
+    product_mask,
+    product_focus,
+    minimum_falloff=14,
+):
+    """Return a smooth 1-near/0-far background distance profile."""
+    product_focus = float(np.clip(product_focus, 0.0, 1.0))
+    product_binary = np.where(
+        np.asarray(product_mask) > 0,
+        255,
+        0,
+    ).astype(np.uint8)
+    background_binary = 255 - product_binary
+    distance = cv2.distanceTransform(
+        background_binary,
+        cv2.DIST_L2,
+        5,
+    )
+    short_side = max(1, min(product_binary.shape))
+    falloff = max(
+        int(minimum_falloff),
+        int(round(short_side * (0.04 + product_focus * 0.08))),
+    )
+    normalized = np.clip(distance / float(falloff), 0.0, 1.0)
+    smooth_distance = normalized * normalized * (3.0 - 2.0 * normalized)
+    proximity = 1.0 - smooth_distance
+    proximity[product_binary > 0] = 0.0
+    return proximity.astype(np.float32), falloff
+
+
 def _blur_background_only(image, protected_mask, blur_radius):
     """Blur using background samples without leaking protected pixels."""
     image = image.astype(np.float32)
@@ -126,12 +160,6 @@ def run_core_refinement(
         ellipse_kernel(core_erode),
         iterations=1,
     )
-    outer_mask = cv2.dilate(
-        binary,
-        ellipse_kernel(outer_protection),
-        iterations=1,
-    )
-
     core_weight = blur_mask(core_mask, core_feather)
     core_weight *= mask.astype(np.float32) / 255.0
     core_weight = np.clip(
@@ -145,17 +173,34 @@ def run_core_refinement(
         background_strength + product_focus * 0.60
     )
     blur_radius = _background_blur_radius(product_focus)
+    far_blur_radius = _far_blur_radius(blur_radius)
+    proximity_weight, blur_gradient_falloff = (
+        _background_proximity_weight(
+            binary,
+            product_focus,
+            minimum_falloff=outer_protection,
+        )
+    )
 
-    background_refined = cv2.bilateralFilter(
+    smoothed_background = cv2.bilateralFilter(
         generated_array,
         d=7,
         sigmaColor=28,
         sigmaSpace=28,
     )
-    background_refined = _blur_background_only(
-        background_refined,
-        protected_mask=outer_mask,
+    far_background = _blur_background_only(
+        smoothed_background,
+        protected_mask=binary,
+        blur_radius=far_blur_radius,
+    )
+    near_background = _blur_background_only(
+        smoothed_background,
+        protected_mask=binary,
         blur_radius=blur_radius,
+    )
+    background_refined = (
+        far_background * (1.0 - proximity_weight[..., None])
+        + near_background * proximity_weight[..., None]
     )
     background_refined = background_refined.astype(np.float32)
     background_refined = _dim_background(
@@ -163,9 +208,17 @@ def run_core_refinement(
         product_focus,
     )
 
-    background_mask = 255 - outer_mask
-    background_weight = blur_mask(background_mask, 3.0)
-    background_weight *= effective_background_strength
+    background_mask = (255 - binary).astype(np.float32) / 255.0
+    proximity_boost = (
+        (1.0 - effective_background_strength)
+        * product_focus
+        * proximity_weight
+    )
+    background_weight = background_mask * np.clip(
+        effective_background_strength + proximity_boost,
+        0.0,
+        1.0,
+    )
 
     result = generated_array.astype(np.float32)
     result = (
@@ -196,10 +249,11 @@ def run_core_refinement(
         {
             "core_mask.png": core_mask,
             "boundary_ring.png": cv2.subtract(
-                outer_mask,
+                binary,
                 core_mask,
             ),
-            "background_refine_mask.png": background_mask,
+            "background_refine_mask.png": background_weight * 255,
+            "background_blur_proximity.png": proximity_weight * 255,
             "contact_shadow_mask.png": shadow * 255,
         },
     )
@@ -217,7 +271,9 @@ def run_core_refinement(
             "product_focus": product_focus,
             "effective_background_strength": effective_background_strength,
             "background_blur_radius": blur_radius,
-            "background_blur_guard_px": outer_protection,
+            "background_far_blur_radius": far_blur_radius,
+            "background_blur_gradient_px": blur_gradient_falloff,
+            "background_blur_guard_px": 0,
         },
     )
 
