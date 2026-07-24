@@ -37,6 +37,8 @@ def _add_image_parser(subparsers) -> None:
     parser.add_argument("--gpt-model", default="gpt-5.4-nano")
     parser.add_argument("--product-focus", type=float, default=1.0)
     parser.add_argument("--product-scale", type=float, default=None)
+    parser.add_argument("--width", type=int, default=None)
+    parser.add_argument("--height", type=int, default=None)
     parser.add_argument("--brand-focus", type=float, default=0.5)
     parser.add_argument(
         "--layout-mode",
@@ -116,6 +118,8 @@ def _run_image_command(args):
         gpt_model=args.gpt_model,
         product_focus=args.product_focus,
         product_scale=args.product_scale,
+        width=args.width,
+        height=args.height,
         brand_focus=args.brand_focus,
         layout_mode=args.layout_mode,
         seed=args.seed,

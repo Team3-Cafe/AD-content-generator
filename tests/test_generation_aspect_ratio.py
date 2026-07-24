@@ -42,6 +42,18 @@ class GenerationAspectRatioTests(unittest.TestCase):
     def test_square_input_stays_square(self):
         self.assertEqual(ASPECT_SIZE((900, 900)), (512, 512))
 
+    def test_explicit_resolution_overrides_source_ratio(self):
+        self.assertEqual(
+            ASPECT_SIZE((1600, 1067), width=1024, height=576),
+            (1024, 576),
+        )
+
+    def test_explicit_resolution_requires_a_valid_pair(self):
+        with self.assertRaises(ValueError):
+            ASPECT_SIZE((1600, 1067), width=768)
+        with self.assertRaises(ValueError):
+            ASPECT_SIZE((1600, 1067), width=767, height=512)
+
     def test_extreme_ratio_respects_long_side_limit(self):
         width, height = ASPECT_SIZE((4000, 500))
         self.assertLessEqual(width, 1024)

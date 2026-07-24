@@ -27,6 +27,8 @@ class PipelinesCliTests(unittest.TestCase):
                 "--output-dir", "outputs/test",
                 "--product-focus", "0.7",
                 "--product-scale", "0.55",
+                "--width", "768",
+                "--height", "512",
                 "--brand-focus", "0.3",
                 "--seed", "7",
             ])
@@ -34,6 +36,8 @@ class PipelinesCliTests(unittest.TestCase):
         call = image_pipeline.call_args.kwargs
         self.assertEqual(call["product_focus"], 0.7)
         self.assertEqual(call["product_scale"], 0.55)
+        self.assertEqual(call["width"], 768)
+        self.assertEqual(call["height"], 512)
         self.assertEqual(call["brand_focus"], 0.3)
         self.assertEqual(call["seed"], 7)
         document = json.loads(output.call_args.args[0])

@@ -13,6 +13,8 @@ def main():
         copy_count=config.copy_count,
         product_focus=config.product_focus,
         product_scale=config.product_scale,
+        width=config.width,
+        height=config.height,
         brand_focus=config.brand_focus,
         layout_mode=config.layout_mode,
         seed=config.seed,

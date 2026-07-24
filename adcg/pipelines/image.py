@@ -15,10 +15,23 @@ from ..refinement import (
 
 def _aspect_aware_generation_size(
     source_size,
+    width=None,
+    height=None,
     short_side=512,
     max_long_side=1024,
     multiple=8,
 ):
+    if width is not None or height is not None:
+        if width is None or height is None:
+            raise ValueError("--width and --height must be supplied together.")
+        width = int(width)
+        height = int(height)
+        if width <= 0 or height <= 0:
+            raise ValueError("--width and --height must be greater than zero.")
+        if width % multiple or height % multiple:
+            raise ValueError("--width and --height must be multiples of 8.")
+        return width, height
+
     source_width, source_height = (int(value) for value in source_size)
     if source_width <= 0 or source_height <= 0:
         raise ValueError("Source image dimensions must be greater than zero.")
@@ -55,6 +68,8 @@ def run_image_pipeline(
     gpt_model="gpt-5.4-nano",
     product_focus=1.0,
     product_scale=None,
+    width=None,
+    height=None,
     brand_focus=0.5,
     layout_mode="layout",
     seed=42,
@@ -89,6 +104,8 @@ def run_image_pipeline(
     )
     generation_width, generation_height = _aspect_aware_generation_size(
         preprocessed["original_size"],
+        width=width,
+        height=height,
     )
 
     print(

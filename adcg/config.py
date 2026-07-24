@@ -29,6 +29,8 @@ class AppConfig:
     gpt_model: str
     product_focus: float
     product_scale: float | None
+    width: int | None
+    height: int | None
     brand_focus: float
     layout_mode: str
     copy_count: int
@@ -81,6 +83,18 @@ def build_parser() -> argparse.ArgumentParser:
             "Product width relative to the canvas short side. "
             "When omitted, aspect-aware automatic sizing is used."
         ),
+    )
+    image_generation.add_argument(
+        "--width",
+        type=int,
+        default=None,
+        help="Full generated image width. Must be supplied with --height.",
+    )
+    image_generation.add_argument(
+        "--height",
+        type=int,
+        default=None,
+        help="Full generated image height. Must be supplied with --width.",
     )
     image_generation.add_argument(
         "--layout-mode",
@@ -241,6 +255,14 @@ def parse_config(argv: list[str] | None = None) -> AppConfig:
     if args.product_scale is not None and args.product_scale <= 0.0:
         parser.error("--product-scale must be greater than 0.0")
 
+    if (args.width is None) != (args.height is None):
+        parser.error("--width and --height must be supplied together")
+    if args.width is not None:
+        if args.width <= 0 or args.height <= 0:
+            parser.error("--width and --height must be greater than zero")
+        if args.width % 8 or args.height % 8:
+            parser.error("--width and --height must be multiples of 8")
+
     if args.brand_focus < 0.0 or args.brand_focus > 1.0:
         parser.error("--brand-focus는 0.0부터 1.0 사이여야 합니다.")
 
@@ -251,6 +273,8 @@ def parse_config(argv: list[str] | None = None) -> AppConfig:
         gpt_model=args.gpt_model,
         product_focus=args.product_focus,
         product_scale=args.product_scale,
+        width=args.width,
+        height=args.height,
         brand_focus=args.brand_focus,
         layout_mode=args.layout_mode,
         copy_count=args.copy_count,
@@ -274,6 +298,8 @@ if __name__ == "__main__":
         "gpt_model": config.gpt_model,
         "product_focus": config.product_focus,
         "product_scale": config.product_scale,
+        "width": config.width,
+        "height": config.height,
         "brand_focus": config.brand_focus,
         "copy_count": config.copy_count,
         "seed": config.seed,
