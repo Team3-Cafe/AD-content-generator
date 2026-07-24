@@ -15,7 +15,6 @@ class CopyLayoutResult:
     output_dir: Path
     copy_json: Path
     layout_json: Path
-    final_review_json: Path
     final_image: Path
 
 
@@ -106,6 +105,5 @@ def run_copy_layout_pipeline(
         output_dir=output_dir,
         copy_json=copy_json,
         layout_json=Path(layout_result.layout_json),
-        final_review_json=Path(layout_result.final_review_json),
         final_image=Path(layout_result.rendered_image),
     )

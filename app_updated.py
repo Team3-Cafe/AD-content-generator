@@ -761,6 +761,7 @@ saved_generation_settings = st.session_state.get("generation_settings", {})
 gpt_model = saved_generation_settings.get("gpt_model", "gpt-5.4-nano")
 layout_mode = saved_generation_settings.get("layout_mode", "layout")
 product_focus = float(saved_generation_settings.get("product_focus", 1.0))
+product_scale = float(saved_generation_settings.get("product_scale", 0.60))
 brand_focus = float(saved_generation_settings.get("brand_focus", 0.5))
 seed = int(saved_generation_settings.get("seed", 42))
 
@@ -828,6 +829,14 @@ with st.sidebar:
                 value=product_focus,
                 step=0.1,
                 help="값이 높을수록 상품의 형태와 존재감을 강하게 유지합니다.",
+            )
+            product_scale = st.slider(
+                "상품 크기",
+                min_value=0.30,
+                max_value=0.90,
+                value=product_scale,
+                step=0.05,
+                help="캔버스의 짧은 변을 기준으로 상품이 차지하는 너비를 조절합니다.",
             )
             st.html(
                 """
@@ -948,6 +957,7 @@ if st.session_state.step == 1:
                 "gpt_model": gpt_model,
                 "layout_mode": layout_mode,
                 "product_focus": float(product_focus),
+                "product_scale": float(product_scale),
                 "brand_focus": float(brand_focus),
                 "seed": int(seed),
             }
@@ -992,6 +1002,7 @@ if st.session_state.step == 1:
                     "output_dir": job_output_dir,
                     "gpt_model": gpt_model,
                     "product_focus": float(product_focus),
+                    "product_scale": float(product_scale),
                     "brand_focus": float(brand_focus),
                     "layout_mode": layout_mode,
                     "seed": int(seed),

@@ -26,6 +26,42 @@ def _dim_background(background, product_focus):
     product_focus = float(np.clip(product_focus, 0.0, 1.0))
     dim_scale = 1.0 - product_focus * 0.28
     return np.clip(background * dim_scale, 0, 255)
+
+def _background_blur_radius(product_focus):
+    """Scale background blur continuously from radius 1 to 52."""
+    product_focus = float(np.clip(product_focus, 0.0, 1.0))
+    return 1 + int(product_focus * 51.0)
+
+
+def _blur_background_only(image, protected_mask, blur_radius):
+    """Blur using background samples without leaking protected pixels."""
+    image = image.astype(np.float32)
+    if blur_radius <= 1:
+        return image
+
+    background = 1.0 - (
+        protected_mask.astype(np.float32) / 255.0
+    )
+    ksize = blur_radius * 2 + 1
+    blurred_weight = cv2.GaussianBlur(
+        background,
+        (ksize, ksize),
+        sigmaX=blur_radius,
+    )
+    weighted_image = cv2.GaussianBlur(
+        image * background[..., None],
+        (ksize, ksize),
+        sigmaX=blur_radius,
+    )
+    safe_weight = np.maximum(blurred_weight, 1e-6)
+    background_only = weighted_image / safe_weight[..., None]
+    return np.where(
+        (blurred_weight > 1e-6)[..., None],
+        background_only,
+        image,
+    )
+
+
 from .diagnostics import (
     prepare_output_dir,
     save_diagnostics,
@@ -42,7 +78,7 @@ def run_core_refinement(
     core_erode=10,
     core_feather=7.0,
     core_opacity=0.92,
-    outer_protection=7,
+    outer_protection=14,
     background_strength=0.20,
     product_focus=1.0,
     shadow_offset=3,
@@ -108,8 +144,7 @@ def run_core_refinement(
     effective_background_strength = (
         background_strength + product_focus * 0.60
     )
-    blur_factor = product_focus * 12.0
-    blur_radius = 1 + int(np.clip(blur_factor, 0, 14))
+    blur_radius = _background_blur_radius(product_focus)
 
     background_refined = cv2.bilateralFilter(
         generated_array,
@@ -117,13 +152,11 @@ def run_core_refinement(
         sigmaColor=28,
         sigmaSpace=28,
     )
-    if blur_radius > 1:
-        ksize = blur_radius * 2 + 1
-        background_refined = cv2.GaussianBlur(
-            background_refined,
-            (ksize, ksize),
-            sigmaX=blur_radius,
-        )
+    background_refined = _blur_background_only(
+        background_refined,
+        protected_mask=outer_mask,
+        blur_radius=blur_radius,
+    )
     background_refined = background_refined.astype(np.float32)
     background_refined = _dim_background(
         background_refined,
@@ -183,6 +216,8 @@ def run_core_refinement(
             "background_strength": background_strength,
             "product_focus": product_focus,
             "effective_background_strength": effective_background_strength,
+            "background_blur_radius": blur_radius,
+            "background_blur_guard_px": outer_protection,
         },
     )
 

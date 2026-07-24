@@ -127,10 +127,13 @@ def _resolve_layout(config, prompt_data):
     return {
         "product_x": resolve("product_x", 0.50),
         "product_y": resolve("product_y", 0.70),
-        # Product size is a runtime composition policy. Do not silently fall
-        # back to the VLM-authored JSON value, which makes identical runs use
-        # unexpectedly different foreground sizes.
-        "product_scale": float(config["product_scale"]),
+        # None selects aspect-aware automatic sizing. Numeric values are
+        # interpreted against the canvas short axis, never the VLM JSON.
+        "product_scale": (
+            None
+            if config.get("product_scale") is None
+            else float(config["product_scale"])
+        ),
     }
 
 
@@ -154,10 +157,6 @@ def _run_generation(config, pipe=None):
     )
     truncation = metadata.get("truncation", {})
     layout = _resolve_layout(config, prompt_data)
-    print(
-        f"[Layout] product_scale={layout['product_scale']:.2f} "
-        "(runtime policy)"
-    )
 
     print("[상품 누끼 로드]")
     product = load_product_cutout(
@@ -175,6 +174,16 @@ def _run_generation(config, pipe=None):
         product_y=layout["product_y"],
         product_scale=layout["product_scale"],
         metadata=metadata,
+    )
+
+    placement = canvas_result["placement"]
+    layout["requested_product_scale"] = layout["product_scale"]
+    layout["product_scale"] = placement["effective_product_scale"]
+    print(
+        f"[Layout] product_scale="
+        f"{placement['requested_product_scale']!r} "
+        f"-> effective={placement['effective_product_scale']:.4f} "
+        f"({placement['sizing_mode']})"
     )
 
     inpaint_mask = create_background_inpaint_mask(

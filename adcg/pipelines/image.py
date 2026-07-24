@@ -3,6 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from pathlib import Path
 
+from ..artifacts import keep_only, remove_pipeline_stage
 from ..generation import run_generation
 from ..preprocessing import run_preprocess
 from ..prompting import run_prompt_generation
@@ -19,8 +20,6 @@ class ImagePipelineResult:
     output_dir: Path
     info_path: Path
     prompt_json: Path
-    generated_image: Path
-    core_refined_image: Path
     identity_restored_image: Path
     eval_json: Path | None
 
@@ -31,6 +30,7 @@ def run_image_pipeline(
     output_dir="outputs/pipeline",
     gpt_model="gpt-5.4-nano",
     product_focus=1.0,
+    product_scale=None,
     brand_focus=0.5,
     layout_mode="layout",
     seed=42,
@@ -72,6 +72,7 @@ def run_image_pipeline(
 
     generation_kwargs = {
         "layout_mode": layout_mode,
+        "product_scale": product_scale,
         "seed": seed,
         "cpu_offload": cpu_offload,
     }
@@ -138,12 +139,18 @@ def run_image_pipeline(
             **eval_kwargs,
         )
 
+    # Only these image-stage artifacts are consumed after this stage.
+    # Evaluation has already finished before temporary images are removed.
+    for stage_name in ("01_preprocessed", "03_generated", "04_core_refined"):
+        remove_pipeline_stage(output_dir, stage_name)
+    keep_only(output_dir / "05_final", (identity_restored_image,))
+    if eval_json is not None:
+        keep_only(output_dir / "06_eval", (eval_json,))
+
     return ImagePipelineResult(
         output_dir=output_dir,
         info_path=info_path,
         prompt_json=Path(prompt_json),
-        generated_image=Path(generated["image"]),
-        core_refined_image=Path(core_refined),
         identity_restored_image=Path(identity_restored_image),
         eval_json=eval_json,
     )

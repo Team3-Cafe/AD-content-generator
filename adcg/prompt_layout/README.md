@@ -25,26 +25,14 @@ rank alternatives, or measure aesthetic scores.
 5. Selected palette colors are resolved to exact values and checked for WCAG
    text contrast. Unsafe foreground colors are replaced automatically while
    preserving the VLM's background-color direction.
-6. The first design is rendered to `design_draft.png`.
-7. A second GPT-4o call sees `design_draft.png` and its exact resolved state, then
-   refines all design features into a coherent second-stage design.
-8. That revision is fitted and rendered to `final_review_input.png`.
-9. The third GPT-4o call receives no earlier art direction, resolved element boxes,
-   or revision JSON. It reads the completed second-stage pixels, audits all eleven
-   categories, receives broad image/copy/renderer-aware candidate pools for all
-   categories, and independently rebuilds the copy layer as one complete
-   absolute-pixel target. Candidate pools are neither templates nor limits; the
-   VLM may combine, alter, reject, or exceed them.
-   For every category it records visible evidence, a design objective, candidate
-   benefits and risks, cross-feature dependencies, its selected direction, and
-   concrete target-layout commitments. A final coherence review resolves conflicts
-   between those decisions before rendering.
-10. The final redesign must materially change copy geometry and multiple design
-    systems. Requested/applied states, constraints,
-    warnings, material-change summaries, and exact property changes are saved in
-    `final_review.json`, `design_revision.json`, and `layout.json`. The copy remains
-    fixed.
-
+6. The first design is fitted and rendered to a temporary draft image.
+7. A second GPT-4o call receives the rendered draft and clean background, but no
+   earlier art direction, resolved element boxes, or revision JSON. It audits all
+   eleven design categories and independently rebuilds the copy layer as one
+   complete absolute-pixel target using the image-aware candidate pool.
+8. The final redesign must materially change copy geometry and multiple design
+   systems. Its resolved geometry and styling are saved in `layout.json`.
+   The copy remains fixed; temporary analysis and review artifacts are removed.
 
 The primary renderer converts the resolved layout to an HTML/CSS scene and uses
 headless Chromium through Playwright to capture the final PNG. Browser typography
@@ -56,15 +44,11 @@ contrast without inventing an unrequested surface.
 
 ## Outputs
 
-- `design_analysis.json`: computed image-space diagnostics and VLM scene notes
-- `design_spec.json`: the single art direction and relational composition
-- `design_draft.png`: first rendering of that design
-- `design_revision.json`: second-stage state-based design refinement
-- `final_review_input.png`: completed second-stage design supplied to final redesign
-- `final_review.json`: final independent redesign exploration, diagnosis, absolute target, actual
-  post-fit state, applied constraints, and changed properties
 - `layout.json`: final resolved pixels, typography, colors, and surfaces
 - `final_ad.png`: the completed advertisement image
+
+The draft render, design analysis/specification, and final-review response are
+transient processing artifacts and are removed after a successful render.
 
 ## Usage
 
@@ -77,8 +61,8 @@ Run independently after background generation:
       --font adcg/assets/fonts/NotoSansKR.ttf
 
 The default model is `gpt-4o`, image detail is `high`, and design temperature
-is `0.4`. Exactly three OpenAI calls are made: one art-direction call, one
-draft revision call, and one final review of the completed advertisement.
+is `0.4`. Exactly two OpenAI calls are made: one art-direction call and one independent
+review and rebuild of the rendered draft.
 `OPENAI_API_KEY` is loaded from the project-root `.env` when present.
 
 The Pillow renderer runs without a browser runtime or additional system package.
@@ -95,5 +79,5 @@ The renderer supports rounded, pill, ellipse, cut-corner, and diagonal surfaces;
 image-derived color overlays; up to three surface shadow layers; character, word,
 and balanced wrapping; optical text anchoring; automatic same-group collision
 correction; and shared, cap-height, or optical-center price baselines. These
-choices are exposed to the second and final VLM design stages and persisted in
+choices are exposed to the initial and final VLM design stages and persisted in
 the resolved layout JSON.

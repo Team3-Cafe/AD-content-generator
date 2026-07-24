@@ -12,11 +12,8 @@ class PipelineResult:
     output_dir: Path
     prompt_json: Path
     copy_json: Path
-    generated_image: Path
-    core_refined_image: Path
     identity_restored_image: Path
     layout_json: Path
-    final_review_json: Path
     final_image: Path
     eval_json: Path | None
 
@@ -28,6 +25,7 @@ def run_pipeline(
     gpt_model="gpt-5.4-nano",
     copy_count=1,
     product_focus=1.0,
+    product_scale=None,
     brand_focus=0.5,
     layout_mode="layout",
     seed=42,
@@ -48,6 +46,7 @@ def run_pipeline(
         output_dir=output_dir,
         gpt_model=gpt_model,
         product_focus=product_focus,
+        product_scale=product_scale,
         brand_focus=brand_focus,
         layout_mode=layout_mode,
         seed=seed,
@@ -75,11 +74,8 @@ def run_pipeline(
         output_dir=image_result.output_dir,
         prompt_json=image_result.prompt_json,
         copy_json=copy_result.copy_json,
-        generated_image=image_result.generated_image,
-        core_refined_image=image_result.core_refined_image,
         identity_restored_image=image_result.identity_restored_image,
         layout_json=copy_result.layout_json,
-        final_review_json=copy_result.final_review_json,
         final_image=copy_result.final_image,
         eval_json=image_result.eval_json,
     )
