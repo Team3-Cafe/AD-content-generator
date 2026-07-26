@@ -219,3 +219,5 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
+/vm_outputs_eval/
+/CAIG_outputs.tar.gz

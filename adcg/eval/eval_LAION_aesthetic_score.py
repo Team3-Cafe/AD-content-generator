@@ -14,13 +14,34 @@ from .eval_result_store import update_eval_results
 
 DEFAULT_MODEL = "openai/clip-vit-large-patch14"
 DEFAULT_WEIGHTS_URL = (
-    "https://github.com/LAION-AI/aesthetic-predictor/raw/main/"
-    "sa_0_4_vit_l_14_linear.pth"
+    "https://github.com/christophschuhmann/"
+    "improved-aesthetic-predictor/raw/main/"
+    "sac%2Blogos%2Bava1-l14-linearMSE.pth"
 )
 
 
+class AestheticPredictor(nn.Module):
+    """MLP architecture used by LAION Aesthetic Predictor V2."""
+
+    def __init__(self, embedding_dim):
+        super().__init__()
+        self.layers = nn.Sequential(
+            nn.Linear(embedding_dim, 1024),
+            nn.Dropout(0.2),
+            nn.Linear(1024, 128),
+            nn.Dropout(0.2),
+            nn.Linear(128, 64),
+            nn.Dropout(0.1),
+            nn.Linear(64, 16),
+            nn.Linear(16, 1),
+        )
+
+    def forward(self, embeddings):
+        return self.layers(embeddings)
+
+
 def load_aesthetic_head(weights_path, weights_url, embedding_dim, device):
-    head = nn.Linear(embedding_dim, 1)
+    head = AestheticPredictor(embedding_dim)
     if weights_path:
         state = torch.load(weights_path, map_location="cpu")
     else:
@@ -30,15 +51,10 @@ def load_aesthetic_head(weights_path, weights_url, embedding_dim, device):
     if isinstance(state, dict) and "state_dict" in state:
         state = state["state_dict"]
 
-    cleaned_state = {}
-    for key, value in state.items():
-        key = key.removeprefix("module.").removeprefix("linear.")
-        if key in {"layers.0.weight", "0.weight"}:
-            key = "weight"
-        elif key in {"layers.0.bias", "0.bias"}:
-            key = "bias"
-        cleaned_state[key] = value
-    head.load_state_dict(cleaned_state, strict=False)
+    cleaned_state = {
+        key.removeprefix("module."): value for key, value in state.items()
+    }
+    head.load_state_dict(cleaned_state)
     return head.to(device).eval()
 
 
