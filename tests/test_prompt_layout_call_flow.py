@@ -23,6 +23,10 @@ class PromptLayoutCallFlowTests(unittest.TestCase):
         self.assertNotIn("build_final_polish", GENERATOR_SOURCE)
 
     def test_final_review_redesigns_the_rendered_draft_directly(self):
+        self.assertIn(
+            'output_path=output_dir / "vlm_1_ad.png"',
+            GENERATE_SOURCE,
+        )
         self.assertIn("image_path=[draft_path, image_path]", GENERATE_SOURCE)
         self.assertIn(
             "_enforce_final_review_revision(final_review, draft_layout)",
@@ -35,6 +39,13 @@ class PromptLayoutCallFlowTests(unittest.TestCase):
         self.assertNotIn("revised_layout", GENERATE_SOURCE)
         self.assertNotIn("design_revision", GENERATE_SOURCE)
         self.assertNotIn("final_review_input", GENERATE_SOURCE)
+
+    def test_first_vlm_render_is_retained_for_comparison(self):
+        self.assertIn(
+            "keep_only(output_dir, (layout_path, draft_path, rendered_path))",
+            GENERATE_SOURCE,
+        )
+        self.assertIn("first_vlm_image=draft_path", GENERATE_SOURCE)
 
 
 if __name__ == "__main__":

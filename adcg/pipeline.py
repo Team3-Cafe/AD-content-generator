@@ -14,6 +14,7 @@ class PipelineResult:
     copy_json: Path
     identity_restored_image: Path
     layout_json: Path
+    first_vlm_image: Path
     final_image: Path
     eval_json: Path | None
 
@@ -80,6 +81,7 @@ def run_pipeline(
         copy_json=copy_result.copy_json,
         identity_restored_image=image_result.identity_restored_image,
         layout_json=copy_result.layout_json,
+        first_vlm_image=copy_result.first_vlm_image,
         final_image=copy_result.final_image,
         eval_json=image_result.eval_json,
     )

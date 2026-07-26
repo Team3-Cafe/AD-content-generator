@@ -28,7 +28,8 @@ def main():
     print(f"Copy JSON   : {result.copy_json}")
     print(f"Identity img: {result.identity_restored_image}")
     print(f"Layout JSON : {result.layout_json}")
-    print(f"Final image : {result.final_image}")
+    print(f"VLM 1 image: {result.first_vlm_image}")
+    print(f"VLM 2 image: {result.final_image}")
 
     if result.eval_json is not None:
         print(f"Evaluation  : {result.eval_json}")

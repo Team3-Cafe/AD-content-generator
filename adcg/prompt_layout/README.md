@@ -45,10 +45,12 @@ contrast without inventing an unrequested surface.
 ## Outputs
 
 - `layout.json`: final resolved pixels, typography, colors, and surfaces
-- `final_ad.png`: the completed advertisement image
+- `vlm_1_ad.png`: the advertisement composed from the first VLM design
+- `final_ad.png`: the completed advertisement after the second VLM redesign
 
-The draft render, design analysis/specification, and final-review response are
-transient processing artifacts and are removed after a successful render.
+The design analysis/specification and final-review response are transient
+processing artifacts and are removed after a successful render. The first and
+second VLM advertisement renders are retained for direct comparison.
 
 ## Usage
 

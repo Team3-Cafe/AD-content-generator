@@ -48,6 +48,7 @@ class PipelinesCliTests(unittest.TestCase):
             output_dir=Path("outputs/test"),
             copy_json=Path("copy.json"),
             layout_json=Path("layout.json"),
+            first_vlm_image=Path("vlm_1_ad.png"),
             final_image=Path("final.png"),
         )
         with patch(
@@ -76,6 +77,7 @@ class PipelinesCliTests(unittest.TestCase):
             "font_path": "font.ttf",
         })
         document = json.loads(output.call_args.args[0])
+        self.assertEqual(document["first_vlm_image"], "vlm_1_ad.png")
         self.assertEqual(document["final_image"], "final.png")
 
 

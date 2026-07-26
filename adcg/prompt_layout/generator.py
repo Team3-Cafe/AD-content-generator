@@ -539,6 +539,7 @@ def _applied_changes(before: dict, after: dict) -> list[dict]:
 class LayoutGenerationResult:
     output_dir: Path
     layout_json: Path
+    first_vlm_image: Path
     rendered_image: Path
 
 
@@ -702,7 +703,7 @@ def generate_prompt_layout(
     draft_path = render_layout_image(
         image_path=image_path,
         layout=draft_layout,
-        output_path=output_dir / "design_draft.png",
+        output_path=output_dir / "vlm_1_ad.png",
         font_path=font_path,
     )
 
@@ -771,10 +772,11 @@ def generate_prompt_layout(
         font_path=font_path,
     )
 
-    keep_only(output_dir, (layout_path, rendered_path))
+    keep_only(output_dir, (layout_path, draft_path, rendered_path))
 
     return LayoutGenerationResult(
         output_dir=output_dir,
         layout_json=layout_path,
+        first_vlm_image=draft_path,
         rendered_image=rendered_path,
     )
