@@ -2,6 +2,7 @@ import json
 import warnings
 from functools import lru_cache
 from pathlib import Path
+from threading import Semaphore
 
 import onnxruntime as ort
 from PIL import Image
@@ -16,6 +17,7 @@ from .validation import detect_truncation, handle_truncation
 
 CPU_PROVIDER = "CPUExecutionProvider"
 CUDA_PROVIDER = "CUDAExecutionProvider"
+_REMBG_INFERENCE_SEMAPHORE = Semaphore(1)
 
 
 def get_rembg_providers():
@@ -53,6 +55,17 @@ def get_rembg_session(model="u2net"):
         return session
 
 
+def _remove_background(image, model="u2net"):
+    """Reuse the cached session while limiting rembg to one inference."""
+    with _REMBG_INFERENCE_SEMAPHORE:
+        session = get_rembg_session(model)
+        return remove(
+            image,
+            session=session,
+            alpha_matting=False,
+        )
+
+
 def run_preprocess(
     image_path,
     output_dir="outputs/preprocessed",
@@ -76,13 +89,7 @@ def run_preprocess(
 
     original = Image.open(image_path).convert("RGBA")
 
-    session = get_rembg_session(model)
-
-    cutout = remove(
-        original,
-        session=session,
-        alpha_matting=False,
-    )
+    cutout = _remove_background(original, model=model)
 
     cutout = clean_alpha(
         cutout,

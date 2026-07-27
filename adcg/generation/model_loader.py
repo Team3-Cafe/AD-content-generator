@@ -28,6 +28,18 @@ def load_controlnet(
     )
 
 
+def pipeline_controlnet_count(pipe):
+    """Return the number of ControlNets attached to a diffusion pipeline."""
+    controlnet = getattr(pipe, "controlnet", None)
+    networks = getattr(controlnet, "nets", None)
+
+    if networks is not None:
+        return len(networks)
+    if controlnet is not None:
+        return 1
+    return 0
+
+
 def load_generation_pipeline(
     base_model,
     controlnet_model,

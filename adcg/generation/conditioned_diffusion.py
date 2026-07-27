@@ -1,6 +1,8 @@
 import json
 import time
+from dataclasses import dataclass
 from pathlib import Path
+from typing import Any
 
 import torch
 from PIL import Image
@@ -13,24 +15,19 @@ from .control import (
     create_depth_control,
 )
 from .inference import run_conditioned_inference
-from .inpaint_mask import (
-    create_background_inpaint_mask,
+from .inpaint_mask import create_background_inpaint_mask
+from .model_loader import (
+    load_generation_pipeline,
+    pipeline_controlnet_count,
 )
-from .model_loader import load_generation_pipeline
 from .result import save_generation_result
 
 
 GENERATION_DEFAULTS = {
     "base_model": "digiplay/majicMIX_realistic_v7",
-    "controlnet_model": (
-        "lllyasviel/control_v11p_sd15_canny"
-    ),
-    "depth_controlnet_model": (
-        "lllyasviel/control_v11f1p_sd15_depth"
-    ),
-    "depth_estimator_model": (
-        "Intel/dpt-hybrid-midas"
-    ),
+    "controlnet_model": "lllyasviel/control_v11p_sd15_canny",
+    "depth_controlnet_model": "lllyasviel/control_v11f1p_sd15_depth",
+    "depth_estimator_model": "Intel/dpt-hybrid-midas",
     "depth_device": "cpu",
     "width": 512,
     "height": 512,
@@ -62,6 +59,27 @@ GENERATION_DEFAULTS = {
 }
 
 
+@dataclass(frozen=True)
+class PreparedGeneration:
+    """CPU-side condition artifacts ready for shared diffusion inference."""
+
+    config: dict[str, Any]
+    output_dir: Path
+    prompt: str
+    negative_prompt: str
+    brand_prompts: dict[str, Any]
+    brand_focus: float
+    product: Image.Image
+    layout: dict[str, Any]
+    canvas_result: dict[str, Any]
+    inpaint_mask: Image.Image
+    canny_control: Image.Image
+    depth_control: Image.Image | None
+    control_images: tuple[Image.Image, ...]
+    control_scales: tuple[float, ...]
+    preparation_elapsed: float
+
+
 def _load_prompt_json(prompt_json):
     prompt_json = Path(prompt_json)
 
@@ -83,9 +101,7 @@ def _load_product(product_image):
             f"Product image not found: {product_image}"
         )
 
-    return Image.open(
-        product_image
-    ).convert("RGBA")
+    return Image.open(product_image).convert("RGBA")
 
 
 def _resolve_number(
@@ -150,28 +166,6 @@ def _resolve_layout(
             else float(config["product_scale"])
         ),
     }
-
-
-def _pipe_control_count(pipe):
-    controlnet = getattr(
-        pipe,
-        "controlnet",
-        None,
-    )
-
-    networks = getattr(
-        controlnet,
-        "nets",
-        None,
-    )
-
-    if networks is not None:
-        return len(networks)
-
-    if controlnet is not None:
-        return 1
-
-    return 0
 
 
 def _build_config(options):
@@ -256,8 +250,8 @@ def _resolve_brand_prompts(
     }
 
 
-def _run_generation(config):
-    total_started_at = time.perf_counter()
+def _prepare_generation(config):
+    preparation_started_at = time.perf_counter()
 
     output_dir = Path(config["output_dir"])
     output_dir.mkdir(
@@ -388,16 +382,66 @@ def _run_generation(config):
             )
         )
 
-    pipe = config.get("pipe")
-    owns_pipe = pipe is None
+    return PreparedGeneration(
+        config=dict(config),
+        output_dir=output_dir,
+        prompt=prompt,
+        negative_prompt=negative_prompt,
+        brand_prompts=brand_prompts,
+        brand_focus=brand_focus,
+        product=product,
+        layout=layout,
+        canvas_result=canvas_result,
+        inpaint_mask=inpaint_mask,
+        canny_control=canny_control,
+        depth_control=depth_control,
+        control_images=tuple(control_images),
+        control_scales=tuple(control_scales),
+        preparation_elapsed=(
+            time.perf_counter()
+            - preparation_started_at
+        ),
+    )
 
+
+def prepare_generation(
+    product_image,
+    prompt_json,
+    output_dir,
+    **options,
+):
+    """Build masks and Canny/Depth controls without using diffusion GPU."""
+    config = _build_config(options)
+    config.update(
+        {
+            "product_image": product_image,
+            "prompt_json": prompt_json,
+            "output_dir": output_dir,
+        }
+    )
+    return _prepare_generation(config)
+
+
+def run_prepared_generation(
+    prepared: PreparedGeneration,
+    pipe=None,
+):
+    """Run shared diffusion inference for precomputed control artifacts."""
+    gpu_stage_started_at = time.perf_counter()
+    config = prepared.config
+    control_images = list(prepared.control_images)
+    control_scales = list(prepared.control_scales)
+    depth_controlnet_model = config.get(
+        "depth_controlnet_model"
+    )
+    owns_pipe = pipe is None
     required_control_count = len(
         control_images
     )
 
     if (
         pipe is not None
-        and _pipe_control_count(pipe)
+        and pipeline_controlnet_count(pipe)
         != required_control_count
     ):
         print(
@@ -405,7 +449,6 @@ def _run_generation(config):
             "different ControlNet configuration. "
             "Reloading the generation pipeline."
         )
-
         pipe = None
         owns_pipe = True
 
@@ -434,131 +477,145 @@ def _run_generation(config):
         inference_control = control_images
         inference_scales = control_scales
 
-    (
-        generated_image,
-        inference_elapsed,
-        prompt_token_data,
-    ) = run_conditioned_inference(
-        pipe=pipe,
-        prompt=prompt,
-        negative_prompt=negative_prompt,
-        condition_canvas=canvas_result[
-            "condition_canvas"
-        ],
-        inpaint_mask=inpaint_mask,
-        control_image=inference_control,
-        width=int(config["width"]),
-        height=int(config["height"]),
-        steps=int(config["steps"]),
-        guidance_scale=float(
-            config["guidance_scale"]
-        ),
-        strength=float(config["strength"]),
-        controlnet_scale=inference_scales,
-        seed=int(config["seed"]),
-        everyday_prompt=brand_prompts[
-            "everyday_prompt"
-        ],
-        studio_prompt=brand_prompts[
-            "studio_prompt"
-        ],
-        everyday_prompt_parts=brand_prompts[
-            "everyday_prompt_parts"
-        ],
-        studio_prompt_parts=brand_prompts[
-            "studio_prompt_parts"
-        ],
-        brand_focus=brand_focus,
-    )
-
-    total_elapsed = (
-        time.perf_counter()
-        - total_started_at
-    )
-
-    experiment_data = {
-        "base_model": config["base_model"],
-        "controlnet_model": config[
-            "controlnet_model"
-        ],
-        "depth_controlnet_model": (
-            depth_controlnet_model
-        ),
-        "depth_estimator_model": (
-            config["depth_estimator_model"]
-            if depth_controlnet_model
-            else None
-        ),
-        "input_product": str(
-            Path(config["product_image"])
-        ),
-        "prompt_json": str(
-            Path(config["prompt_json"])
-        ),
-        "prompt": prompt,
-        "negative_prompt": negative_prompt,
-        "brand_focus": brand_focus,
-        "brand_prompts": brand_prompts,
-        "prompt_token_data": (
-            prompt_token_data
-        ),
-        "width": int(config["width"]),
-        "height": int(config["height"]),
-        "steps": int(config["steps"]),
-        "guidance_scale": float(
-            config["guidance_scale"]
-        ),
-        "strength": float(
-            config["strength"]
-        ),
-        "controlnet_scale": float(
-            config["controlnet_scale"]
-        ),
-        "depth_controlnet_scale": (
-            float(
-                config[
-                    "depth_controlnet_scale"
-                ]
-            )
-            if depth_controlnet_model
-            else None
-        ),
-        "layout_mode": config[
-            "layout_mode"
-        ],
-        "layout": layout,
-        "seed": int(config["seed"]),
-        "inference_elapsed_seconds": round(
+    try:
+        (
+            generated_image,
             inference_elapsed,
-            3,
-        ),
-        "total_elapsed_seconds": round(
-            total_elapsed,
-            3,
-        ),
-    }
+            prompt_token_data,
+        ) = run_conditioned_inference(
+            pipe=pipe,
+            prompt=prepared.prompt,
+            negative_prompt=prepared.negative_prompt,
+            condition_canvas=prepared.canvas_result[
+                "condition_canvas"
+            ],
+            inpaint_mask=prepared.inpaint_mask,
+            control_image=inference_control,
+            width=int(config["width"]),
+            height=int(config["height"]),
+            steps=int(config["steps"]),
+            guidance_scale=float(
+                config["guidance_scale"]
+            ),
+            strength=float(config["strength"]),
+            controlnet_scale=inference_scales,
+            seed=int(config["seed"]),
+            everyday_prompt=prepared.brand_prompts[
+                "everyday_prompt"
+            ],
+            studio_prompt=prepared.brand_prompts[
+                "studio_prompt"
+            ],
+            everyday_prompt_parts=prepared.brand_prompts[
+                "everyday_prompt_parts"
+            ],
+            studio_prompt_parts=prepared.brand_prompts[
+                "studio_prompt_parts"
+            ],
+            brand_focus=prepared.brand_focus,
+        )
 
-    result = save_generation_result(
-        output_dir=output_dir,
-        product=product,
-        canvas_result=canvas_result,
-        inpaint_mask=inpaint_mask,
-        control_image=canny_control,
-        depth_control_image=depth_control,
-        generated_image=generated_image,
-        experiment_data=experiment_data,
-    )
+        gpu_stage_elapsed = (
+            time.perf_counter()
+            - gpu_stage_started_at
+        )
+        total_elapsed = (
+            prepared.preparation_elapsed
+            + gpu_stage_elapsed
+        )
 
-    if owns_pipe:
-        del pipe
+        experiment_data = {
+            "base_model": config["base_model"],
+            "controlnet_model": config[
+                "controlnet_model"
+            ],
+            "depth_controlnet_model": (
+                depth_controlnet_model
+            ),
+            "depth_estimator_model": (
+                config["depth_estimator_model"]
+                if depth_controlnet_model
+                else None
+            ),
+            "input_product": str(
+                Path(config["product_image"])
+            ),
+            "prompt_json": str(
+                Path(config["prompt_json"])
+            ),
+            "prompt": prepared.prompt,
+            "negative_prompt": prepared.negative_prompt,
+            "brand_focus": prepared.brand_focus,
+            "brand_prompts": prepared.brand_prompts,
+            "prompt_token_data": (
+                prompt_token_data
+            ),
+            "width": int(config["width"]),
+            "height": int(config["height"]),
+            "steps": int(config["steps"]),
+            "guidance_scale": float(
+                config["guidance_scale"]
+            ),
+            "strength": float(
+                config["strength"]
+            ),
+            "controlnet_scale": float(
+                config["controlnet_scale"]
+            ),
+            "depth_controlnet_scale": (
+                float(
+                    config[
+                        "depth_controlnet_scale"
+                    ]
+                )
+                if depth_controlnet_model
+                else None
+            ),
+            "layout_mode": config[
+                "layout_mode"
+            ],
+            "layout": prepared.layout,
+            "seed": int(config["seed"]),
+            "preparation_elapsed_seconds": round(
+                prepared.preparation_elapsed,
+                3,
+            ),
+            "inference_elapsed_seconds": round(
+                inference_elapsed,
+                3,
+            ),
+            "gpu_stage_elapsed_seconds": round(
+                gpu_stage_elapsed,
+                3,
+            ),
+            "total_elapsed_seconds": round(
+                total_elapsed,
+                3,
+            ),
+        }
 
-        if torch.cuda.is_available():
-            torch.cuda.empty_cache()
+        result = save_generation_result(
+            output_dir=prepared.output_dir,
+            product=prepared.product,
+            canvas_result=prepared.canvas_result,
+            inpaint_mask=prepared.inpaint_mask,
+            control_image=prepared.canny_control,
+            depth_control_image=prepared.depth_control,
+            generated_image=generated_image,
+            experiment_data=experiment_data,
+        )
+    finally:
+        if owns_pipe:
+            del pipe
+
+            if torch.cuda.is_available():
+                torch.cuda.empty_cache()
 
     print(
         "[TIME] "
+        f"preparation={prepared.preparation_elapsed:.2f}s, "
         f"inference={inference_elapsed:.2f}s, "
-        f"total={total_elapsed:.2f}s"
+        f"gpu_stage={gpu_stage_elapsed:.2f}s"
     )
 
     return result
@@ -571,15 +628,14 @@ def run_generation(
     pipe=None,
     **options,
 ):
-    config = _build_config(options)
-
-    config.update(
-        {
-            "product_image": product_image,
-            "prompt_json": prompt_json,
-            "output_dir": output_dir,
-            "pipe": pipe,
-        }
+    """Backward-compatible wrapper around preparation and GPU inference."""
+    prepared = prepare_generation(
+        product_image=product_image,
+        prompt_json=prompt_json,
+        output_dir=output_dir,
+        **options,
     )
-
-    return _run_generation(config)
+    return run_prepared_generation(
+        prepared=prepared,
+        pipe=pipe,
+    )

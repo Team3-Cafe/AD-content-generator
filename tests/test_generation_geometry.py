@@ -12,27 +12,47 @@ class Product:
 
 
 def load_canvas_module():
+    module_names = (
+        "rembg",
+        "adcg.preprocessing",
+        "adcg.preprocessing.product",
+    )
+    previous_modules = {
+        name: sys.modules.get(name)
+        for name in module_names
+    }
+
     rembg = types.ModuleType("rembg")
     rembg.remove = lambda image, **_kwargs: image
-    sys.modules.setdefault("rembg", rembg)
+    sys.modules["rembg"] = rembg
 
     preprocessing = types.ModuleType("adcg.preprocessing")
     preprocessing.__path__ = []
     product_module = types.ModuleType("adcg.preprocessing.product")
     product_module.get_rembg_session = lambda *_args, **_kwargs: None
-    sys.modules.setdefault("adcg.preprocessing", preprocessing)
-    sys.modules.setdefault("adcg.preprocessing.product", product_module)
+    sys.modules["adcg.preprocessing"] = preprocessing
+    sys.modules["adcg.preprocessing.product"] = product_module
 
-    path = (
-        Path(__file__).resolve().parents[1]
-        / "adcg"
-        / "generation"
-        / "canvas.py"
-    )
-    spec = importlib.util.spec_from_file_location("canvas_under_test", path)
-    module = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(module)
-    return module
+    try:
+        path = (
+            Path(__file__).resolve().parents[1]
+            / "adcg"
+            / "generation"
+            / "canvas.py"
+        )
+        spec = importlib.util.spec_from_file_location(
+            "canvas_under_test",
+            path,
+        )
+        module = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(module)
+        return module
+    finally:
+        for name, previous in previous_modules.items():
+            if previous is None:
+                sys.modules.pop(name, None)
+            else:
+                sys.modules[name] = previous
 
 
 CANVAS = load_canvas_module()

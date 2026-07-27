@@ -7,6 +7,7 @@ from PIL import Image
 
 from adcg.generation.model_loader import (
     load_generation_pipeline,
+    pipeline_controlnet_count,
 )
 from adcg.negative_prompts import IDENTITY_NEGATIVE_PROMPT
 from adcg.prompt_tokens import fit_clip_prompt, fit_clip_prompt_parts
@@ -60,6 +61,29 @@ def _resolve_output_size(source_size, width=None, height=None):
         raise ValueError("width and height must be greater than zero.")
 
     return width, height
+
+
+def _prepare_identity_control_inputs(
+    pipe,
+    control_image,
+    controlnet_scale,
+):
+    """Disable extra ControlNets while reusing a shared multi-control pipe."""
+    control_count = pipeline_controlnet_count(pipe)
+    if control_count <= 1:
+        return control_image, float(controlnet_scale)
+
+    disabled_controls = [
+        Image.new("RGB", control_image.size, color=0)
+        for _ in range(control_count - 1)
+    ]
+    return (
+        [control_image, *disabled_controls],
+        [
+            float(controlnet_scale),
+            *([0.0] * (control_count - 1)),
+        ],
+    )
 
 
 def run_identity_restoration(
@@ -163,17 +187,26 @@ def run_identity_restoration(
         device=generator_device
     ).manual_seed(seed)
 
+    (
+        identity_control_images,
+        identity_control_scales,
+    ) = _prepare_identity_control_inputs(
+        pipe=pipe,
+        control_image=control_image,
+        controlnet_scale=controlnet_scale,
+    )
+
     try:
         inpainted = pipe(
             prompt=prompt,
             negative_prompt=negative_prompt,
             image=base_image,
             mask_image=Image.fromarray(inpaint_mask),
-            control_image=control_image,
+            control_image=identity_control_images,
             num_inference_steps=steps,
             guidance_scale=guidance_scale,
             strength=strength,
-            controlnet_conditioning_scale=controlnet_scale,
+            controlnet_conditioning_scale=identity_control_scales,
             generator=generator,
         ).images[0].convert("RGB")
     finally:

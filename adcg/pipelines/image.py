@@ -2,9 +2,14 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from pathlib import Path
+from typing import Any
 
 from ..artifacts import keep_only, remove_pipeline_stage
-from ..generation import run_generation
+from ..generation import (
+    PreparedGeneration,
+    prepare_generation,
+    run_prepared_generation,
+)
 from ..preprocessing import run_preprocess
 from ..prompting import run_prompt_generation
 from ..refinement import (
@@ -61,7 +66,24 @@ class ImagePipelineResult:
     eval_json: Path | None
 
 
-def run_image_pipeline(
+@dataclass(frozen=True)
+class PreparedImagePipeline:
+    """Non-diffusion artifacts waiting for the shared GPU worker."""
+
+    output_dir: Path
+    info_path: Path
+    prompt_json: Path
+    preprocessed: dict[str, Any]
+    generation: PreparedGeneration
+    product_focus: float
+    seed: int
+    cpu_offload: bool
+    evaluate: bool
+    eval_metrics: tuple[str, ...] | None
+    eval_options: dict[str, Any]
+
+
+def prepare_image_pipeline(
     image_path,
     info_path,
     output_dir="outputs/pipeline",
@@ -74,13 +96,11 @@ def run_image_pipeline(
     layout_mode="layout",
     seed=42,
     cpu_offload=False,
-    diffusion_pipe=None,
     evaluate=False,
     eval_metrics=None,
     eval_options=None,
 ):
-    """Run the pipeline through identity restoration, without ad copy."""
-
+    """Prepare rembg, scene prompt, canvas, Canny, and Depth controls."""
     output_dir = Path(output_dir)
     output_dir.mkdir(
         parents=True,
@@ -114,7 +134,7 @@ def run_image_pipeline(
     )
 
     prompt_json = run_prompt_generation(
-        image_path=image_path,
+        image_path=preprocessed["trimmed_cutout"],
         info_path=info_path,
         output_path=(
             output_dir
@@ -124,6 +144,7 @@ def run_image_pipeline(
         model=gpt_model,
         product_focus=product_focus,
         brand_focus=brand_focus,
+        preprocess_metadata_path=preprocessed["metadata"],
     )
 
     if layout_mode == "preserve":
@@ -135,30 +156,57 @@ def run_image_pipeline(
             preprocessed["trimmed_cutout"]
         )
 
-    generation_kwargs = {
-        "width": generation_width,
-        "height": generation_height,
-        "layout_mode": layout_mode,
-        "brand_focus": brand_focus,
-        "product_scale": product_scale,
-        "preprocess_metadata": preprocessed.get("metadata"),
-        "seed": seed,
-        "cpu_offload": cpu_offload,
-    }
+    generation = prepare_generation(
+        product_image=generation_product,
+        prompt_json=prompt_json,
+        output_dir=(
+            output_dir / "03_generated"
+        ),
+        width=generation_width,
+        height=generation_height,
+        layout_mode=layout_mode,
+        brand_focus=brand_focus,
+        product_scale=product_scale,
+        preprocess_metadata=preprocessed.get("metadata"),
+        seed=seed,
+        cpu_offload=cpu_offload,
+    )
+
+    return PreparedImagePipeline(
+        output_dir=output_dir,
+        info_path=info_path,
+        prompt_json=Path(prompt_json),
+        preprocessed=preprocessed,
+        generation=generation,
+        product_focus=product_focus,
+        seed=seed,
+        cpu_offload=cpu_offload,
+        evaluate=evaluate,
+        eval_metrics=(
+            tuple(eval_metrics) if eval_metrics is not None else None
+        ),
+        eval_options=eval_options,
+    )
+
+
+def run_prepared_image_pipeline(
+    prepared: PreparedImagePipeline,
+    diffusion_pipe=None,
+):
+    """Run the diffusion-critical sequence for one prepared image job."""
+    output_dir = prepared.output_dir
+    preprocessed = prepared.preprocessed
+    prompt_json = prepared.prompt_json
+    total_steps = 6 if prepared.evaluate else 5
 
     print(
         f"[image 3/{total_steps}] "
         "Conditioned diffusion generation"
     )
 
-    generated = run_generation(
-        product_image=generation_product,
-        prompt_json=prompt_json,
-        output_dir=(
-            output_dir / "03_generated"
-        ),
+    generated = run_prepared_generation(
+        prepared=prepared.generation,
         pipe=diffusion_pipe,
-        **generation_kwargs,
     )
 
     refinement_product = (
@@ -177,7 +225,7 @@ def run_image_pipeline(
         output_dir=(
             output_dir / "04_core_refined"
         ),
-        product_focus=product_focus,
+        product_focus=prepared.product_focus,
     )
 
     print(
@@ -199,16 +247,16 @@ def run_image_pipeline(
             output_dir=(
                 output_dir / "05_final"
             ),
-            seed=seed,
-            product_focus=product_focus,
-            cpu_offload=cpu_offload,
+            seed=prepared.seed,
+            product_focus=prepared.product_focus,
+            cpu_offload=prepared.cpu_offload,
             pipe=diffusion_pipe,
         )
     )
 
     eval_json = None
 
-    if evaluate:
+    if prepared.evaluate:
         from ..eval import run_evaluation
 
         print(
@@ -227,13 +275,11 @@ def run_image_pipeline(
         )
 
         eval_kwargs = {
-            "metric_options": eval_options,
+            "metric_options": prepared.eval_options,
         }
 
-        if eval_metrics is not None:
-            eval_kwargs["metrics"] = tuple(
-                eval_metrics
-            )
+        if prepared.eval_metrics is not None:
+            eval_kwargs["metrics"] = prepared.eval_metrics
 
         run_evaluation(
             final_image=(
@@ -258,10 +304,52 @@ def run_image_pipeline(
 
     return ImagePipelineResult(
         output_dir=output_dir,
-        info_path=info_path,
-        prompt_json=Path(prompt_json),
+        info_path=prepared.info_path,
+        prompt_json=prompt_json,
         identity_restored_image=Path(
             identity_restored_image
         ),
         eval_json=eval_json,
+    )
+
+
+def run_image_pipeline(
+    image_path,
+    info_path,
+    output_dir="outputs/pipeline",
+    gpt_model="gpt-5.4-nano",
+    product_focus=1.0,
+    product_scale=None,
+    width=None,
+    height=None,
+    brand_focus=0.5,
+    layout_mode="layout",
+    seed=42,
+    cpu_offload=False,
+    diffusion_pipe=None,
+    evaluate=False,
+    eval_metrics=None,
+    eval_options=None,
+):
+    """Backward-compatible full image pipeline."""
+    prepared = prepare_image_pipeline(
+        image_path=image_path,
+        info_path=info_path,
+        output_dir=output_dir,
+        gpt_model=gpt_model,
+        product_focus=product_focus,
+        product_scale=product_scale,
+        width=width,
+        height=height,
+        brand_focus=brand_focus,
+        layout_mode=layout_mode,
+        seed=seed,
+        cpu_offload=cpu_offload,
+        evaluate=evaluate,
+        eval_metrics=eval_metrics,
+        eval_options=eval_options,
+    )
+    return run_prepared_image_pipeline(
+        prepared=prepared,
+        diffusion_pipe=diffusion_pipe,
     )

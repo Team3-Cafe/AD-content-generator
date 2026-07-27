@@ -1,12 +1,21 @@
+from concurrent.futures import ThreadPoolExecutor
 import json
 from pathlib import Path
+from threading import Barrier, Event, Lock
 import tempfile
 from types import SimpleNamespace
 import unittest
 from unittest.mock import patch
 
+from PIL import Image
+
+from adcg.generation.control import create_depth_control
 from adcg.generation.conditioned_diffusion import run_generation
-from adcg.preprocessing.product import get_rembg_session
+from adcg.preprocessing.product import (
+    _remove_background,
+    get_rembg_session,
+)
+from adcg.refinement.identity import _prepare_identity_control_inputs
 
 
 class ModelCacheTests(unittest.TestCase):
@@ -81,6 +90,109 @@ class ModelCacheTests(unittest.TestCase):
             load_session.call_args_list[1].kwargs["providers"],
             ["CPUExecutionProvider"],
         )
+
+    def test_rembg_inference_is_limited_to_one_concurrent_call(self):
+        workers_ready = Barrier(2)
+        first_started = Event()
+        release_first = Event()
+        active_lock = Lock()
+        active_calls = 0
+        max_active_calls = 0
+        call_count = 0
+
+        def fake_remove(image, **_kwargs):
+            nonlocal active_calls, max_active_calls, call_count
+            with active_lock:
+                call_count += 1
+                call_number = call_count
+                active_calls += 1
+                max_active_calls = max(max_active_calls, active_calls)
+
+            if call_number == 1:
+                first_started.set()
+                if not release_first.wait(timeout=2):
+                    raise TimeoutError("첫 rembg 호출 해제 시간 초과")
+
+            with active_lock:
+                active_calls -= 1
+            return image
+
+        def run_remove():
+            workers_ready.wait(timeout=2)
+            return _remove_background("image", model="u2net")
+
+        with patch(
+            "adcg.preprocessing.product.get_rembg_session",
+            return_value=object(),
+        ), patch(
+            "adcg.preprocessing.product.remove",
+            side_effect=fake_remove,
+        ):
+            with ThreadPoolExecutor(max_workers=2) as executor:
+                futures = [
+                    executor.submit(run_remove),
+                    executor.submit(run_remove),
+                ]
+                self.assertTrue(first_started.wait(timeout=2))
+                release_first.set()
+                results = [
+                    future.result(timeout=2)
+                    for future in futures
+                ]
+
+        self.assertEqual(results, ["image", "image"])
+        self.assertEqual(call_count, 2)
+        self.assertEqual(max_active_calls, 1)
+
+    def test_depth_inference_is_limited_to_one_concurrent_call(self):
+        workers_ready = Barrier(2)
+        first_started = Event()
+        release_first = Event()
+        active_lock = Lock()
+        active_calls = 0
+        max_active_calls = 0
+        call_count = 0
+
+        def fake_depth(**_kwargs):
+            nonlocal active_calls, max_active_calls, call_count
+            with active_lock:
+                call_count += 1
+                call_number = call_count
+                active_calls += 1
+                max_active_calls = max(max_active_calls, active_calls)
+
+            if call_number == 1:
+                first_started.set()
+                if not release_first.wait(timeout=2):
+                    raise TimeoutError("첫 Depth 호출 해제 시간 초과")
+
+            with active_lock:
+                active_calls -= 1
+            return "depth"
+
+        def run_depth():
+            workers_ready.wait(timeout=2)
+            return create_depth_control("image")
+
+        with patch(
+            "adcg.generation.control._create_depth_control",
+            side_effect=fake_depth,
+        ):
+            with ThreadPoolExecutor(max_workers=2) as executor:
+                futures = [
+                    executor.submit(run_depth),
+                    executor.submit(run_depth),
+                ]
+                self.assertTrue(first_started.wait(timeout=2))
+                release_first.set()
+                results = [
+                    future.result(timeout=2)
+                    for future in futures
+                ]
+
+        self.assertEqual(results, ["depth", "depth"])
+        self.assertEqual(call_count, 2)
+        self.assertEqual(max_active_calls, 1)
 
     def test_generation_uses_injected_pipeline_without_reloading(self):
         shared_pipe = SimpleNamespace(
@@ -182,6 +294,27 @@ class ModelCacheTests(unittest.TestCase):
         )
         load_pipeline.assert_not_called()
         empty_cache.assert_not_called()
+
+    def test_identity_reuses_dual_pipeline_with_depth_disabled(self):
+        shared_pipe = SimpleNamespace(
+            controlnet=SimpleNamespace(
+                nets=[object(), object()],
+            )
+        )
+        canny_control = Image.new("RGB", (32, 24), color="white")
+
+        control_images, control_scales = (
+            _prepare_identity_control_inputs(
+                pipe=shared_pipe,
+                control_image=canny_control,
+                controlnet_scale=0.6,
+            )
+        )
+
+        self.assertEqual(len(control_images), 2)
+        self.assertIs(control_images[0], canny_control)
+        self.assertEqual(control_images[1].getbbox(), None)
+        self.assertEqual(control_scales, [0.6, 0.0])
 
 
 if __name__ == "__main__":

@@ -3,6 +3,7 @@ import numpy as np
 import torch
 import torch.nn.functional as F
 from PIL import Image
+from threading import Semaphore
 from transformers import DPTForDepthEstimation, DPTImageProcessor
 
 
@@ -10,6 +11,7 @@ _DEPTH_PROCESSOR = None
 _DEPTH_MODEL = None
 _DEPTH_MODEL_ID = None
 _DEPTH_DEVICE = None
+_DEPTH_INFERENCE_SEMAPHORE = Semaphore(1)
 
 
 def create_canny_control(
@@ -115,7 +117,7 @@ def _load_depth_estimator(
     )
 
 
-def create_depth_control(
+def _create_depth_control(
     image,
     model_id="Intel/dpt-hybrid-midas",
     device="cpu",
@@ -174,3 +176,17 @@ def create_depth_control(
         normalized,
         mode="L",
     ).convert("RGB")
+
+
+def create_depth_control(
+    image,
+    model_id="Intel/dpt-hybrid-midas",
+    device="cpu",
+):
+    """Run one cached depth-estimator inference at a time."""
+    with _DEPTH_INFERENCE_SEMAPHORE:
+        return _create_depth_control(
+            image=image,
+            model_id=model_id,
+            device=device,
+        )

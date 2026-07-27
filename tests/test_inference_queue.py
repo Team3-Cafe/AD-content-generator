@@ -90,6 +90,98 @@ class InferenceQueueTests(unittest.TestCase):
         finally:
             queue.close()
 
+    def test_gpu_runs_jobs_in_preparation_completion_order(self):
+        shared_pipe = object()
+        first_preparation_started = Event()
+        release_first_preparation = Event()
+        gpu_calls = []
+
+        def prepare(value):
+            if value == "first":
+                first_preparation_started.set()
+                if not release_first_preparation.wait(timeout=2):
+                    raise TimeoutError("첫 번째 준비 단계 해제 시간 초과")
+            return {"value": value}
+
+        def run_gpu_job(value, diffusion_pipe):
+            gpu_calls.append((value, diffusion_pipe))
+            return f"result-{value}"
+
+        queue = InferenceQueue(
+            pipe=shared_pipe,
+            runner=run_gpu_job,
+            prepare_runner=prepare,
+            prepare_workers=2,
+        )
+        try:
+            first = queue.submit(
+                job_id="job-1",
+                pipeline_kwargs={"value": "first"},
+            )
+            self.assertTrue(first_preparation_started.wait(timeout=2))
+            self.assertEqual(first.stage, "preparing")
+
+            second = queue.submit(
+                job_id="job-2",
+                pipeline_kwargs={"value": "second"},
+            )
+
+            self.assertEqual(
+                second.future.result(timeout=2),
+                "result-second",
+            )
+            self.assertEqual(
+                gpu_calls,
+                [("second", shared_pipe)],
+            )
+
+            release_first_preparation.set()
+            self.assertEqual(
+                first.future.result(timeout=2),
+                "result-first",
+            )
+        finally:
+            release_first_preparation.set()
+            queue.close()
+
+        self.assertEqual(gpu_calls, [
+            ("second", shared_pipe),
+            ("first", shared_pipe),
+        ])
+
+    def test_preparation_failure_does_not_enter_gpu_queue(self):
+        gpu_calls = []
+
+        def prepare(value):
+            if value == "invalid":
+                raise ValueError("invalid input")
+            return {"value": value}
+
+        def run_gpu_job(value, diffusion_pipe):
+            gpu_calls.append(value)
+            return value
+
+        queue = InferenceQueue(
+            pipe=object(),
+            runner=run_gpu_job,
+            prepare_runner=prepare,
+        )
+        try:
+            invalid = queue.submit(
+                pipeline_kwargs={"value": "invalid"}
+            )
+            valid = queue.submit(
+                pipeline_kwargs={"value": "valid"}
+            )
+
+            with self.assertRaisesRegex(ValueError, "invalid input"):
+                invalid.future.result(timeout=2)
+            self.assertEqual(valid.future.result(timeout=2), "valid")
+        finally:
+            queue.close()
+
+        self.assertEqual(gpu_calls, ["valid"])
+
 
 if __name__ == "__main__":
     unittest.main()

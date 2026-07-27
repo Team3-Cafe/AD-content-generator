@@ -23,6 +23,7 @@ class SplitPipelineTests(unittest.TestCase):
         core_image = root / "core.png"
         identity_image = root / "identity.png"
         shared_pipe = object()
+        prepared_generation = object()
         calls = []
 
         with patch.object(
@@ -34,6 +35,7 @@ class SplitPipelineTests(unittest.TestCase):
                 or {
                     "full_cutout": root / "full.png",
                     "trimmed_cutout": root / "trimmed.png",
+                    "metadata": root / "preprocess_metadata.json",
                     "original_size": (1600, 1067),
                 }
             ),
@@ -42,8 +44,14 @@ class SplitPipelineTests(unittest.TestCase):
             side_effect=lambda **_kwargs: (
                 calls.append("prompt") or prompt_path
             ),
-        ), patch(
-            "adcg.pipelines.image.run_generation",
+        ) as prompt_call, patch(
+            "adcg.pipelines.image.prepare_generation",
+            side_effect=lambda **_kwargs: (
+                calls.append("generation_prepare")
+                or prepared_generation
+            ),
+        ) as generation_prepare_call, patch(
+            "adcg.pipelines.image.run_prepared_generation",
             side_effect=lambda **_kwargs: (
                 calls.append("generation") or generated
             ),
@@ -70,25 +78,44 @@ class SplitPipelineTests(unittest.TestCase):
 
         self.assertEqual(
             calls,
-            ["preprocess", "prompt", "generation", "core", "identity"],
+            [
+                "preprocess",
+                "prompt",
+                "generation_prepare",
+                "generation",
+                "core",
+                "identity",
+            ],
         )
         self.assertEqual(result.info_path, info_path)
         self.assertEqual(result.prompt_json, prompt_path)
         self.assertEqual(result.identity_restored_image, identity_image)
+        self.assertEqual(
+            prompt_call.call_args.kwargs["image_path"],
+            root / "trimmed.png",
+        )
+        self.assertEqual(
+            prompt_call.call_args.kwargs["preprocess_metadata_path"],
+            root / "preprocess_metadata.json",
+        )
         self.assertIs(
             generation_call.call_args.kwargs["pipe"],
             shared_pipe,
         )
+        self.assertIs(
+            generation_call.call_args.kwargs["prepared"],
+            prepared_generation,
+        )
         self.assertEqual(
-            generation_call.call_args.kwargs["product_scale"],
+            generation_prepare_call.call_args.kwargs["product_scale"],
             0.55,
         )
         self.assertEqual(
-            generation_call.call_args.kwargs["width"],
+            generation_prepare_call.call_args.kwargs["width"],
             768,
         )
         self.assertEqual(
-            generation_call.call_args.kwargs["height"],
+            generation_prepare_call.call_args.kwargs["height"],
             512,
         )
         self.assertIs(
