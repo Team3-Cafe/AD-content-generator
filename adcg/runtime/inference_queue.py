@@ -184,12 +184,40 @@ def _worker_loop(
     state: _QueueState,
     pipe,
     pipe_factory: Callable[[], Any] | None,
+    background_pipe,
+    background_pipe_factory: Callable[[], Any] | None,
+    identity_pipe,
+    identity_pipe_factory: Callable[[], Any] | None,
     runner: Callable[..., Any],
     inject_diffusion_pipe: bool,
+    inject_resident_pipes: bool,
 ) -> None:
-    if pipe is None and pipe_factory is not None:
+    needs_model_load = (
+        (pipe is None and pipe_factory is not None)
+        or (
+            background_pipe is None
+            and background_pipe_factory is not None
+        )
+        or (
+            identity_pipe is None
+            and identity_pipe_factory is not None
+        )
+    )
+
+    if needs_model_load:
         try:
-            pipe = pipe_factory()
+            if pipe is None and pipe_factory is not None:
+                pipe = pipe_factory()
+            if (
+                background_pipe is None
+                and background_pipe_factory is not None
+            ):
+                background_pipe = background_pipe_factory()
+            if (
+                identity_pipe is None
+                and identity_pipe_factory is not None
+            ):
+                identity_pipe = identity_pipe_factory()
         except BaseException as error:
             with state.lock:
                 state.model_status = "failed"
@@ -214,6 +242,9 @@ def _worker_loop(
                 kwargs = dict(job.pipeline_kwargs)
                 if inject_diffusion_pipe:
                     kwargs["diffusion_pipe"] = pipe
+                if inject_resident_pipes:
+                    kwargs["background_pipe"] = background_pipe
+                    kwargs["identity_pipe"] = identity_pipe
 
                 try:
                     result = runner(**kwargs)
@@ -251,11 +282,12 @@ def _finalize_inference_queue(
 
 class InferenceQueue:
     """
-    Prepare jobs concurrently and serialize their unchanged GPU pipeline.
+    Prepare jobs concurrently and serialize their GPU stages.
 
     With no model or runner arguments, the queue uses the integration branch's
-    original per-stage model lifecycle. Supplying a pipe or pipe_factory keeps
-    the legacy shared-pipeline behavior for existing callers.
+    original per-stage model lifecycle. Dedicated background and identity pipe
+    sources keep the correct Dual and Canny-only pipelines resident. Supplying
+    the legacy pipe or pipe_factory keeps compatibility with existing callers.
     """
 
     def __init__(
@@ -263,6 +295,10 @@ class InferenceQueue:
         pipe=None,
         runner: Callable[..., Any] | None = None,
         pipe_factory: Callable[[], Any] | None = None,
+        background_pipe=None,
+        background_pipe_factory: Callable[[], Any] | None = None,
+        identity_pipe=None,
+        identity_pipe_factory: Callable[[], Any] | None = None,
         prepare_runner: Callable[..., dict[str, Any]] | None = None,
         prepare_workers: int = 4,
         inject_diffusion_pipe: bool | None = None,
@@ -271,6 +307,41 @@ class InferenceQueue:
             raise ValueError("prepare_workers는 1 이상이어야 합니다.")
 
         legacy_model_mode = pipe is not None or pipe_factory is not None
+        resident_model_mode = any(
+            value is not None
+            for value in (
+                background_pipe,
+                background_pipe_factory,
+                identity_pipe,
+                identity_pipe_factory,
+            )
+        )
+
+        if pipe is not None and pipe_factory is not None:
+            raise ValueError("pipe와 pipe_factory는 동시에 지정할 수 없습니다.")
+        if (
+            background_pipe is not None
+            and background_pipe_factory is not None
+        ):
+            raise ValueError(
+                "background_pipe와 background_pipe_factory는 "
+                "동시에 지정할 수 없습니다."
+            )
+        if identity_pipe is not None and identity_pipe_factory is not None:
+            raise ValueError(
+                "identity_pipe와 identity_pipe_factory는 "
+                "동시에 지정할 수 없습니다."
+            )
+        if legacy_model_mode and resident_model_mode:
+            raise ValueError(
+                "공유 diffusion_pipe 모드와 전용 파이프라인 모드는 "
+                "동시에 사용할 수 없습니다."
+            )
+        if resident_model_mode:
+            if background_pipe is None and background_pipe_factory is None:
+                raise ValueError("background_pipe 소스가 필요합니다.")
+            if identity_pipe is None and identity_pipe_factory is None:
+                raise ValueError("identity_pipe 소스가 필요합니다.")
 
         if runner is None:
             if legacy_model_mode:
@@ -287,12 +358,24 @@ class InferenceQueue:
                 "diffusion_pipe 주입에는 pipe 또는 pipe_factory가 필요합니다."
             )
 
+        needs_model_load = (
+            (pipe is None and pipe_factory is not None)
+            or (
+                background_pipe is None
+                and background_pipe_factory is not None
+            )
+            or (
+                identity_pipe is None
+                and identity_pipe_factory is not None
+            )
+        )
+
         self._jobs = Queue()
         self._state = _QueueState(
             lock=RLock(),
             model_status=(
                 "loading"
-                if pipe is None and pipe_factory is not None
+                if needs_model_load
                 else "ready"
             ),
         )
@@ -312,8 +395,13 @@ class InferenceQueue:
                 self._state,
                 pipe,
                 pipe_factory,
+                background_pipe,
+                background_pipe_factory,
+                identity_pipe,
+                identity_pipe_factory,
                 runner,
                 bool(inject_diffusion_pipe),
+                resident_model_mode,
             ),
             name="adcg-gpu-worker",
             daemon=True,

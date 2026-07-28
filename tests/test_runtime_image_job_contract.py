@@ -10,7 +10,13 @@ from adcg.runtime.image_job import (
 
 
 class RuntimeImageJobContractTests(unittest.TestCase):
-    def _run_pipeline(self, module_name, split):
+    def _run_pipeline(
+        self,
+        module_name,
+        split,
+        background_pipe=None,
+        identity_pipe=None,
+    ):
         root = Path("C:/runtime-contract")
         output_dir = root / "output"
         image_path = root / "source.png"
@@ -76,7 +82,11 @@ class RuntimeImageJobContractTests(unittest.TestCase):
             }
             if split:
                 prepared = prepare_image_job(**kwargs)
-                result = run_prepared_image_job(prepared)
+                result = run_prepared_image_job(
+                    prepared,
+                    background_pipe=background_pipe,
+                    identity_pipe=identity_pipe,
+                )
             else:
                 result = run_image_pipeline(**kwargs)
 
@@ -104,6 +114,28 @@ class RuntimeImageJobContractTests(unittest.TestCase):
         self.assertEqual(
             prompt_kwargs["image_path"],
             Path("C:/runtime-contract/source.png"),
+        )
+
+    def test_resident_pipelines_are_routed_to_the_correct_stages(self):
+        background_pipe = object()
+        identity_pipe = object()
+
+        calls, _ = self._run_pipeline(
+            "adcg.runtime.image_job",
+            split=True,
+            background_pipe=background_pipe,
+            identity_pipe=identity_pipe,
+        )
+
+        generation_kwargs = dict(calls)["generation"]
+        identity_kwargs = dict(calls)["identity"]
+        self.assertIs(
+            generation_kwargs["pipe"],
+            background_pipe,
+        )
+        self.assertIs(
+            identity_kwargs["pipe"],
+            identity_pipe,
         )
 
 

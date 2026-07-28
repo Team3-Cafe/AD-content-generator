@@ -156,6 +156,66 @@ class InferenceQueueTests(unittest.TestCase):
             ("second", shared_pipe),
         ])
 
+    def test_dedicated_pipelines_load_once_and_route_to_each_job(self):
+        background_pipe = object()
+        identity_pipe = object()
+        load_counts = {"background": 0, "identity": 0}
+        calls = []
+
+        def load_background_pipe():
+            load_counts["background"] += 1
+            return background_pipe
+
+        def load_identity_pipe():
+            load_counts["identity"] += 1
+            return identity_pipe
+
+        def run_image_job(
+            prepared,
+            background_pipe,
+            identity_pipe,
+        ):
+            calls.append(
+                (prepared, background_pipe, identity_pipe)
+            )
+            return f"result-{prepared}"
+
+        queue = InferenceQueue(
+            background_pipe_factory=load_background_pipe,
+            identity_pipe_factory=load_identity_pipe,
+            prepare_runner=lambda value: {"prepared": value},
+            runner=run_image_job,
+        )
+        try:
+            first = queue.submit(
+                job_id="resident-1",
+                pipeline_kwargs={"value": "first"},
+            )
+            second = queue.submit(
+                job_id="resident-2",
+                pipeline_kwargs={"value": "second"},
+            )
+
+            self.assertEqual(
+                first.future.result(timeout=2),
+                "result-first",
+            )
+            self.assertEqual(
+                second.future.result(timeout=2),
+                "result-second",
+            )
+        finally:
+            queue.close()
+
+        self.assertEqual(
+            load_counts,
+            {"background": 1, "identity": 1},
+        )
+        self.assertEqual(calls, [
+            ("first", background_pipe, identity_pipe),
+            ("second", background_pipe, identity_pipe),
+        ])
+
     def test_model_loading_error_is_returned_to_submitted_job(self):
         model_attempted = Event()
 

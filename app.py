@@ -7,6 +7,7 @@ from pathlib import Path
 from uuid import uuid4
 
 # 팀 프로젝트 내부 이미지 파이프라인과 FIFO 큐
+from adcg.generation import GENERATION_DEFAULTS, load_generation_pipeline
 from adcg.runtime import InferenceQueue
 
 
@@ -81,12 +82,33 @@ st.html("""
 # ---------------------------------------------------------
 @st.cache_resource(show_spinner=False)
 def get_inference_queue():
-    """Keep one FIFO GPU worker per app process."""
+    """Keep dedicated Dual and Canny pipelines on one FIFO GPU worker."""
 
-    return InferenceQueue()
+    def load_background_pipe():
+        return load_generation_pipeline(
+            base_model=GENERATION_DEFAULTS["base_model"],
+            controlnet_model=GENERATION_DEFAULTS["controlnet_model"],
+            depth_controlnet_model=GENERATION_DEFAULTS[
+                "depth_controlnet_model"
+            ],
+            cpu_offload=False,
+        )
+
+    def load_identity_pipe():
+        return load_generation_pipeline(
+            base_model=GENERATION_DEFAULTS["base_model"],
+            controlnet_model=GENERATION_DEFAULTS["controlnet_model"],
+            depth_controlnet_model=None,
+            cpu_offload=False,
+        )
+
+    return InferenceQueue(
+        background_pipe_factory=load_background_pipe,
+        identity_pipe_factory=load_identity_pipe,
+    )
 
 
-# Streamlit rerun 중에도 같은 작업 큐를 재사용한다.
+# Streamlit rerun 중에도 같은 작업 큐와 두 파이프라인을 재사용한다.
 inference_queue = get_inference_queue()
 
 # 2. PPT 29-34 톤앤매너 프리미엄 CSS 적용
@@ -1227,7 +1249,8 @@ if st.session_state.step == 3:
                     )
                 elif inference_queue.model_status == "loading":
                     st.info(
-                        "Dual ControlNet 모델을 한 번만 로드하고 있습니다. "
+                        "배경 생성용 Dual 모델과 상품 복원용 Canny 모델을 "
+                        "한 번만 로드하고 있습니다. "
                         "준비가 끝나면 작업을 자동으로 시작합니다."
                     )
                 elif submission.stage == "running_gpu":

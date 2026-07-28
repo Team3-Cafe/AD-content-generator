@@ -131,8 +131,10 @@ def prepare_image_job(
 
 def run_prepared_image_job(
     prepared: PreparedImageJob,
+    background_pipe=None,
+    identity_pipe=None,
 ) -> ImagePipelineResult:
-    """Run the unchanged integration generation and refinement functions."""
+    """Run generation and restoration with their dedicated pipelines."""
 
     output_dir = prepared.output_dir
     preprocessed = prepared.preprocessed
@@ -140,13 +142,13 @@ def run_prepared_image_job(
 
     print(f"[image 3/{total_steps}] Conditioned diffusion generation")
 
-    # pipe=None deliberately preserves the integration branch lifecycle:
-    # generation loads its Dual ControlNet pipeline, then releases it.
+    # The background pipeline must contain Canny + Depth ControlNets.
+    # Passing None preserves the integration branch's load/release lifecycle.
     generated = run_generation(
         product_image=prepared.generation_product,
         prompt_json=prepared.prompt_json,
         output_dir=output_dir / "03_generated",
-        pipe=None,
+        pipe=background_pipe,
         width=prepared.generation_width,
         height=prepared.generation_height,
         layout_mode=prepared.layout_mode,
@@ -171,7 +173,8 @@ def run_prepared_image_job(
 
     print(f"[image 5/{total_steps}] Boundary and identity restoration")
 
-    # pipe=None preserves the integration branch's Canny-only identity stage.
+    # The identity pipeline must contain only the Canny ControlNet.
+    # Passing None preserves the integration branch's load/release lifecycle.
     identity_restored_image = run_identity_restoration(
         input_image=core_refined,
         product_image=refinement_product,
@@ -182,7 +185,7 @@ def run_prepared_image_job(
         seed=prepared.seed,
         product_focus=prepared.product_focus,
         cpu_offload=prepared.cpu_offload,
-        pipe=None,
+        pipe=identity_pipe,
     )
 
     eval_json = None
