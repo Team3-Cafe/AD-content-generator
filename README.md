@@ -35,33 +35,7 @@
 
 ## 3. 전체 파이프라인
 
-```mermaid
-flowchart LR
-    A["상품 이미지"] --> C["상품 전처리<br/>rembg / Alpha Mask"]
-    B["상품 및 매장 정보"] --> D["GPT Vision<br/>상품 분석 및 장면 설계"]
-    A --> D
-
-    C --> E["Condition Canvas"]
-    D --> E
-
-    E --> F["Canny Control"]
-    E --> G["Depth Control"]
-    E --> H["Inpainting Mask"]
-
-    F --> I["MajicMIX + Dual ControlNet<br/>조건부 이미지 생성"]
-    G --> I
-    H --> I
-
-    I --> J["Core Refinement"]
-    J --> K["Identity Restoration"]
-
-    K --> L["광고 카피 생성"]
-    L --> M["VLM 1차 레이아웃"]
-    M --> N["VLM 2차 검토 및 재구성"]
-    N --> O["최종 광고 이미지"]
-
-    K -. 선택 .-> P["정량 평가"]
-```
+<img width="1693" height="929" alt="image" src="https://github.com/user-attachments/assets/d99e0b8f-fc02-4072-b46e-89fe5f8dd759" />
 
 파이프라인은 크게 이미지 생성 단계와 카피·레이아웃 단계로 구분됩니다.
 
