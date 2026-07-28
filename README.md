@@ -2,6 +2,19 @@
 
 상품 이미지와 매장 정보를 입력받아 광고 이미지, 광고 문구, 문구 레이아웃까지 자동으로 생성하는 소상공인용 광고 콘텐츠 제작 파이프라인입니다.
 
+## Tech Stack
+
+| 구분 | 기술 |
+|---|---|
+| Language | Python 3.11~3.12 |
+| UI | Streamlit |
+| Vision / Image | Pillow, OpenCV, rembg, ONNX Runtime |
+| Generative AI | OpenAI API, Diffusers, Stable Diffusion, ControlNet |
+| Base Model | `digiplay/majicMIX_realistic_v7` |
+| ML Runtime | PyTorch, Transformers, Accelerate, Safetensors |
+| Evaluation | CLIP, DINO, LAION Aesthetic Predictor, HPS v2 |
+| Infrastructure | GCP VM, NVIDIA L4 GPU |
+
 ## 1. 프로젝트 개요
 
 기존 광고 콘텐츠 제작 과정에서는 상품 누끼 제거, 배경 제작, 광고 문구 작성, 문구 배치 작업을 각각 수행해야 합니다.
@@ -29,13 +42,12 @@
 - 제목, 부제목, 가격, CTA 광고 문구 생성
 - 상품·매장 정보 기반 광고 카피 생성
 - 2단계 VLM 검토 기반 문구 레이아웃 생성
-- 입력 이미지 비율 기반 출력 해상도 자동 설정
 - GPU 추론 큐와 생성 모델 재사용
 - 생성 이미지 정량 평가
 
 ## 3. 전체 파이프라인
 
-<img width="1693" height="929" alt="image" src="https://github.com/user-attachments/assets/d99e0b8f-fc02-4072-b46e-89fe5f8dd759" />
+<img width="1693" height="929" alt="AD Content Generator pipeline" src="https://github.com/user-attachments/assets/d99e0b8f-fc02-4072-b46e-89fe5f8dd759" />
 
 파이프라인은 크게 이미지 생성 단계와 카피·레이아웃 단계로 구분됩니다.
 
@@ -87,8 +99,8 @@ AD-content-generator/
 │   └── pipeline.py        # 전체 파이프라인 연결
 ├── tests/                 # 단위 및 파이프라인 테스트
 ├── docs/                  # 실험 기록 문서
-├── run_pipeline.py        # 전체 파이프라인 실행 파일
-├── app.py                 # 서비스 UI
+├── run_pipeline.py        # 전체 파이프라인 CLI
+├── app.py                 # Streamlit 서비스 UI
 ├── requirements.txt
 ├── .env.example
 └── README.md
@@ -115,9 +127,26 @@ source .venv/bin/activate
 pip install -r requirements.txt
 ```
 
+Windows PowerShell에서는 다음 명령으로 가상환경을 활성화합니다.
+
+```powershell
+.\.venv\Scripts\Activate.ps1
+```
+
 CUDA 서버에서는 환경의 CUDA 버전에 맞는 `torch`, `torchvision`을 먼저 설치하는 것을 권장합니다.
 
 `rembg`를 GPU에서 실행하려면 `onnxruntime` 대신 `onnxruntime-gpu`를 설치해야 합니다.
+
+```bash
+pip uninstall -y onnxruntime
+pip install onnxruntime-gpu
+```
+
+현재 `requirements.txt`에는 웹 UI 의존성이 포함되어 있지 않습니다. `app.py`를 실행하려면 Streamlit을 추가로 설치합니다.
+
+```bash
+pip install "streamlit>=1.40,<2"
+```
 
 ### 환경변수 설정
 
@@ -133,7 +162,30 @@ GCP_REGION=
 
 ## 7. 실행 방법 및 산출물
 
-### 전체 파이프라인 실행
+### Streamlit 웹 애플리케이션
+
+`app.py`는 상품 이미지 업로드, 상품·매장 정보 입력, 생성 옵션 설정, 광고 이미지 생성, 카피 및 레이아웃 생성까지 제공하는 서비스 진입점입니다.
+
+```bash
+streamlit run app.py
+```
+
+웹 UI의 처리 흐름은 다음과 같습니다.
+
+1. 상품 이미지와 상품·매장 정보를 입력합니다.
+2. 화면 비율, 레이아웃 모드, 상품 강조도, 상품 크기, 브랜드 강조도를 설정합니다.
+3. 이미지 생성 요청을 제출하고 모델 준비, GPU 대기, GPU 추론 상태를 확인합니다.
+4. 광고 문구의 톤과 길이를 선택합니다.
+5. VLM 문구 레이아웃과 최종 광고 이미지를 확인합니다.
+
+`app.py`는 다음 방식으로 다중 사용자 요청을 처리합니다.
+
+- `@st.cache_resource`로 Diffusion 파이프라인과 추론 큐를 한 번만 생성해 재사용합니다.
+- 사용자 세션별 UUID 기반 입출력 디렉터리로 산출물 충돌을 방지합니다.
+- CPU 전처리와 프롬프트 생성을 먼저 수행한 뒤 GPU 작업을 큐에 등록합니다.
+- GPU 이미지 생성 요청은 공유 FIFO 큐에서 순차 처리해 VRAM 충돌을 방지합니다.
+
+### 전체 파이프라인 CLI
 
 ```bash
 python run_pipeline.py \
@@ -163,9 +215,10 @@ python run_pipeline.py \
 | `--layout-mode` | `layout` 또는 `preserve` |
 | `--copy-count` | 생성할 광고 문구 개수 |
 | `--evaluate` | 정량 평가 실행 |
+| `--eval-metrics` | 실행할 평가 지표 선택 |
 | `--cpu-offload` | GPU 메모리 절약을 위한 CPU Offload |
 
-`--info`를 생략하면 `--product-name`, `--store-name` 등의 CLI 입력으로 상품 정보 JSON을 생성할 수 있습니다.
+`--info`를 생략하면 `--product-name`, `--store-name` 등의 CLI 입력으로 상품 정보 JSON을 생성할 수 있습니다. 이 경우 `--product-name`과 `--store-name`은 필수입니다.
 
 ### 주요 산출물
 
@@ -173,9 +226,17 @@ python run_pipeline.py \
 outputs/pipeline/demo/
 ├── 00_config/
 │   └── product_info.json
+├── 01_preprocessed/
+│   ├── product_cutout_trimmed.png
+│   └── product_mask.png
 ├── 02_prompt/
 │   ├── ad_prompt.json
 │   └── ad_copy.json
+├── 03_generated/
+│   ├── condition_canvas.png
+│   ├── product_canny_control.png
+│   ├── product_depth_control.png
+│   └── generated_with_cutout_condition.png
 ├── 05_final/
 │   └── final_identity_restored.png
 ├── 06_eval/
