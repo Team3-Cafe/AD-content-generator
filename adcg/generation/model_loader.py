@@ -6,40 +6,96 @@ from diffusers import (
 )
 
 
+def _get_torch_dtype():
+    if torch.cuda.is_available():
+        return torch.float16
+
+    return torch.float32
+
+
+def load_controlnet(
+    model_id,
+    torch_dtype=None,
+):
+    if torch_dtype is None:
+        torch_dtype = _get_torch_dtype()
+
+    print(f"[ControlNet load] {model_id}")
+
+    return ControlNetModel.from_pretrained(
+        model_id,
+        torch_dtype=torch_dtype,
+    )
+
+
 def load_generation_pipeline(
     base_model,
     controlnet_model,
+    depth_controlnet_model=None,
     cpu_offload=False,
 ):
-    has_cuda = torch.cuda.is_available()
-    dtype = torch.float16 if has_cuda else torch.float32
+    torch_dtype = _get_torch_dtype()
 
-    print(f"[ControlNet 로드] {controlnet_model}")
-    controlnet = ControlNetModel.from_pretrained(
+    canny_controlnet = load_controlnet(
         controlnet_model,
-        torch_dtype=dtype,
+        torch_dtype=torch_dtype,
     )
 
-    print(f"[생성 모델 로드] {base_model}")
-    pipe = StableDiffusionControlNetInpaintPipeline.from_pretrained(
-        base_model,
-        controlnet=controlnet,
-        torch_dtype=dtype,
-        safety_checker=None,
+    if depth_controlnet_model:
+        depth_controlnet = load_controlnet(
+            depth_controlnet_model,
+            torch_dtype=torch_dtype,
+        )
+
+        controlnet = [
+            canny_controlnet,
+            depth_controlnet,
+        ]
+    else:
+        controlnet = canny_controlnet
+
+    print(f"[Generation model load] {base_model}")
+
+    pipe = (
+        StableDiffusionControlNetInpaintPipeline
+        .from_pretrained(
+            base_model,
+            controlnet=controlnet,
+            torch_dtype=torch_dtype,
+            safety_checker=None,
+            requires_safety_checker=False,
+        )
     )
 
-    pipe.scheduler = EulerAncestralDiscreteScheduler.from_config(
-        pipe.scheduler.config
+    pipe.scheduler = (
+        EulerAncestralDiscreteScheduler.from_config(
+            pipe.scheduler.config
+        )
     )
 
     pipe.enable_attention_slicing()
     pipe.enable_vae_slicing()
 
-    if cpu_offload and has_cuda:
-        pipe.enable_model_cpu_offload()
-    elif has_cuda:
-        pipe.to("cuda")
+    if torch.cuda.is_available():
+        if cpu_offload:
+            pipe.enable_model_cpu_offload()
+        else:
+            pipe.to("cuda")
     else:
         pipe.to("cpu")
 
     return pipe
+
+
+def load_controlnet_inpaint_pipeline(
+    base_model,
+    controlnet_model,
+    cpu_offload=False,
+):
+    """기존 refinement 코드와의 호환용 loader."""
+    return load_generation_pipeline(
+        base_model=base_model,
+        controlnet_model=controlnet_model,
+        depth_controlnet_model=None,
+        cpu_offload=cpu_offload,
+    )

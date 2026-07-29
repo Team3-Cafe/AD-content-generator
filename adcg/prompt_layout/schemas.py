@@ -674,51 +674,9 @@ FINAL_REVIEW_SCHEMA = {
 }
 
 
-FINAL_POLISH_SCHEMA = {
-    "type": "object",
-    "properties": {
-        "needs_revision": {"type": "boolean", "enum": [True]},
-        "diagnosis": {
-            "type": "object",
-            "properties": {
-                "feature_reviews": {
-                    "type": "object",
-                    "properties": {
-                        feature: _feature_feedback_schema(feature)
-                        for feature in FINAL_REVIEW_FEATURES
-                    },
-                    "required": list(FINAL_REVIEW_FEATURES),
-                    "additionalProperties": False,
-                },
-                "correction_summary": {"type": "string"},
-            },
-            "required": ["feature_reviews", "correction_summary"],
-            "additionalProperties": False,
-        },
-        "feature_strategy": {
-            "type": "object",
-            "properties": {
-                feature: {"type": "string"}
-                for feature in FINAL_REVIEW_FEATURES
-            },
-            "required": list(FINAL_REVIEW_FEATURES),
-            "additionalProperties": False,
-        },
-        "target_layout": FINAL_REVIEW_SCHEMA["properties"]["target_layout"],
-        "reason": {"type": "string"},
-    },
-    "required": [
-        "needs_revision", "diagnosis", "feature_strategy",
-        "target_layout", "reason",
-    ],
-    "additionalProperties": False,
-}
-
-
 __all__ = [
     "COPY_ROLES",
     "FINAL_REVIEW_SCHEMA",
-    "FINAL_POLISH_SCHEMA",
     "FINAL_REVIEW_FEATURES",
     "FINAL_REVIEW_FEATURE_TARGETS",
     "DESIGN_SPEC_SCHEMA",

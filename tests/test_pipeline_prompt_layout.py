@@ -34,6 +34,7 @@ class SplitPipelineTests(unittest.TestCase):
                 or {
                     "full_cutout": root / "full.png",
                     "trimmed_cutout": root / "trimmed.png",
+                    "original_size": (1600, 1067),
                 }
             ),
         ), patch(
@@ -62,6 +63,7 @@ class SplitPipelineTests(unittest.TestCase):
                 info_path=info_path,
                 output_dir=output_dir,
                 product_focus=0.65,
+                product_scale=0.55,
                 brand_focus=0.73,
                 diffusion_pipe=shared_pipe,
             )
@@ -76,6 +78,18 @@ class SplitPipelineTests(unittest.TestCase):
         self.assertIs(
             generation_call.call_args.kwargs["pipe"],
             shared_pipe,
+        )
+        self.assertEqual(
+            generation_call.call_args.kwargs["product_scale"],
+            0.55,
+        )
+        self.assertEqual(
+            generation_call.call_args.kwargs["width"],
+            768,
+        )
+        self.assertEqual(
+            generation_call.call_args.kwargs["height"],
+            512,
         )
         self.assertIs(
             identity_call.call_args.kwargs["pipe"],
@@ -112,8 +126,8 @@ class SplitPipelineTests(unittest.TestCase):
 
             layout_result = SimpleNamespace(
                 layout_json=output_dir / "07_prompt_layout" / "layout.json",
-                final_review_json=(
-                    output_dir / "07_prompt_layout" / "final_review.json"
+                first_vlm_image=(
+                    output_dir / "07_prompt_layout" / "vlm_1_ad.png"
                 ),
                 rendered_image=(
                     output_dir / "07_prompt_layout" / "final_ad.png"
@@ -163,6 +177,10 @@ class SplitPipelineTests(unittest.TestCase):
                 "copy_length": "short",
             })
             self.assertEqual(result.final_image, layout_result.rendered_image)
+            self.assertEqual(
+                result.first_vlm_image,
+                layout_result.first_vlm_image,
+            )
 
     def test_compatibility_pipeline_runs_image_then_copy_layout(self):
         root = Path("C:/pipeline-wrapper-test")
@@ -170,15 +188,13 @@ class SplitPipelineTests(unittest.TestCase):
             output_dir=root / "output",
             info_path=root / "info.json",
             prompt_json=root / "prompt.json",
-            generated_image=root / "generated.png",
-            core_refined_image=root / "core.png",
             identity_restored_image=root / "identity.png",
             eval_json=None,
         )
         copy_result = SimpleNamespace(
             copy_json=root / "copy.json",
             layout_json=root / "layout.json",
-            final_review_json=root / "review.json",
+            first_vlm_image=root / "vlm_1_ad.png",
             final_image=root / "final.png",
         )
         calls = []
@@ -211,6 +227,10 @@ class SplitPipelineTests(unittest.TestCase):
             "전문적인",
         )
         self.assertEqual(result.final_image, copy_result.final_image)
+        self.assertEqual(
+            result.first_vlm_image,
+            copy_result.first_vlm_image,
+        )
 
 
 if __name__ == "__main__":

@@ -182,6 +182,7 @@ def run_preprocess(
         "background_mask": paths["background_mask"],
         "preview": paths["preview"],
         "metadata": paths["metadata"],
+        "original_size": original.size,
         "bbox": bbox,
         "truncation": truncation,
     }

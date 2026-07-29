@@ -47,6 +47,21 @@ def _enhance_identity_product(product_rgb, product_focus):
     return np.clip(enhanced * brightness, 0, 255)
 
 
+def _resolve_output_size(source_size, width=None, height=None):
+    if width is None and height is None:
+        return tuple(int(value) for value in source_size)
+
+    if width is None or height is None:
+        raise ValueError("width and height must be supplied together.")
+
+    width = int(width)
+    height = int(height)
+    if width <= 0 or height <= 0:
+        raise ValueError("width and height must be greater than zero.")
+
+    return width, height
+
+
 def run_identity_restoration(
     input_image,
     product_image,
@@ -55,8 +70,8 @@ def run_identity_restoration(
     output_dir="outputs/refinement/identity",
     base_model="digiplay/majicMIX_realistic_v7",
     controlnet_model="lllyasviel/control_v11p_sd15_canny",
-    width=576,
-    height=1024,
+    width=None,
+    height=None,
     alpha_threshold=45,
     inner_radius=1.0,
     outer_radius=10.0,
@@ -76,13 +91,15 @@ def run_identity_restoration(
     generation_result_json=None,
 ):
     output_dir = prepare_output_dir(output_dir)
-    size = (width, height)
 
     base_image = Image.open(input_image).convert("RGB")
-    base_image = base_image.resize(
-        size,
-        Image.Resampling.LANCZOS,
-    )
+    source_size = base_image.size
+    size = _resolve_output_size(source_size, width, height)
+    if base_image.size != size:
+        base_image = base_image.resize(
+            size,
+            Image.Resampling.LANCZOS,
+        )
 
     mask_image = Image.open(product_mask).convert("L")
     mask_image = mask_image.resize(
@@ -241,6 +258,14 @@ def run_identity_restoration(
         {
             "input": input_image,
             "output": final_path,
+            "source_size": {
+                "width": source_size[0],
+                "height": source_size[1],
+            },
+            "output_size": {
+                "width": size[0],
+                "height": size[1],
+            },
             "base_model": base_model,
             "controlnet_model": controlnet_model,
             "steps": steps,

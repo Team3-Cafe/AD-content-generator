@@ -92,6 +92,10 @@ def normalize_scene_plan_json(data):
     }
 
 
+def normalize_negative_prompt(value):
+    return GENERATION_NEGATIVE_PROMPT
+
+
 def normalize_prompt_json(data):
     if not isinstance(data, dict):
         raise ValueError(

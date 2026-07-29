@@ -17,7 +17,7 @@ class GenerationLayoutPolicyTests(unittest.TestCase):
         cls.source = SOURCE_PATH.read_text(encoding="utf-8")
         cls.tree = ast.parse(cls.source)
 
-    def test_product_scale_defaults_to_fixed_point_seven(self):
+    def test_product_scale_defaults_to_automatic(self):
         assignment = next(
             node
             for node in self.tree.body
@@ -29,7 +29,7 @@ class GenerationLayoutPolicyTests(unittest.TestCase):
             )
         )
         defaults = ast.literal_eval(assignment.value)
-        self.assertEqual(defaults["product_scale"], 0.70)
+        self.assertIsNone(defaults["product_scale"])
 
     def test_product_scale_uses_runtime_config_not_prompt_fallback(self):
         function = next(
@@ -39,7 +39,7 @@ class GenerationLayoutPolicyTests(unittest.TestCase):
             and node.name == "_resolve_layout"
         )
         function_source = ast.get_source_segment(self.source, function)
-        self.assertIn('float(config["product_scale"])', function_source)
+        self.assertIn('config.get("product_scale") is None', function_source)
         self.assertNotIn('resolve("product_scale"', function_source)
 
 

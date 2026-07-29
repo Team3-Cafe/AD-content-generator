@@ -3,6 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from pathlib import Path
 
+from ..artifacts import keep_only, remove_pipeline_stage
 from ..generation import run_generation
 from ..preprocessing import run_preprocess
 from ..prompting import run_prompt_generation
@@ -12,6 +13,43 @@ from ..refinement import (
 )
 
 
+def _aspect_aware_generation_size(
+    source_size,
+    width=None,
+    height=None,
+    short_side=512,
+    max_long_side=1024,
+    multiple=8,
+):
+    if width is not None or height is not None:
+        if width is None or height is None:
+            raise ValueError("--width and --height must be supplied together.")
+        width = int(width)
+        height = int(height)
+        if width <= 0 or height <= 0:
+            raise ValueError("--width and --height must be greater than zero.")
+        if width % multiple or height % multiple:
+            raise ValueError("--width and --height must be multiples of 8.")
+        return width, height
+
+    source_width, source_height = (int(value) for value in source_size)
+    if source_width <= 0 or source_height <= 0:
+        raise ValueError("Source image dimensions must be greater than zero.")
+
+    scale = min(
+        float(short_side) / min(source_width, source_height),
+        float(max_long_side) / max(source_width, source_height),
+    )
+
+    def align(value):
+        return max(multiple, int(round(value / multiple)) * multiple)
+
+    return (
+        align(source_width * scale),
+        align(source_height * scale),
+    )
+
+
 @dataclass(frozen=True)
 class ImagePipelineResult:
     """Artifacts produced before advertisement copy is requested."""
@@ -19,8 +57,6 @@ class ImagePipelineResult:
     output_dir: Path
     info_path: Path
     prompt_json: Path
-    generated_image: Path
-    core_refined_image: Path
     identity_restored_image: Path
     eval_json: Path | None
 
@@ -31,6 +67,9 @@ def run_image_pipeline(
     output_dir="outputs/pipeline",
     gpt_model="gpt-5.4-nano",
     product_focus=1.0,
+    product_scale=None,
+    width=None,
+    height=None,
     brand_focus=0.5,
     layout_mode="layout",
     seed=42,
@@ -41,109 +80,188 @@ def run_image_pipeline(
     eval_options=None,
 ):
     """Run the pipeline through identity restoration, without ad copy."""
+
     output_dir = Path(output_dir)
-    output_dir.mkdir(parents=True, exist_ok=True)
+    output_dir.mkdir(
+        parents=True,
+        exist_ok=True,
+    )
+
     info_path = Path(info_path)
     eval_options = dict(eval_options or {})
     total_steps = 6 if evaluate else 5
 
-    print(f"[image 1/{total_steps}] Product preprocessing")
+    print(
+        f"[image 1/{total_steps}] "
+        "Product preprocessing"
+    )
 
     preprocessed = run_preprocess(
         image_path=image_path,
-        output_dir=output_dir / "01_preprocessed",
+        output_dir=(
+            output_dir / "01_preprocessed"
+        ),
+    )
+    generation_width, generation_height = _aspect_aware_generation_size(
+        preprocessed["original_size"],
+        width=width,
+        height=height,
     )
 
-    print(f"[image 2/{total_steps}] Scene prompt generation")
+    print(
+        f"[image 2/{total_steps}] "
+        "Scene prompt generation"
+    )
 
     prompt_json = run_prompt_generation(
         image_path=image_path,
         info_path=info_path,
-        output_path=output_dir / "02_prompt" / "ad_prompt.json",
+        output_path=(
+            output_dir
+            / "02_prompt"
+            / "ad_prompt.json"
+        ),
         model=gpt_model,
         product_focus=product_focus,
         brand_focus=brand_focus,
     )
 
     if layout_mode == "preserve":
-        generation_product = preprocessed["full_cutout"]
+        generation_product = (
+            preprocessed["full_cutout"]
+        )
     else:
-        generation_product = preprocessed["trimmed_cutout"]
+        generation_product = (
+            preprocessed["trimmed_cutout"]
+        )
 
     generation_kwargs = {
+        "width": generation_width,
+        "height": generation_height,
         "layout_mode": layout_mode,
+        "brand_focus": brand_focus,
+        "product_scale": product_scale,
+        "preprocess_metadata": preprocessed.get("metadata"),
         "seed": seed,
         "cpu_offload": cpu_offload,
     }
 
-    print(f"[image 3/{total_steps}] Conditioned diffusion generation")
+    print(
+        f"[image 3/{total_steps}] "
+        "Conditioned diffusion generation"
+    )
 
     generated = run_generation(
         product_image=generation_product,
         prompt_json=prompt_json,
-        output_dir=output_dir / "03_generated",
+        output_dir=(
+            output_dir / "03_generated"
+        ),
         pipe=diffusion_pipe,
         **generation_kwargs,
     )
 
-    refinement_product = preprocessed["trimmed_cutout"]
+    refinement_product = (
+        preprocessed["trimmed_cutout"]
+    )
 
-    print(f"[image 4/{total_steps}] Core product refinement")
+    print(
+        f"[image 4/{total_steps}] "
+        "Core product refinement"
+    )
 
     core_refined = run_core_refinement(
         generated_image=generated["image"],
         product_image=refinement_product,
         product_mask=generated["product_mask"],
-        output_dir=output_dir / "04_core_refined",
+        output_dir=(
+            output_dir / "04_core_refined"
+        ),
         product_focus=product_focus,
     )
 
-    print(f"[image 5/{total_steps}] Boundary and identity restoration")
+    print(
+        f"[image 5/{total_steps}] "
+        "Boundary and identity restoration"
+    )
 
-    identity_restored_image = run_identity_restoration(
-        input_image=core_refined,
-        product_image=refinement_product,
-        product_mask=generated["product_mask"],
-        prompt_json=prompt_json,
-        generation_result_json=generated.get("result_json"),
-        output_dir=output_dir / "05_final",
-        seed=seed,
-        product_focus=product_focus,
-        cpu_offload=cpu_offload,
-        pipe=diffusion_pipe,
+    identity_restored_image = (
+        run_identity_restoration(
+            input_image=core_refined,
+            product_image=refinement_product,
+            product_mask=generated[
+                "product_mask"
+            ],
+            prompt_json=prompt_json,
+            generation_result_json=generated.get(
+                "metadata"
+            ),
+            output_dir=(
+                output_dir / "05_final"
+            ),
+            seed=seed,
+            product_focus=product_focus,
+            cpu_offload=cpu_offload,
+            pipe=diffusion_pipe,
+        )
     )
 
     eval_json = None
+
     if evaluate:
         from ..eval import run_evaluation
 
-        print(f"[image 6/{total_steps}] Quantitative evaluation")
+        print(
+            f"[image 6/{total_steps}] "
+            "Quantitative evaluation"
+        )
 
         eval_dir = output_dir / "06_eval"
-        eval_dir.mkdir(parents=True, exist_ok=True)
-        eval_json = eval_dir / "eval_results.json"
+        eval_dir.mkdir(
+            parents=True,
+            exist_ok=True,
+        )
+
+        eval_json = (
+            eval_dir / "eval_results.json"
+        )
 
         eval_kwargs = {
             "metric_options": eval_options,
         }
+
         if eval_metrics is not None:
-            eval_kwargs["metrics"] = tuple(eval_metrics)
+            eval_kwargs["metrics"] = tuple(
+                eval_metrics
+            )
 
         run_evaluation(
-            final_image=identity_restored_image,
+            final_image=(
+                identity_restored_image
+            ),
             prompt_json=prompt_json,
             product_image=refinement_product,
-            product_mask=generated["product_mask"],
+            product_mask=generated[
+                "product_mask"
+            ],
             output_json=eval_json,
             **eval_kwargs,
         )
+
+    # Only these image-stage artifacts are consumed after this stage.
+    # Evaluation has already finished before temporary images are removed.
+    for stage_name in ("01_preprocessed", "03_generated", "04_core_refined"):
+        remove_pipeline_stage(output_dir, stage_name)
+    keep_only(output_dir / "05_final", (identity_restored_image,))
+    if eval_json is not None:
+        keep_only(output_dir / "06_eval", (eval_json,))
 
     return ImagePipelineResult(
         output_dir=output_dir,
         info_path=info_path,
         prompt_json=Path(prompt_json),
-        generated_image=Path(generated["image"]),
-        core_refined_image=Path(core_refined),
-        identity_restored_image=Path(identity_restored_image),
+        identity_restored_image=Path(
+            identity_restored_image
+        ),
         eval_json=eval_json,
     )

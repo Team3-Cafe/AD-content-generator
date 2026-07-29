@@ -5,6 +5,8 @@ from dataclasses import dataclass
 from pathlib import Path
 from time import perf_counter
 
+from ..artifacts import keep_only
+
 from dotenv import load_dotenv
 from openai import OpenAI
 
@@ -13,10 +15,8 @@ from .engine import apply_final_review_revision, build_design_layout
 from .io import image_to_data_url
 from .prompts import (
     DESIGN_SYSTEM_PROMPT,
-    FINAL_POLISH_SYSTEM_PROMPT,
     FINAL_REVIEW_SYSTEM_PROMPT,
     build_design_request,
-    build_final_polish_request,
     build_final_review_request,
 )
 from .renderer import (
@@ -26,7 +26,6 @@ from .renderer import (
 )
 from .schemas import (
     DESIGN_SPEC_SCHEMA,
-    FINAL_POLISH_SCHEMA,
     FINAL_REVIEW_FEATURES,
     FINAL_REVIEW_SCHEMA,
 )
@@ -539,13 +538,8 @@ def _applied_changes(before: dict, after: dict) -> list[dict]:
 @dataclass(frozen=True)
 class LayoutGenerationResult:
     output_dir: Path
-    design_analysis_json: Path
-    design_spec_json: Path
-    design_revision_json: Path
-    final_review_json: Path
     layout_json: Path
-    draft_image: Path
-    final_review_input_image: Path
+    first_vlm_image: Path
     rendered_image: Path
 
 
@@ -644,32 +638,6 @@ def _enforce_final_review_revision(review: dict, layout: dict) -> dict:
     return review
 
 
-def _enforce_final_polish(polish: dict, layout: dict) -> dict:
-    """Validate a complete polish target without forcing a new redesign."""
-    polish["needs_revision"] = True
-    polish["feedback_normalizations"] = (
-        _normalize_target_layout_roles(polish, layout)
-        + _normalize_feature_review_metadata(polish, layout)
-    )
-    consistency_issues = _review_consistency_issues(polish, layout)
-    if consistency_issues:
-        raise ValueError(
-            "Final polish target is inconsistent: "
-            + "; ".join(consistency_issues)
-        )
-    candidate = apply_final_review_revision(layout, polish)
-    summary = _material_revision_summary(
-        _layout_state(layout), _layout_state(candidate), layout["canvas"]
-    )
-    polish["requested_material_changes"] = summary
-    polish["material_feedback_warnings"] = _material_feedback_warnings(
-        polish, summary
-    )
-    polish["consistency_validated"] = True
-    polish["revision_mode"] = "rendered_redesign_polish"
-    return polish
-
-
 def _write_json(path: Path, document: dict) -> Path:
     path.write_text(
         json.dumps(document, ensure_ascii=False, indent=2),
@@ -689,7 +657,7 @@ def generate_prompt_layout(
     font_path: str | Path | None = None,
     client=None,
 ) -> LayoutGenerationResult:
-    """Create and refine one content-aware advertisement design."""
+    """Create a draft and independently redesign one advertisement."""
     image_path = Path(image_path).expanduser().resolve()
     output_dir = Path(output_dir).expanduser().resolve()
     if detail not in {"low", "high", "auto"}:
@@ -722,24 +690,6 @@ def generate_prompt_layout(
         temperature=temperature,
     )
 
-    analysis_document = {
-        "source_image": str(image_path),
-        "computed_image_space": computed_analysis,
-        "vlm_scene_analysis": design_spec["scene_analysis"],
-    }
-    analysis_path = _write_json(
-        output_dir / "design_analysis.json",
-        analysis_document,
-    )
-    spec_path = _write_json(
-        output_dir / "design_spec.json",
-        {
-            "model": model,
-            "copy": ad_copy,
-            **design_spec,
-        },
-    )
-
     draft_layout = build_design_layout(
         computed_analysis,
         ad_copy,
@@ -753,58 +703,12 @@ def generate_prompt_layout(
     draft_path = render_layout_image(
         image_path=image_path,
         layout=draft_layout,
-        output_path=output_dir / "design_draft.png",
+        output_path=output_dir / "vlm_1_ad.png",
         font_path=font_path,
     )
 
-    # Call 2: refine the first design using its exact rendered state.
-    polish = _request_json(
-        client,
-        model=model,
-        instructions=FINAL_POLISH_SYSTEM_PROMPT,
-        request_text=build_final_polish_request(
-            ad_copy, computed_analysis, _layout_state(draft_layout)
-        ),
-        image_path=[draft_path, image_path],
-        detail=detail,
-        schema_name="initial_ad_second_design_revision",
-        schema=FINAL_POLISH_SCHEMA,
-        temperature=temperature,
-    )
-    polish = _enforce_final_polish(polish, draft_layout)
-    before_revision_state = _layout_state(draft_layout)
-    revised_layout = apply_final_review_revision(draft_layout, polish)
-    revised_layout = fit_layout_typography(
-        revised_layout, font_path=font_path
-    )
-    revised_layout = ensure_layout_contrast(image_path, revised_layout)
-    revised_state = _layout_state(revised_layout)
-    revision_summary = _material_revision_summary(
-        before_revision_state, revised_state, revised_layout["canvas"]
-    )
-    polish["material_feedback_warnings"] = (
-        _material_feedback_warnings(polish, revision_summary)
-    )
-    polish["applied_target_layout"] = revised_state
-    polish["applied_material_changes"] = revision_summary
-    polish["applied_changes"] = _applied_changes(
-        before_revision_state, revised_state
-    )
-    polish["constraints_applied"] = revised_layout.get(
-        "final_review_constraints", []
-    )
-    revision_path = _write_json(
-        output_dir / "design_revision.json",
-        {"model": model, "stage": "second_design_revision", **polish},
-    )
-    final_review_input_path = render_layout_image(
-        image_path=image_path,
-        layout=revised_layout,
-        output_path=output_dir / "final_review_input.png",
-        font_path=font_path,
-    )
+    # Call 2: independently audit and redesign the rendered draft.
 
-    # Call 3: independently redesign the completed second-stage pixels.
     design_candidate_pool = build_design_candidate_pool(
         computed_analysis,
         ad_copy,
@@ -817,17 +721,17 @@ def generate_prompt_layout(
         request_text=build_final_review_request(
             ad_copy, computed_analysis, design_candidate_pool
         ),
-        image_path=[final_review_input_path, image_path],
+        image_path=[draft_path, image_path],
         detail=detail,
         schema_name="completed_ad_final_independent_redesign",
         schema=FINAL_REVIEW_SCHEMA,
         temperature=temperature,
     )
-    final_review = _enforce_final_review_revision(final_review, revised_layout)
+    final_review = _enforce_final_review_revision(final_review, draft_layout)
     final_review["review_attempts"] = 1
     final_review["design_candidate_pool"] = design_candidate_pool
-    before_redesign_state = _layout_state(revised_layout)
-    final_layout = apply_final_review_revision(revised_layout, final_review)
+    before_redesign_state = _layout_state(draft_layout)
+    final_layout = apply_final_review_revision(draft_layout, final_review)
     final_layout = fit_layout_typography(final_layout, font_path=font_path)
     final_layout = ensure_layout_contrast(image_path, final_layout)
     applied_final_state = _layout_state(final_layout)
@@ -851,11 +755,6 @@ def generate_prompt_layout(
     final_review["constraints_applied"] = final_layout.get(
         "final_review_constraints", []
     )
-    final_review_path = _write_json(
-        output_dir / "final_review.json",
-        {"model": model, "stage": "final_independent_redesign", **final_review},
-    )
-
     layout_document = {
         "model": model,
         "source_image": str(image_path),
@@ -863,7 +762,6 @@ def generate_prompt_layout(
         "copy": ad_copy,
         "design_rationale": design_spec["rationale"],
         "final_review_reason": final_review["reason"],
-        "revision_reason": polish["reason"],
         **final_layout,
     }
     layout_path = _write_json(output_dir / "layout.json", layout_document)
@@ -874,14 +772,11 @@ def generate_prompt_layout(
         font_path=font_path,
     )
 
+    keep_only(output_dir, (layout_path, draft_path, rendered_path))
+
     return LayoutGenerationResult(
         output_dir=output_dir,
-        design_analysis_json=analysis_path,
-        design_spec_json=spec_path,
-        design_revision_json=revision_path,
-        final_review_json=final_review_path,
         layout_json=layout_path,
-        draft_image=draft_path,
-        final_review_input_image=final_review_input_path,
+        first_vlm_image=draft_path,
         rendered_image=rendered_path,
     )

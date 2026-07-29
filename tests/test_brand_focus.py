@@ -297,6 +297,16 @@ class BrandFocusTests(unittest.TestCase):
         self.assertEqual(len(calls), 4)
         self.assertIsInstance(calls[0]["input"], list)
         self.assertIsInstance(calls[1]["input"], str)
+        self.assertTrue(calls[0]["text"]["format"]["strict"])
+        self.assertEqual(
+            calls[0]["text"]["format"]["name"],
+            "product_scene_plan",
+        )
+        self.assertTrue(calls[1]["text"]["format"]["strict"])
+        self.assertEqual(
+            calls[1]["text"]["format"]["name"],
+            "brand_background_prompts",
+        )
         self.assertIn("everyday_direction:", calls[1]["input"])
         self.assertIn("studio_direction:", calls[1]["input"])
     def test_brand_focus_range_is_validated(self):

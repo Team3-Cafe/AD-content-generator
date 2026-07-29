@@ -13,6 +13,11 @@ from adcg.brand_focus import (
 
 from .encoding import extract_json, image_to_data_url
 from .schema import normalize_prompt_json, normalize_scene_plan_json
+from .response_schemas import (
+    BRAND_PROMPT_SCHEMA,
+    SCENE_PLAN_SCHEMA,
+    strict_json_format,
+)
 from .system_prompt import BRAND_TREATMENT_SYSTEM_PROMPT, SYSTEM_PROMPT
 
 
@@ -288,6 +293,7 @@ def run_prompt_generation(
                 ],
             }
         ],
+        text=strict_json_format("product_scene_plan", SCENE_PLAN_SCHEMA),
     )
 
     scene_plan = normalize_scene_plan_json(
@@ -319,6 +325,10 @@ def run_prompt_generation(
         input=build_brand_environment_instruction(
             scene_plan=scene_plan,
             product_info=product_info,
+        ),
+        text=strict_json_format(
+            "brand_background_prompts",
+            BRAND_PROMPT_SCHEMA,
         ),
     )
     brand_prompt_design = extract_json(brand_response.output_text)

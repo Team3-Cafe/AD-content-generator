@@ -13,8 +13,6 @@ class PipelinesCliTests(unittest.TestCase):
             output_dir=Path("outputs/test"),
             info_path=Path("info.json"),
             prompt_json=Path("prompt.json"),
-            generated_image=Path("generated.png"),
-            core_refined_image=Path("core.png"),
             identity_restored_image=Path("identity.png"),
             eval_json=None,
         )
@@ -28,12 +26,18 @@ class PipelinesCliTests(unittest.TestCase):
                 "--info", "info.json",
                 "--output-dir", "outputs/test",
                 "--product-focus", "0.7",
+                "--product-scale", "0.55",
+                "--width", "768",
+                "--height", "512",
                 "--brand-focus", "0.3",
                 "--seed", "7",
             ])
 
         call = image_pipeline.call_args.kwargs
         self.assertEqual(call["product_focus"], 0.7)
+        self.assertEqual(call["product_scale"], 0.55)
+        self.assertEqual(call["width"], 768)
+        self.assertEqual(call["height"], 512)
         self.assertEqual(call["brand_focus"], 0.3)
         self.assertEqual(call["seed"], 7)
         document = json.loads(output.call_args.args[0])
@@ -44,7 +48,7 @@ class PipelinesCliTests(unittest.TestCase):
             output_dir=Path("outputs/test"),
             copy_json=Path("copy.json"),
             layout_json=Path("layout.json"),
-            final_review_json=Path("review.json"),
+            first_vlm_image=Path("vlm_1_ad.png"),
             final_image=Path("final.png"),
         )
         with patch(
@@ -73,6 +77,7 @@ class PipelinesCliTests(unittest.TestCase):
             "font_path": "font.ttf",
         })
         document = json.loads(output.call_args.args[0])
+        self.assertEqual(document["first_vlm_image"], "vlm_1_ad.png")
         self.assertEqual(document["final_image"], "final.png")
 
 
