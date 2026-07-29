@@ -6,10 +6,10 @@
 
 | 이름 | 담당 업무 | 협업 일지 |
 |---|---|---|
-| 김경제 | 전체 파이프라인 설계 및 이미지 · 문구 평가 지표 구축 | [협업 일지](https://shrub-weight-c16.notion.site/AI_9-_-_Daily_-_part_3-3ac2b0aa2cb280ae9f25faf6925c39a4?source=copy_link) |
-| 김현수 | 이미지 생성 모델 및 조건부 이미지 생성 파이프라인 구축 | [협업 일지](https://app.notion.com/p/hyeonsukim/390f5734f6cd8090ad46f884d4d8d273?source=copy_link) |
-| 신희정 | 광고 문구 생성 모델 및 카피라이팅 파이프라인 구축 |  |
-| 원숙현 | UI/UX 설계 및 Streamlit 기반 프론트엔드 구축 | [협업 일지](https://app.notion.com/p/_-39112f601f4380de911de3c1a4a05330?source=copy_link) |
+| 김경제 | 레이아웃 자동 합성 및 이미지 생성 프롬프트 구축 | [협업 일지](https://shrub-weight-c16.notion.site/AI_9-_-_Daily_-_part_3-3ac2b0aa2cb280ae9f25faf6925c39a4?source=copy_link) |
+| 김현수 | GitHub 관리 및 이미지 생성 모델 및 조건부 이미지 생성 파이프라인 구축 | [협업 일지](https://app.notion.com/p/hyeonsukim/390f5734f6cd8090ad46f884d4d8d273?source=copy_link) |
+| 신희정 | 광고 문구 생성 모델 구축 |  |
+| 원숙현 | Streamlit 기반 UI/UX 설계 및 프론트엔드 구축 | [협업 일지](https://app.notion.com/p/_-39112f601f4380de911de3c1a4a05330?source=copy_link) |
 | 정신우 | 이미지 생성 프롬프트 설계 및 백엔드 구축 | [협업 일지](https://app.notion.com/p/3ac77551411b801aa7d3f0b2ed5deb61) |
 
 ## Tech Stack
