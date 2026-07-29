@@ -289,3 +289,6 @@ outputs/pipeline/demo/
 | `cancelled` | 작업 취소 |
 
 이 구조는 모델 중복 로드와 GPU 메모리 충돌을 줄이고, 여러 사용자가 요청하는 환경에서도 안정적으로 이미지 생성 작업을 처리하도록 설계되었습니다.
+
+## 0. 이전 작업 Repository
+[AD-content-generator](https://github.com/hskim7838/AD-content-generator)
