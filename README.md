@@ -2,6 +2,10 @@
 
 상품 이미지와 매장 정보를 입력받아 광고 이미지, 광고 문구, 문구 레이아웃까지 자동으로 생성하는 소상공인용 광고 콘텐츠 제작 파이프라인입니다.
 
+## 보고서 링크 / Report url: 
+
+https://1drv.ms/p/c/1e596808fa24b58e/IQCAiXEZ7fbZQLaEDY97QqazAXFAe7eYsLm33zTbU0ILLhc?e=RYYUcu 
+
 ## Team Roles
 
 | 이름 | 담당 업무 | 협업 일지 |
